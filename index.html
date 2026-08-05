@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>스마트 일정 관리 (모바일 최적화)</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Security Auth Overlay -->
+  <div id="authModalOverlay" class="auth-modal-overlay active">
+    <div class="auth-card">
+      <div class="auth-icon">🔒</div>
+      <h2 class="auth-title">보안 일정 시스템 접속</h2>
+      <p class="auth-subtitle">일정을 열람하려면 비밀번호를 입력해주세요.</p>
+      
+      <div class="auth-input-group">
+        <input type="password" id="authPasswordInput" class="auth-input" placeholder="비밀번호 입력..." autocomplete="off" />
+        <button id="authSubmitBtn" class="auth-submit-btn">접속하기</button>
+      </div>
+      
+      <div id="authErrorMsg" class="auth-error-msg hidden"></div>
+      <div id="authLockoutTimer" class="auth-lockout-timer hidden"></div>
+    </div>
+  </div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <!-- 1st Row: Centered Week Navigator -->
+      <div class="week-navigator centered">
+        <button class="nav-btn" id="prevWeekBtn">◀</button>
+        <h1 class="week-title" id="weekTitle">2026년 8월 2주차</h1>
+        <button class="nav-btn" id="nextWeekBtn">▶</button>
+        <button class="today-btn" id="todayBtn">오늘</button>
+      </div>
+
+      <!-- 2nd Row: 3 Summary Alert Chips -->
+      <div class="alert-row">
+        <button class="alert-chip alert-unpaid" id="unpaidSummaryBtn">전체 미결제 <span id="unpaidCount">1</span>건 🚨</button>
+        <button class="alert-chip alert-unapplied" id="unappliedSummaryBtn">전체 미신청 <span id="unappliedCount">0</span>건 📋</button>
+        <button class="alert-chip alert-unapproved" id="unapprovedSummaryBtn">전체 미승인 <span id="unapprovedCount">1</span>건 ⏳</button>
+      </div>
+    </header>
+
+    <!-- 3rd Row: Quick Filter Chips & Multi-Edit Mode Switch -->
+    <div class="filter-bar">
+      <button class="filter-chip active" data-filter="all">전체</button>
+      <button class="filter-chip" data-filter="jinju">진주</button>
+      <button class="filter-chip" data-filter="seoul">서울</button>
+      <button class="filter-chip" data-filter="transport">교통</button>
+      <button class="filter-chip" data-filter="unpaid">미결제</button>
+      <button class="filter-chip" data-filter="unapplied">미신청</button>
+      <button class="filter-chip" data-filter="unapproved">미승인</button>
+      <button class="filter-chip multi-edit-chip" id="toggleMultiEditBtn">✏️ 다중 편집</button>
+    </div>
+
+    <!-- Main Schedule Table (Grid) -->
+    <main class="table-wrapper">
+      <table class="schedule-table">
+        <thead>
+          <tr>
+            <th class="col-date">날짜/요일</th>
+            <th class="col-time">시간</th>
+            <th class="col-region">지역</th>
+            <th class="col-clinic">진료</th>
+            <th class="col-trans">교통</th>
+            <th class="col-hr">국인체</th>
+            <th class="col-ot">수당</th>
+          </tr>
+        </thead>
+        <tbody id="scheduleBody">
+          <!-- Dynamic JS rendering -->
+        </tbody>
+      </table>
+    </main>
+
+    <!-- Multi-Edit Action Bottom Bar Group -->
+    <div class="bottom-action-group">
+      <!-- Copy Status Toast Bar (Right above bottom bar) -->
+      <div class="copy-buffer-bar hidden" id="copyBufferBar">
+        <span>📋 <strong id="copiedItemLabel">8.10(월) 오전</strong> 일정 복사됨</span>
+        <button class="clear-copy-btn" id="clearCopyBtn" title="복사 취소">✕</button>
+      </div>
+
+      <!-- Multi-Edit Action Bottom Bar (Copy, Paste, Jinju Fill) -->
+      <div class="multi-action-bar hidden" id="multiActionBar">
+        <span id="selectedCountLabel">0개 선택됨</span>
+        <div class="multi-btn-row">
+          <button class="multi-action-btn copy-btn" id="bulkCopyBtn">📋 복사</button>
+          <button class="multi-action-btn paste-btn" id="bulkPasteBtn">📥 붙여넣기</button>
+          <button class="multi-action-btn jinju-btn" id="bulkJinjuBtn">⚡ 진주/진료O</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Bottom Sheet Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+      <div class="bottom-sheet" id="bottomSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h3 id="modalDateTitle">8월 10일 (월) 오전</h3>
+          <button class="close-btn" id="closeModalBtn">✕</button>
+        </div>
+
+        <div class="sheet-body">
+          <!-- Region Field -->
+          <div class="form-group">
+            <label>체류 지역</label>
+            <div class="btn-group" id="regionBtnGroup">
+              <button type="button" class="option-btn" data-val="서울">서울</button>
+              <button type="button" class="option-btn" data-val="진주">진주</button>
+              <button type="button" class="option-btn" data-val="이동">이동</button>
+              <button type="button" class="option-btn" data-val="기타">기타</button>
+            </div>
+            <input type="text" class="input-text sub-input hidden" id="customRegionInput" placeholder="체류 지역 직접 입력">
+          </div>
+
+          <!-- Clinic Field -->
+          <div class="form-group">
+            <label>진료 구분</label>
+            <div class="btn-group" id="clinicBtnGroup">
+              <button type="button" class="option-btn" data-val="O">O</button>
+              <button type="button" class="option-btn" data-val="행정">행정</button>
+              <button type="button" class="option-btn" data-val="휴가">휴가</button>
+              <button type="button" class="option-btn" data-val="기타">기타</button>
+            </div>
+            <input type="text" class="input-text sub-input hidden" id="customClinicInput" placeholder="진료 구분 직접 입력">
+          </div>
+
+          <!-- Transport Section -->
+          <div class="section-card trans-card">
+            <div class="card-header">
+              <span>교통</span>
+              <div class="toggle-group" id="transStatusToggle">
+                <button type="button" class="status-toggle-btn" data-val="결제X">결제X</button>
+                <button type="button" class="status-toggle-btn" data-val="결제O">결제O</button>
+              </div>
+            </div>
+
+            <div class="input-row-split">
+              <select class="select-btn" id="transSelectCategory">
+                <option value="">- 구분 -</option>
+                <option value="KTX">KTX</option>
+                <option value="고속버스">고속버스</option>
+                <option value="기타">기타</option>
+              </select>
+
+              <div class="custom-input-wrapper hidden" id="customTransWrapper">
+                <input type="text" class="input-text sub-input-inline" id="customTransCategoryInput" placeholder="기타 수정">
+                <button type="button" class="reset-category-btn" id="resetTransCategoryBtn" title="목록으로 복구">↺</button>
+              </div>
+
+              <input type="text" class="input-text inline-input" id="transDetailInput" placeholder="상세 (예: 서울 05:03)">
+            </div>
+          </div>
+
+          <!-- HR Section -->
+          <div class="section-card hr-card">
+            <div class="card-header">
+              <span>국인체</span>
+              <div class="toggle-group" id="hrStatusToggle">
+                <button type="button" class="status-toggle-btn" data-val="신청X">신청X</button>
+                <button type="button" class="status-toggle-btn" data-val="신청O">신청O</button>
+                <button type="button" class="status-toggle-btn" data-val="승인O">승인O</button>
+              </div>
+            </div>
+
+            <div class="input-row-split">
+              <select class="select-btn" id="hrSelectCategory">
+                <option value="">- 구분 -</option>
+                <option value="연가">연가</option>
+                <option value="당직OFF">당직OFF</option>
+                <option value="청원휴가">청원휴가</option>
+                <option value="기타">기타</option>
+              </select>
+
+              <div class="custom-input-wrapper hidden" id="customHrWrapper">
+                <input type="text" class="input-text sub-input-inline" id="customHrCategoryInput" placeholder="기타 수정">
+                <button type="button" class="reset-category-btn" id="resetHrCategoryBtn" title="목록으로 복구">↺</button>
+              </div>
+
+              <input type="text" class="input-text inline-input" id="hrDetailInput" placeholder="상세 (예: 1시간)">
+            </div>
+          </div>
+
+          <!-- Overtime Section -->
+          <div class="section-card ot-card">
+            <div class="card-header">
+              <span>시간외수당</span>
+              <div class="toggle-group" id="otStatusToggle">
+                <button type="button" class="status-toggle-btn" data-val="신청X">신청X</button>
+                <button type="button" class="status-toggle-btn" data-val="신청O">신청O</button>
+                <button type="button" class="status-toggle-btn" data-val="승인O">승인O</button>
+              </div>
+            </div>
+
+            <div class="input-row-split">
+              <select class="select-btn" id="otSelectCategory">
+                <option value="">- 구분 -</option>
+                <option value="야간">야간</option>
+                <option value="당직">당직</option>
+                <option value="기타">기타</option>
+              </select>
+
+              <div class="custom-input-wrapper hidden" id="customOtWrapper">
+                <input type="text" class="input-text sub-input-inline" id="customOtCategoryInput" placeholder="기타 수정">
+                <button type="button" class="reset-category-btn" id="resetOtCategoryBtn" title="목록으로 복구">↺</button>
+              </div>
+
+              <input type="text" class="input-text inline-input" id="otDetailInput" placeholder="상세 (예: 2시간)">
+            </div>
+          </div>
+
+          <!-- Quick Fill Tools inside Modal -->
+          <div class="modal-tools">
+            <button type="button" class="tool-btn copy-tool-btn" id="copyScheduleBtn">📋 이 일정 복사</button>
+            <button type="button" class="tool-btn apply-weekdays-btn" id="applyWeekdaysBtn">⚡ 평일 전체(화~목) 동일 적용</button>
+          </div>
+
+          <!-- Save Button -->
+          <button type="button" class="save-btn" id="saveScheduleBtn">저장</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary List Collector Modal -->
+    <div class="modal-overlay" id="summaryModalOverlay">
+      <div class="bottom-sheet" id="summaryBottomSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h3 id="summaryModalTitle">전체 미결제 모아보기</h3>
+          <button class="close-btn" id="closeSummaryModalBtn">✕</button>
+        </div>
+
+        <div class="sheet-body">
+          <div class="summary-list" id="summaryListContainer">
+            <!-- Dynamic Collection Cards -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
