@@ -1,0 +1,9 @@
+# Temporary test data & logs
+*.json
+*.log
+*.tmp
+scratch/
+
+# Keep standard package files if any
+!package.json
+!package-lock.json
