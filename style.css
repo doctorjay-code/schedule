@@ -219,6 +219,34 @@ body {
   margin-left: 4px;
 }
 
+.today-btn.sync-btn {
+  background-color: #10B981;
+  color: white;
+  margin-left: 2px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  transition: all 0.2s ease;
+}
+
+.today-btn.sync-btn:hover {
+  background-color: #059669;
+}
+
+.sync-icon {
+  display: inline-block;
+  transition: transform 0.3s ease;
+}
+
+.sync-btn.spinning .sync-icon {
+  animation: spinAnimation 0.8s linear infinite;
+}
+
+@keyframes spinAnimation {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 /* 3 Alert Summary Chips */
 .alert-row {
   display: flex;

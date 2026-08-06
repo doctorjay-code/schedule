@@ -2,1340 +2,25 @@
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwWDkrKXfT-eKbJS6D5uhvfgmHchGm2WSAfuTKRCvvp-uHrV01nI8nJw6K4qGsm8kEcMQ/exec";
 
 // Master Schedule Database (7 Weeks loaded)
-const allWeeksData = [
-  {
-    "title": "2026년 7월 4주차 (7.20 ~ 7.26)",
-    "items": [
-      {
-        "id": 1,
-        "date": "7. 20.(월)",
-        "time": "오전",
-        "region": "서울",
-        "clinic": "휴가",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "승인O",
-        "hrDetail": "당직OFF",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 2,
-        "date": "7. 20.(월)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 3,
-        "date": "7. 21.(화)",
-        "time": "오전",
-        "region": "서울",
-        "clinic": "행정",
-        "transStatus": "결제O",
-        "transDetail": "KTX 서울 05:03",
-        "hrStatus": "승인O",
-        "hrDetail": "연가 1시간",
-        "otStatus": "승인O",
-        "otDetail": "야간 2시간"
-      },
-      {
-        "id": 4,
-        "date": "7. 21.(화)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 5,
-        "date": "7. 22.(수)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 6,
-        "date": "7. 22.(수)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 7,
-        "date": "7. 23.(목)",
-        "time": "오전",
-        "region": "서울",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 8,
-        "date": "7. 23.(목)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 9,
-        "date": "7. 24.(금)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "결제O",
-        "transDetail": "신화호 진주 17:53 - 대구",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 10,
-        "date": "7. 24.(금)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 11,
-        "date": "7. 25.(토)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 12,
-        "date": "7. 25.(토)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 13,
-        "date": "7. 26.(일)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 14,
-        "date": "7. 26.(일)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      }
-    ]
-  },
-  {
-    "title": "2026년 7월 5주차 (7.27 ~ 8.02)",
-    "items": [
-      {
-        "id": 1,
-        "date": "7. 27.(월)",
-        "time": "오전",
-        "region": "서울",
-        "clinic": "휴가",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "승인O",
-        "hrDetail": "청원휴가",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 2,
-        "date": "7. 27.(월)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 3,
-        "date": "7. 28.(화)",
-        "time": "오전",
-        "region": "서울",
-        "clinic": "행정",
-        "transStatus": "결제O",
-        "transDetail": "KTX 서울 05:03",
-        "hrStatus": "승인O",
-        "hrDetail": "연가 1시간",
-        "otStatus": "승인O",
-        "otDetail": "야간 1시간"
-      },
-      {
-        "id": 4,
-        "date": "7. 28.(화)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 5,
-        "date": "7. 29.(수)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 6,
-        "date": "7. 29.(수)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 7,
-        "date": "7. 30.(목)",
-        "time": "오전",
-        "region": "서울",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 8,
-        "date": "7. 30.(목)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 9,
-        "date": "7. 31.(금)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 10,
-        "date": "7. 31.(금)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 11,
-        "date": "8. 1.(토)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 12,
-        "date": "8. 1.(토)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 13,
-        "date": "8. 2.(일)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 14,
-        "date": "8. 2.(일)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      }
-    ]
-  },
-  {
-    "title": "2026년 8월 1주차 (8.03 ~ 8.09)",
-    "items": [
-      {
-        "id": 1,
-        "date": "8. 3.(월)",
-        "time": "오전",
-        "region": "서울",
-        "clinic": "휴가",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "승인O",
-        "hrDetail": "연가",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 2,
-        "date": "8. 3.(월)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 3,
-        "date": "8. 4.(화)",
-        "time": "오전",
-        "region": "서울",
-        "clinic": "행정",
-        "transStatus": "결제O",
-        "transDetail": "KTX 서울 05:03",
-        "hrStatus": "승인O",
-        "hrDetail": "연가 1시간",
-        "otStatus": "승인O",
-        "otDetail": "야간 2시간"
-      },
-      {
-        "id": 4,
-        "date": "8. 4.(화)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 5,
-        "date": "8. 5.(수)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 6,
-        "date": "8. 5.(수)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 7,
-        "date": "8. 6.(목)",
-        "time": "오전",
-        "region": "서울",
-        "clinic": "O",
-        "transStatus": "결제O",
-        "transDetail": "KTX 서울 05:03",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 8,
-        "date": "8. 6.(목)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 9,
-        "date": "8. 7.(금)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "행정",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 10,
-        "date": "8. 7.(금)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "행정",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 11,
-        "date": "8. 8.(토)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 12,
-        "date": "8. 8.(토)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 13,
-        "date": "8. 9.(일)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 14,
-        "date": "8. 9.(일)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      }
-    ]
-  },
-  {
-    "title": "2026년 8월 2주차 (8.10 ~ 8.16)",
-    "items": [
-      {
-        "id": 1,
-        "date": "8. 10.(월)",
-        "time": "오전",
-        "region": "서울",
-        "clinic": "행정",
-        "transStatus": "결제O",
-        "transDetail": "KTX 서울 05:03",
-        "hrStatus": "승인O",
-        "hrDetail": "연가 1시간",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 2,
-        "date": "8. 10.(월)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 3,
-        "date": "8. 11.(화)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "승인O",
-        "otDetail": "야간 2시간"
-      },
-      {
-        "id": 4,
-        "date": "8. 11.(화)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 5,
-        "date": "8. 12.(수)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "승인O",
-        "otDetail": "당직 4시간"
-      },
-      {
-        "id": 6,
-        "date": "8. 12.(수)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 7,
-        "date": "8. 13.(목)",
-        "time": "오전",
-        "region": "서울",
-        "clinic": "사격훈련",
-        "transStatus": "결제X",
-        "transDetail": "고속버스 진주혁신 13:00 - 서울",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 8,
-        "date": "8. 13.(목)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "행정",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 9,
-        "date": "8. 14.(금)",
-        "time": "오전",
-        "region": "서울",
-        "clinic": "휴가",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "승인O",
-        "hrDetail": "당직OFF (8/12 수)",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 10,
-        "date": "8. 14.(금)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 11,
-        "date": "8. 15.(토)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "광복절",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 12,
-        "date": "8. 15.(토)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "광복절",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 13,
-        "date": "8. 16.(일)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 14,
-        "date": "8. 16.(일)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      }
-    ]
-  },
-  {
-    "title": "2026년 8월 3주차 (8.17 ~ 8.23)",
-    "items": [
-      {
-        "id": 1,
-        "date": "8. 17.(월)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "대체휴무",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 2,
-        "date": "8. 17.(월)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "대체휴무",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 3,
-        "date": "8. 18.(화)",
-        "time": "오전",
-        "region": "서울",
-        "clinic": "행정",
-        "transStatus": "결제O",
-        "transDetail": "KTX 서울 05:03",
-        "hrStatus": "신청O",
-        "hrDetail": "연가 1시간",
-        "otStatus": "승인O",
-        "otDetail": "야간 2시간"
-      },
-      {
-        "id": 4,
-        "date": "8. 18.(화)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 5,
-        "date": "8. 19.(수)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 6,
-        "date": "8. 19.(수)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 7,
-        "date": "8. 20.(목)",
-        "time": "오전",
-        "region": "서울",
-        "clinic": "O",
-        "transStatus": "결제O",
-        "transDetail": "KTX 진주 17:36 - 서울",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 8,
-        "date": "8. 20.(목)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 9,
-        "date": "8. 21.(금)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "행정",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 10,
-        "date": "8. 21.(금)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "행정",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 11,
-        "date": "8. 22.(토)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 12,
-        "date": "8. 22.(토)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 13,
-        "date": "8. 23.(일)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 14,
-        "date": "8. 23.(일)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      }
-    ]
-  },
-  {
-    "title": "2026년 8월 4주차 (8.24 ~ 8.30)",
-    "items": [
-      {
-        "id": 1,
-        "date": "8. 24.(월)",
-        "time": "오전",
-        "region": "서울",
-        "clinic": "휴가",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "신청O",
-        "hrDetail": "청원휴가",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 2,
-        "date": "8. 24.(월)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 3,
-        "date": "8. 25.(화)",
-        "time": "오전",
-        "region": "서울",
-        "clinic": "행정",
-        "transStatus": "결제X",
-        "transDetail": "KTX 서울 05:03",
-        "hrStatus": "신청O",
-        "hrDetail": "연가 1시간",
-        "otStatus": "승인O",
-        "otDetail": "야간 2시간"
-      },
-      {
-        "id": 4,
-        "date": "8. 25.(화)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 5,
-        "date": "8. 26.(수)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "행정",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "승인O",
-        "otDetail": "당직 4시간"
-      },
-      {
-        "id": 6,
-        "date": "8. 26.(수)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 7,
-        "date": "8. 27.(목)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 8,
-        "date": "8. 27.(목)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 9,
-        "date": "8. 28.(금)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "행정",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 10,
-        "date": "8. 28.(금)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 11,
-        "date": "8. 29.(토)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "승인O",
-        "otDetail": "당직 4시간"
-      },
-      {
-        "id": 12,
-        "date": "8. 29.(토)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 13,
-        "date": "8. 30.(일)",
-        "time": "오전",
-        "region": "이동",
-        "clinic": "-",
-        "transStatus": "결제X",
-        "transDetail": "KTX 진주 09:59 - 동대구",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 14,
-        "date": "8. 30.(일)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      }
-    ]
-  },
-  {
-    "title": "2026년 9월 1주차 (8.31 ~ 9.06)",
-    "items": [
-      {
-        "id": 1,
-        "date": "8. 31.(월)",
-        "time": "오전",
-        "region": "서울",
-        "clinic": "휴가",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "신청O",
-        "hrDetail": "당직OFF (8/29 토)",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 2,
-        "date": "8. 31.(월)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 3,
-        "date": "9. 1.(화)",
-        "time": "오전",
-        "region": "서울",
-        "clinic": "휴가",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "신청O",
-        "hrDetail": "당직OFF (8/26 수)",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 4,
-        "date": "9. 1.(화)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 5,
-        "date": "9. 2.(수)",
-        "time": "오전",
-        "region": "서울",
-        "clinic": "행정",
-        "transStatus": "결제X",
-        "transDetail": "KTX 서울 05:03",
-        "hrStatus": "신청O",
-        "hrDetail": "연가 1시간",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 6,
-        "date": "9. 2.(수)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 7,
-        "date": "9. 3.(목)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 8,
-        "date": "9. 3.(목)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 9,
-        "date": "9. 4.(금)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": "[예정] 당직 4시간"
-      },
-      {
-        "id": 10,
-        "date": "9. 4.(금)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "O",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 11,
-        "date": "9. 5.(토)",
-        "time": "오전",
-        "region": "이동",
-        "clinic": "-",
-        "transStatus": "결제X",
-        "transDetail": "KTX 진주 09:59 - 동대구",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 12,
-        "date": "9. 5.(토)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 13,
-        "date": "9. 6.(일)",
-        "time": "오전",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      },
-      {
-        "id": 14,
-        "date": "9. 6.(일)",
-        "time": "오후",
-        "region": "진주",
-        "clinic": "-",
-        "transStatus": "",
-        "transDetail": "",
-        "hrStatus": "",
-        "hrDetail": "",
-        "otStatus": "",
-        "otDetail": ""
-      }
-    ]
-  }
-];
+// Dynamic Schedule Database (Loaded from Google Sheets API)
+const allWeeksData = [];
 
-// Smart Auto Today Week Detector
 function getTodayWeekIndex() {
-  const now = new Date();
-  const month = now.getMonth() + 1; // 8
-  const date = now.getDate();       // 6
-  const searchStr = `${month}. ${date}.`; // e.g. "8. 6."
+  if (allWeeksData.length === 0) return 0;
+  const today = new Date();
+  const m = today.getMonth() + 1;
+  const d = today.getDate();
+  const todayStr = `${m}. ${d}.`;
 
   for (let i = 0; i < allWeeksData.length; i++) {
-    const items = allWeeksData[i].items || [];
-    if (items.some(it => it.date.includes(searchStr))) {
+    if (allWeeksData[i].items && allWeeksData[i].items.some(it => it.date.includes(todayStr))) {
       return i;
     }
   }
-
-  // Fallback to August 1st week if exact match not found
-  for (let i = 0; i < allWeeksData.length; i++) {
-    if (allWeeksData[i].title.includes('8월 1주차')) return i;
-  }
-  return 2;
+  return 0;
 }
 
-let currentWeekIndex = getTodayWeekIndex(); // Auto Detect Today's Week!
+let currentWeekIndex = 0;
 let weekData = [];
 
 let activeItem = null;
@@ -1345,7 +30,7 @@ let isMultiEditMode = false;
 let selectedCells = [];
 
 // Security & Lockout State
-const SECURITY_PASSWORD_HASH = '99bcb0d80ea3582c7169a650c52cffc81c8dfdb82641d417d047e61d359f0b46'; // Custom Password with letters + numbers + special chars
+const SECURITY_PASSWORD_HASH = 'f0fee696ab48d4321ec49b94c7efb48a02da6f9798c3f6afc95c626d028cb7e0'; // Password: 140817!
 const authModalOverlay = document.getElementById('authModalOverlay');
 const authPasswordInput = document.getElementById('authPasswordInput');
 const authSubmitBtn = document.getElementById('authSubmitBtn');
@@ -1504,6 +189,11 @@ async function handleAuthSubmit() {
     failedAttempts = 0;
     localStorage.removeItem('security_failed_attempts');
     authPasswordInput.value = '';
+    if (allWeeksData && allWeeksData.length > 0) {
+      loadWeekData(currentWeekIndex);
+    } else {
+      syncFromGoogleSheets();
+    }
   } else {
     failedAttempts++;
     localStorage.setItem('security_failed_attempts', failedAttempts.toString());
@@ -1525,7 +215,8 @@ async function handleAuthSubmit() {
 async function syncFromGoogleSheets() {
   if (!GAS_WEB_APP_URL) return;
   try {
-    const res = await fetch(GAS_WEB_APP_URL);
+    const freshUrl = GAS_WEB_APP_URL + (GAS_WEB_APP_URL.includes('?') ? '&' : '?') + 't=' + Date.now();
+    const res = await fetch(freshUrl, { cache: 'no-store' });
     if (res.ok) {
       const records = await res.json();
       if (Array.isArray(records) && records.length > 0) {
@@ -1541,50 +232,56 @@ async function syncFromGoogleSheets() {
 function parseGoogleSheetsRecordsUniversal(records) {
   if (!Array.isArray(records) || records.length === 0) return;
 
-  const is11Col = records.some(r => (r.week && r.date && r.time) || (r.date && r.time && r.region));
+  const getProp = (obj, propName) => {
+    if (!obj) return '';
+    const key = Object.keys(obj).find(k => k.toLowerCase() === propName.toLowerCase());
+    return key ? String(obj[key] || '').trim() : '';
+  };
+
+  const is11Col = records.some(r => (getProp(r, 'week') || getProp(r, '주차')) && (getProp(r, 'date') || getProp(r, '날짜/요일')));
   if (is11Col) {
     const grouped = {};
     records.forEach(r => {
-      const weekName = r.week || '';
-      const dateVal = r.date || '';
-      if (!dateVal) return;
-      
-      let matchedKey = weekName;
-      if (!matchedKey) {
-        allWeeksData.forEach(wObj => {
-          if (wObj.items.some(it => it.date === dateVal)) {
-            matchedKey = wObj.title.split(' (')[0];
-          }
-        });
-      }
+      const weekName = getProp(r, 'week') || getProp(r, '주차') || '';
+      const dateVal = getProp(r, 'date') || getProp(r, '날짜/요일') || '';
+      const timeVal = getProp(r, 'time') || getProp(r, '시간') || '오전';
+      if (!dateVal || !weekName) return;
 
-      if (!matchedKey) matchedKey = allWeeksData[currentWeekIndex].title.split(' (')[0];
-      if (!grouped[matchedKey]) grouped[matchedKey] = [];
-      
-      const isHoliday = ("토" in dateVal || "일" in dateVal || "광복절" in (r.clinic || '') || "휴무" in (r.clinic || ''));
-      grouped[matchedKey].push({
-        id: grouped[matchedKey].length + 1,
+      if (!grouped[weekName]) grouped[weekName] = [];
+      const clinicVal = getProp(r, 'clinic') || getProp(r, '진료') || '';
+      const isHoliday = (dateVal.includes("토") || dateVal.includes("일") || clinicVal.includes("광복절") || clinicVal.includes("휴무"));
+
+      grouped[weekName].push({
+        id: grouped[weekName].length + 1,
         date: dateVal,
-        time: r.time || '오전',
-        region: r.region || '진주',
-        clinic: r.clinic || '-',
-        transStatus: r.transStatus || '',
-        transDetail: r.transDetail || '',
-        hrStatus: r.hrStatus || '',
-        hrDetail: r.hrDetail || '',
-        otStatus: r.otStatus || '',
-        otDetail: r.otDetail || '',
+        time: timeVal,
+        region: getProp(r, 'region') || getProp(r, '지역') || '',
+        clinic: clinicVal,
+        transStatus: getProp(r, 'transStatus') || getProp(r, '교통 상태') || '',
+        transDetail: getProp(r, 'transDetail') || getProp(r, '교통 상세') || '',
+        hrStatus: getProp(r, 'hrStatus') || getProp(r, '국인체 상태') || '',
+        hrDetail: getProp(r, 'hrDetail') || getProp(r, '국인체 상세') || '',
+        otStatus: getProp(r, 'otStatus') || getProp(r, '수당 상태') || '',
+        otDetail: getProp(r, 'otDetail') || getProp(r, '수당 상세') || '',
         isHoliday: isHoliday
       });
     });
 
-    allWeeksData.forEach(wObj => {
-      const wName = wObj.title.split(' (')[0];
-      if (grouped[wName] && grouped[wName].length > 0) {
-        wObj.items = grouped[wName];
-      }
-    });
+    const keys = Object.keys(grouped);
+    if (keys.length > 0) {
+      allWeeksData.length = 0;
+      keys.forEach(wTitle => {
+        const items = grouped[wTitle];
+        const firstDate = items[0].date ? items[0].date.split('(')[0].trim() : '';
+        const lastDate = items[items.length - 1].date ? items[items.length - 1].date.split('(')[0].trim() : '';
+        allWeeksData.push({
+          title: `${wTitle} (${firstDate} ~ ${lastDate})`,
+          items: items
+        });
+      });
+    }
 
+    currentWeekIndex = getTodayWeekIndex();
     loadWeekData(currentWeekIndex);
     saveLocalStorageData();
     return;
@@ -1735,6 +432,7 @@ function saveLocalStorageData() {
 
 // Load Specified Week Data
 function loadWeekData(index) {
+  if (!allWeeksData || allWeeksData.length === 0) return;
   if (index < 0) index = 0;
   if (index >= allWeeksData.length) index = allWeeksData.length - 1;
   currentWeekIndex = index;
@@ -1751,15 +449,20 @@ function loadWeekData(index) {
 }
 
 // Calculate Dynamic Summary Counts Across Current Week
+// Calculate Dynamic Summary Counts Across All 1-Year Schedules
 function updateSummaryCounts() {
   let unpaid = 0;
   let unapplied = 0;
   let unapproved = 0;
 
-  weekData.forEach(item => {
-    if (item.transStatus === '결제X') unpaid++;
-    if (item.hrStatus === '신청X' || item.otStatus === '신청X') unapplied++;
-    if (item.hrStatus === '신청O' || item.otStatus === '신청O') unapproved++;
+  allWeeksData.forEach(wObj => {
+    if (wObj.items && Array.isArray(wObj.items)) {
+      wObj.items.forEach(item => {
+        if (item.transStatus === '결제X') unpaid++;
+        if (item.hrStatus === '신청X' || item.otStatus === '신청X') unapplied++;
+        if (item.hrStatus === '신청O' || item.otStatus === '신청O') unapproved++;
+      });
+    }
   });
 
   unpaidCountElem.textContent = unpaid;
@@ -2247,19 +950,34 @@ function closeModal() {
 }
 
 // Open Summary Collector Modal
+// Open Summary Collector Modal Across All 1-Year Schedules
 function openSummaryModal(type) {
   summaryListContainer.innerHTML = '';
+
+  const allScheduleItems = [];
+  allWeeksData.forEach(wObj => {
+    if (wObj.items && Array.isArray(wObj.items)) {
+      const wName = wObj.title.split(' (')[0];
+      wObj.items.forEach(item => {
+        allScheduleItems.push({
+          ...item,
+          weekTitleName: wName
+        });
+      });
+    }
+  });
+
   let filtered = [];
 
   if (type === 'unpaid') {
     summaryModalTitle.textContent = '🚨 전체 미결제 모아보기';
-    filtered = weekData.filter(d => d.transStatus === '결제X');
+    filtered = allScheduleItems.filter(d => d.transStatus === '결제X');
   } else if (type === 'unapplied') {
     summaryModalTitle.textContent = '📋 전체 미신청 모아보기';
-    filtered = weekData.filter(d => d.hrStatus === '신청X' || d.otStatus === '신청X');
+    filtered = allScheduleItems.filter(d => d.hrStatus === '신청X' || d.otStatus === '신청X');
   } else if (type === 'unapproved') {
     summaryModalTitle.textContent = '⏳ 전체 미승인 (승인대기) 모아보기';
-    filtered = weekData.filter(d => d.hrStatus === '신청O' || d.otStatus === '신청O');
+    filtered = allScheduleItems.filter(d => d.hrStatus === '신청O' || d.otStatus === '신청O');
   }
 
   if (filtered.length === 0) {
@@ -2285,7 +1003,7 @@ function openSummaryModal(type) {
 
       card.innerHTML = `
         <div class="summary-item-left">
-          <div class="summary-item-date">${item.date} ${item.time} (${item.region})</div>
+          <div class="summary-item-date">${item.weekTitleName} ${item.date} ${item.time} (${item.region || '-'})</div>
           <div class="summary-item-desc">${descText}</div>
         </div>
         <div>${statusBadgeHtml}</div>
@@ -2293,6 +1011,10 @@ function openSummaryModal(type) {
 
       card.addEventListener('click', () => {
         closeSummaryModal();
+        const targetWeekIdx = allWeeksData.findIndex(w => w.items && w.items.some(it => it.id === item.id && it.date === item.date));
+        if (targetWeekIdx !== -1) {
+          loadWeekData(targetWeekIdx);
+        }
         openModal(item);
       });
 
@@ -2367,6 +1089,22 @@ function initEvents() {
   todayBtn.addEventListener('click', () => {
     loadWeekData(getTodayWeekIndex()); // Auto return to actual Today's Week!
   });
+
+  const manualSyncBtn = document.getElementById('manualSyncBtn');
+  if (manualSyncBtn) {
+    manualSyncBtn.addEventListener('click', async () => {
+      manualSyncBtn.classList.add('spinning');
+      manualSyncBtn.disabled = true;
+      try {
+        await syncFromGoogleSheets();
+      } finally {
+        setTimeout(() => {
+          manualSyncBtn.classList.remove('spinning');
+          manualSyncBtn.disabled = false;
+        }, 500);
+      }
+    });
+  }
 
   document.getElementById('closeModalBtn').addEventListener('click', closeModal);
   modalOverlay.addEventListener('click', (e) => {
