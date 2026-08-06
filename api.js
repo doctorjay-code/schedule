@@ -42,7 +42,8 @@ export function parseGoogleSheetsRecordsUniversal(records) {
 
       if (!grouped[weekName]) grouped[weekName] = [];
       const clinicVal = getProp(r, 'clinic') || getProp(r, '진료') || '';
-      const isHoliday = (dateVal.includes("토") || dateVal.includes("일") || clinicVal.includes("광복절") || clinicVal.includes("휴무"));
+      const fixedHolidays = ['8. 15.', '8. 17.', '9. 24.', '9. 25.', '9. 26.', '9. 28.', '10. 3.', '10. 5.', '10. 9.', '12. 25.', '1. 1.', '2. 6.', '2. 7.', '2. 8.', '2. 9.', '3. 1.'];
+      const isHoliday = (dateVal.includes("토") || dateVal.includes("일") || fixedHolidays.some(h => dateVal.includes(h)));
 
       grouped[weekName].push({
         id: grouped[weekName].length + 1,

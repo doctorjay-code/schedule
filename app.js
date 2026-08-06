@@ -1,21 +1,33 @@
-import { state, getTodayWeekIndex, loadLocalStorageData, updateSummaryCounts } from './state.js';
-import { initSecurityAuth, setAuthLoadWeekDataCallback } from './auth.js';
+import { state, getTodayWeekIndex, loadLocalStorageData, loadColorSettings, updateSummaryCounts } from './state.js';
+import { initSecurityAuth, setAuthSuccessCallback } from './auth.js';
 import { syncFromGoogleSheets, syncToGoogleSheets, setApiLoadWeekDataCallback } from './api.js';
 import { loadWeekData, renderTable, isCellSelected } from './render.js';
-import { openModal, closeModal, openSummaryModal, closeSummaryModal, saveModalToActiveItem, setupBtnGroupEvents, setupToggleEvents } from './modal.js';
+import { openModal, closeModal, openSummaryModal, closeSummaryModal, saveModalToActiveItem, setupBtnGroupEvents, setupToggleEvents, setupColorSettingsEvents, setModalRenderCallback, setModalLoadWeekDataCallback } from './modal.js';
 
 // Wire loadWeekData callback to auth and api modules
-setAuthLoadWeekDataCallback(loadWeekData);
+setAuthSuccessCallback(initializeAppLogic);
 setApiLoadWeekDataCallback(loadWeekData);
+setModalRenderCallback(renderTable);
+setModalLoadWeekDataCallback(loadWeekData);
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', () => {
   initSecurityAuth();
+  const isAuthPassed = sessionStorage.getItem('security_authenticated');
+  if (isAuthPassed === 'true') {
+    initializeAppLogic();
+  }
+});
+
+function initializeAppLogic() {
   loadLocalStorageData();
+  loadColorSettings();
+  state.currentWeekIndex = getTodayWeekIndex();
   loadWeekData(state.currentWeekIndex);
   initEvents();
+  setupColorSettingsEvents();
   syncFromGoogleSheets();
-});
+}
 
 function initEvents() {
   const prevWeekBtn = document.getElementById('prevWeekBtn');
@@ -273,7 +285,7 @@ function initEvents() {
       for (let i = 0; i < state.weekData.length; i += 2) {
         const mId = state.weekData[i].id;
         const aId = state.weekData[i + 1] ? state.weekData[i + 1].id : null;
-        const dKey = `${mId}_${aId}_day`;
+        const dKey = `${mId}_${aId ?? ''}_day`;
 
         if (isCellSelected(dKey) || (isCellSelected(`${mId}_row`) && aId && isCellSelected(`${aId}_row`))) {
           dayDateSet.add(state.weekData[i].date);
@@ -432,15 +444,26 @@ function initEvents() {
             item.hrDetail = src.hrDetail;
             item.otStatus = src.otStatus;
             item.otDetail = src.otDetail;
-          } else if (targetField === 'region' || srcField === 'region') item.region = src.region;
-          else if (targetField === 'clinic' || srcField === 'clinic') item.clinic = src.clinic;
-          else if (targetField === 'trans' || srcField === 'trans') {
+          } else if (targetField === 'region') item.region = src.region;
+          else if (targetField === 'clinic') item.clinic = src.clinic;
+          else if (targetField === 'trans') {
             item.transStatus = src.transStatus;
             item.transDetail = src.transDetail;
-          } else if (targetField === 'hr' || srcField === 'hr') {
+          } else if (targetField === 'hr') {
             item.hrStatus = src.hrStatus;
             item.hrDetail = src.hrDetail;
-          } else if (targetField === 'ot' || srcField === 'ot') {
+          } else if (targetField === 'ot') {
+            item.otStatus = src.otStatus;
+            item.otDetail = src.otDetail;
+          } else if (srcField === 'region') item.region = src.region;
+          else if (srcField === 'clinic') item.clinic = src.clinic;
+          else if (srcField === 'trans') {
+            item.transStatus = src.transStatus;
+            item.transDetail = src.transDetail;
+          } else if (srcField === 'hr') {
+            item.hrStatus = src.hrStatus;
+            item.hrDetail = src.hrDetail;
+          } else if (srcField === 'ot') {
             item.otStatus = src.otStatus;
             item.otDetail = src.otDetail;
           }

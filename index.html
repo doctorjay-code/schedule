@@ -43,6 +43,7 @@
         <button class="nav-btn" id="nextWeekBtn">▶</button>
         <button class="today-btn" id="todayBtn">오늘</button>
         <button class="today-btn sync-btn" id="manualSyncBtn" title="구글 시트 최신 일정 동기화"><span class="sync-icon">🔄</span> 동기화</button>
+        <button class="nav-btn" id="openColorSettingsBtn" title="색상 커스텀 설정">⚙️</button>
       </div>
 
       <!-- 2nd Row: 3 Summary Alert Chips -->
@@ -99,7 +100,6 @@
         <div class="multi-btn-row">
           <button class="multi-action-btn copy-btn" id="bulkCopyBtn">📋 복사</button>
           <button class="multi-action-btn paste-btn" id="bulkPasteBtn">📥 붙여넣기</button>
-          <button class="multi-action-btn jinju-btn" id="bulkJinjuBtn">⚡ 진주/진료O</button>
         </div>
       </div>
     </div>
@@ -246,6 +246,89 @@
         <div class="sheet-body">
           <div class="summary-list" id="summaryListContainer">
             <!-- Dynamic Collection Cards -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Color Settings Modal Overlay -->
+    <div class="modal-overlay" id="colorSettingsModalOverlay">
+      <div class="bottom-sheet color-settings-sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h3>🎨 커스텀 색상 설정</h3>
+          <button class="close-btn" id="closeColorSettingsModalBtn">✕</button>
+        </div>
+
+        <div class="sheet-body color-settings-body">
+          <p class="settings-desc">10가지 파스텔 팔레트 중 원하는 색상을 클릭하여 지정하세요.</p>
+
+          <!-- Section 1: Region Colors -->
+          <div class="color-section-box">
+            <h4 class="section-title">📍 지역 버튼 색상 (4종)</h4>
+            <div class="color-picker-group">
+              <div class="picker-row">
+                <span class="picker-label">진주</span>
+                <div class="palette-chips-row" data-target-type="region" data-target-key="진주"></div>
+              </div>
+              <div class="picker-row">
+                <span class="picker-label">서울</span>
+                <div class="palette-chips-row" data-target-type="region" data-target-key="서울"></div>
+              </div>
+              <div class="picker-row">
+                <span class="picker-label">이동</span>
+                <div class="palette-chips-row" data-target-type="region" data-target-key="이동"></div>
+              </div>
+              <div class="picker-row">
+                <span class="picker-label">기타</span>
+                <div class="palette-chips-row" data-target-type="region" data-target-key="기타"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: Clinic Colors -->
+          <div class="color-section-box">
+            <h4 class="section-title">🏥 진료 버튼 색상 (4종)</h4>
+            <div class="color-picker-group">
+              <div class="picker-row">
+                <span class="picker-label">O</span>
+                <div class="palette-chips-row" data-target-type="clinic" data-target-key="O"></div>
+              </div>
+              <div class="picker-row">
+                <span class="picker-label">행정</span>
+                <div class="palette-chips-row" data-target-type="clinic" data-target-key="행정"></div>
+              </div>
+              <div class="picker-row">
+                <span class="picker-label">휴가</span>
+                <div class="palette-chips-row" data-target-type="clinic" data-target-key="휴가"></div>
+              </div>
+              <div class="picker-row">
+                <span class="picker-label">기타</span>
+                <div class="palette-chips-row" data-target-type="clinic" data-target-key="기타"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: Word Specific Custom Rules -->
+          <div class="color-section-box">
+            <h4 class="section-title">⭐ 기타/특정 단어 색상 규칙</h4>
+            <p class="sub-desc">셀 텍스트에 지정 단어가 포함되면 해당 색상이 적용됩니다.</p>
+            
+            <div class="word-rule-input-group">
+              <input type="text" class="input-text word-rule-input" id="newRuleWordInput" placeholder="단어 입력 (예: 검진, 회의)">
+              <div class="palette-chips-row compact" id="newRuleColorRow"></div>
+              <button type="button" class="add-rule-btn" id="addWordRuleBtn">+ 규칙 추가</button>
+            </div>
+
+            <div class="word-rules-list" id="wordRulesListContainer">
+              <!-- Dynamic Word Rules -->
+            </div>
+          </div>
+
+          <!-- Action Footer Buttons -->
+          <div class="settings-action-footer">
+            <button type="button" class="reset-settings-btn" id="resetColorSettingsBtn">기본값 초기화</button>
+            <button type="button" class="save-btn" id="saveColorSettingsBtn">저장 및 적용</button>
           </div>
         </div>
       </div>

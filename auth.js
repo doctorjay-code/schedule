@@ -1,10 +1,10 @@
 import { SECURITY_PASSWORD_HASH, state } from './state.js';
 import { syncFromGoogleSheets } from './api.js';
 
-let loadWeekDataFn = null;
+let authSuccessCallbackFn = null;
 
-export function setAuthLoadWeekDataCallback(fn) {
-  loadWeekDataFn = fn;
+export function setAuthSuccessCallback(fn) {
+  authSuccessCallbackFn = fn;
 }
 
 export function initSecurityAuth() {
@@ -96,11 +96,7 @@ export async function handleAuthSubmit() {
     state.failedAttempts = 0;
     localStorage.removeItem('security_failed_attempts');
     authPasswordInput.value = '';
-    if (state.allWeeksData && state.allWeeksData.length > 0) {
-      if (loadWeekDataFn) loadWeekDataFn(state.currentWeekIndex);
-    } else {
-      syncFromGoogleSheets();
-    }
+    if (authSuccessCallbackFn) authSuccessCallbackFn();
   } else {
     state.failedAttempts++;
     localStorage.setItem('security_failed_attempts', state.failedAttempts.toString());

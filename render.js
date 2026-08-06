@@ -12,8 +12,10 @@ export function loadWeekData(index) {
   const selectedCountLabel = document.getElementById('selectedCountLabel');
 
   const currentWeekObj = state.allWeeksData[state.currentWeekIndex];
-  if (weekTitleElem) weekTitleElem.textContent = currentWeekObj.title.split(' (')[0];
-  state.weekData = currentWeekObj.items;
+  if (!currentWeekObj) return;
+
+  if (weekTitleElem) weekTitleElem.textContent = currentWeekObj.title?.split(' (')[0] || '';
+  state.weekData = currentWeekObj.items || [];
 
   state.selectedCells = [];
   if (selectedCountLabel) selectedCountLabel.textContent = '0개 선택됨';
@@ -22,15 +24,24 @@ export function loadWeekData(index) {
   updateSummaryCounts();
 }
 
+// 2026.08 ~ 2027.04 Statutory Holidays & Substitute Holidays
+export const fixedHolidays = [
+  '8. 15.', '8. 17.',
+  '9. 24.', '9. 25.', '9. 26.', '9. 28.',
+  '10. 3.', '10. 5.', '10. 9.',
+  '12. 25.',
+  '1. 1.',
+  '2. 6.', '2. 7.', '2. 8.', '2. 9.',
+  '3. 1.'
+];
+
 // Helper: Check if date is weekend or holiday
 export function isRedDate(item) {
+  if (!item || !item.date) return false;
   return item.isHoliday || 
          item.date.includes('토') || 
-         item.date.includes('일') || 
-         item.clinic.includes('공휴일') || 
-         item.clinic.includes('대체휴무') || 
-         item.clinic.includes('광복절') ||
-         item.clinic.includes('휴무');
+         item.date.includes('일') ||
+         fixedHolidays.some(h => item.date.includes(h));
 }
 
 // Helper: Check filter match
@@ -276,16 +287,45 @@ export function attachSmartCellClick(td, mItem, aItem, field) {
   });
 }
 
+// Helper: Get Custom Color for Region or Clinic Cell
+export function applyCustomCellColor(tdElem, text, type) {
+  if (!text || text === '-') return;
+
+  // 1. Specific Word Rules Match
+  if (state.colorSettings && Array.isArray(state.colorSettings.wordRules)) {
+    const matchedRule = state.colorSettings.wordRules.find(r => text.includes(r.word));
+    if (matchedRule) {
+      tdElem.style.backgroundColor = matchedRule.color;
+      tdElem.style.color = '#1E293B';
+      tdElem.style.fontWeight = '700';
+      return;
+    }
+  }
+
+  // 2. Button Category Match
+  if (type === 'region' && state.colorSettings && state.colorSettings.regionColors) {
+    const rColors = state.colorSettings.regionColors;
+    const bg = rColors[text] || rColors['기타'] || '#FFEDD5';
+    tdElem.style.backgroundColor = bg;
+    tdElem.style.color = '#1E293B';
+    tdElem.style.fontWeight = '700';
+  } else if (type === 'clinic' && state.colorSettings && state.colorSettings.clinicColors) {
+    const cColors = state.colorSettings.clinicColors;
+    const bg = cColors[text] || cColors['기타'] || '#F1F5F9';
+    tdElem.style.backgroundColor = bg;
+    tdElem.style.color = '#1E293B';
+    tdElem.style.fontWeight = '700';
+  }
+}
+
 export function createRegionTd(item, aItem = null, isMerged = false) {
   const tdRegion = document.createElement('td');
   tdRegion.textContent = item.region || '-';
-  if (item.region === '진주') tdRegion.className = 'region-jinju';
-  else if (item.region === '서울') tdRegion.className = 'region-seoul';
-  else if (item.region === '이동') tdRegion.className = 'region-move';
-  else if (item.region) tdRegion.className = 'region-etc';
+  applyCustomCellColor(tdRegion, item.region, 'region');
   
   const regionKey = `${item.id}_region`;
-  if (state.isMultiEditMode && (isCellSelected(regionKey) || isCellSelected(`${item.id}_row`))) {
+  if (state.isMultiEditMode && (isCellSelected(regionKey) || isCellSelected(`${item.id}_row`) ||
+      (aItem && (isCellSelected(`${aItem.id}_region`) || isCellSelected(`${aItem.id}_row`))))) {
     tdRegion.classList.add('cell-selected');
   }
 
@@ -304,14 +344,11 @@ export function createRegionTd(item, aItem = null, isMerged = false) {
 export function createClinicTd(item, aItem = null, isMerged = false) {
   const tdClinic = document.createElement('td');
   tdClinic.textContent = item.clinic || '-';
-  if (item.clinic === 'O') tdClinic.className = 'clinic-o';
-  else if (item.clinic === '행정') tdClinic.className = 'clinic-admin';
-  else if (item.clinic === '휴가') tdClinic.className = 'clinic-vacation';
-  else if (item.clinic && (item.clinic.includes('휴무') || item.clinic.includes('광복절') || item.clinic.includes('공휴일'))) tdClinic.className = 'clinic-holiday';
-  else if (item.clinic && item.clinic !== '-') tdClinic.className = 'clinic-etc';
+  applyCustomCellColor(tdClinic, item.clinic, 'clinic');
 
   const clinicKey = `${item.id}_clinic`;
-  if (state.isMultiEditMode && (isCellSelected(clinicKey) || isCellSelected(`${item.id}_row`))) {
+  if (state.isMultiEditMode && (isCellSelected(clinicKey) || isCellSelected(`${item.id}_row`) ||
+      (aItem && (isCellSelected(`${aItem.id}_clinic`) || isCellSelected(`${aItem.id}_row`))))) {
     tdClinic.classList.add('cell-selected');
   }
 
@@ -337,7 +374,8 @@ export function createTransTd(item, aItem = null, isMerged = false) {
     tdTrans.textContent = '-';
   }
   const transKey = `${item.id}_trans`;
-  if (state.isMultiEditMode && (isCellSelected(transKey) || isCellSelected(`${item.id}_row`))) {
+  if (state.isMultiEditMode && (isCellSelected(transKey) || isCellSelected(`${item.id}_row`) ||
+      (aItem && (isCellSelected(`${aItem.id}_trans`) || isCellSelected(`${aItem.id}_row`))))) {
     tdTrans.classList.add('cell-selected');
   }
 
@@ -365,7 +403,8 @@ export function createHrTd(item, aItem = null, isMerged = false) {
     tdHr.textContent = '-';
   }
   const hrKey = `${item.id}_hr`;
-  if (state.isMultiEditMode && (isCellSelected(hrKey) || isCellSelected(`${item.id}_row`))) {
+  if (state.isMultiEditMode && (isCellSelected(hrKey) || isCellSelected(`${item.id}_row`) ||
+      (aItem && (isCellSelected(`${aItem.id}_hr`) || isCellSelected(`${aItem.id}_row`))))) {
     tdHr.classList.add('cell-selected');
   }
 
@@ -393,7 +432,8 @@ export function createOtTd(item, aItem = null, isMerged = false) {
     tdOt.textContent = '-';
   }
   const otKey = `${item.id}_ot`;
-  if (state.isMultiEditMode && (isCellSelected(otKey) || isCellSelected(`${item.id}_row`))) {
+  if (state.isMultiEditMode && (isCellSelected(otKey) || isCellSelected(`${item.id}_row`) ||
+      (aItem && (isCellSelected(`${aItem.id}_ot`) || isCellSelected(`${aItem.id}_row`))))) {
     tdOt.classList.add('cell-selected');
   }
 

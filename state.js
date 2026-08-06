@@ -7,6 +7,36 @@ export const standardTransCategories = ['KTX', '고속버스', '버스', '무궁
 export const standardHrCategories = ['연가', '당직OFF', '청원휴가'];
 export const standardOtCategories = ['야간', '당직', '휴일'];
 
+// 10 Pastel Palette Colors (color.png)
+export const pastelPalette = [
+  '#FCE4D6', // 1. Peach
+  '#FCE7F3', // 2. Pink
+  '#FFEDD5', // 3. Orange
+  '#FEF3C7', // 4. Yellow
+  '#D1FAE5', // 5. Mint/Green
+  '#E0F2FE', // 6. Sky Blue
+  '#E0E7FF', // 7. Indigo/Purple
+  '#D9E1F2', // 8. Light Blue
+  '#EFE5FD', // 9. Lavender
+  '#F3E8FF'  // 10. Violet
+];
+
+export const defaultColorSettings = {
+  regionColors: {
+    '진주': '#FEF3C7',
+    '서울': '#E0E7FF',
+    '이동': '#D1FAE5',
+    '기타': '#FFEDD5'
+  },
+  clinicColors: {
+    'O': '#FEF3C7',
+    '행정': '#E0F2FE',
+    '휴가': '#FCE7F3',
+    '기타': '#F1F5F9'
+  },
+  wordRules: []
+};
+
 // Reactive Central State Object
 export const state = {
   allWeeksData: [],
@@ -17,22 +47,61 @@ export const state = {
   copiedScheduleData: null,
   isMultiEditMode: false,
   selectedCells: [],
+  colorSettings: JSON.parse(JSON.stringify(defaultColorSettings)),
   failedAttempts: parseInt(localStorage.getItem('security_failed_attempts') || '0'),
   lockoutUntil: parseInt(localStorage.getItem('security_lockout_until') || '0'),
   lockoutInterval: null
 };
 
+// Load Color Settings from Local Storage
+export function loadColorSettings() {
+  const saved = localStorage.getItem('user_color_settings');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      state.colorSettings = {
+        regionColors: { ...defaultColorSettings.regionColors, ...(parsed.regionColors || {}) },
+        clinicColors: { ...defaultColorSettings.clinicColors, ...(parsed.clinicColors || {}) },
+        wordRules: Array.isArray(parsed.wordRules) ? parsed.wordRules : []
+      };
+    } catch (e) {
+      console.error('Error loading color settings:', e);
+      state.colorSettings = JSON.parse(JSON.stringify(defaultColorSettings));
+    }
+  }
+}
+
+// Save Color Settings to Local Storage
+export function saveColorSettings() {
+  localStorage.setItem('user_color_settings', JSON.stringify(state.colorSettings));
+}
+
+// Reset Color Settings to Default
+export function resetColorSettings() {
+  state.colorSettings = JSON.parse(JSON.stringify(defaultColorSettings));
+  saveColorSettings();
+}
+
 // Return week index corresponding to today's date
 export function getTodayWeekIndex() {
   if (state.allWeeksData.length === 0) return 0;
   const today = new Date();
-  const m = today.getMonth() + 1;
-  const d = today.getDate();
-  const todayStr = `${m}. ${d}.`;
+  const todayM = today.getMonth() + 1;
+  const todayD = today.getDate();
 
   for (let i = 0; i < state.allWeeksData.length; i++) {
-    if (state.allWeeksData[i].items && state.allWeeksData[i].items.some(it => it.date.includes(todayStr))) {
-      return i;
+    if (state.allWeeksData[i].items) {
+      for (const it of state.allWeeksData[i].items) {
+        if (!it.date) continue;
+        const match = it.date.match(/(\d+)\.\s*(\d+)\./);
+        if (match) {
+          const m = parseInt(match[1], 10);
+          const d = parseInt(match[2], 10);
+          if (m === todayM && d === todayD) {
+            return i;
+          }
+        }
+      }
     }
   }
   return 0;
@@ -44,10 +113,8 @@ export function loadLocalStorageData() {
   if (savedData) {
     try {
       const parsed = JSON.parse(savedData);
-      if (Array.isArray(parsed) && parsed.length === state.allWeeksData.length) {
-        parsed.forEach((w, idx) => {
-          state.allWeeksData[idx].items = w.items;
-        });
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        state.allWeeksData = parsed;
       }
     } catch(e) {
       console.error('Error loading saved schedule data:', e);
