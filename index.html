@@ -37,13 +37,20 @@
   <div class="app-container">
     <!-- Header -->
     <header class="app-header">
-      <!-- 1st Row: Centered Week Navigator -->
+      <!-- 0th Row: View Mode Switcher (Weekly vs Monthly) -->
+      <div class="view-switch-container">
+        <button class="view-switch-btn active" id="weeklyViewBtn">📅 주간</button>
+        <button class="view-switch-btn" id="monthlyViewBtn">🗓️ 월간</button>
+      </div>
+
+      <!-- 1st Row: Centered Week/Month Navigator -->
       <div class="week-navigator centered">
         <button class="nav-btn" id="prevWeekBtn">◀</button>
-        <h1 class="week-title" id="weekTitle">2026년 8월 2주차</h1>
+        <h1 class="week-title" id="weekTitle" title="주차 직접 선택">2026년 8월 2주차 <span class="dropdown-arrow">▾</span></h1>
         <button class="nav-btn" id="nextWeekBtn">▶</button>
         <button class="today-btn" id="todayBtn">오늘</button>
-        <button class="today-btn sync-btn" id="manualSyncBtn" title="구글 시트 최신 일정 동기화"><span class="sync-icon">🔄</span> 동기화</button>
+        <button class="nav-btn" id="manualSyncBtn" title="구글 시트 최신 일정 동기화"><span class="sync-icon">🔄</span></button>
+        <button class="nav-btn" id="openStatsModalBtn" title="통계 요약 리포트">📊</button>
         <button class="nav-btn" id="openColorSettingsBtn" title="색상 커스텀 설정">⚙️</button>
       </div>
 
@@ -64,11 +71,11 @@
       <button class="filter-chip" data-filter="unpaid">미결제</button>
       <button class="filter-chip" data-filter="unapplied">미신청</button>
       <button class="filter-chip" data-filter="unapproved">미승인</button>
-      <button class="filter-chip multi-edit-chip" id="toggleMultiEditBtn">✏️ 다중 편집</button>
+      <button class="filter-chip multi-edit-chip" id="toggleMultiEditBtn" title="다중 편집 모드">✏️</button>
     </div>
 
-    <!-- Main Schedule Table (Grid) -->
-    <main class="table-wrapper">
+    <!-- Main Schedule Table (Weekly Grid) -->
+    <main class="table-wrapper" id="weeklyViewWrapper">
       <table class="schedule-table">
         <thead>
           <tr>
@@ -85,6 +92,29 @@
           <!-- Dynamic JS rendering -->
         </tbody>
       </table>
+    </main>
+
+    <!-- Monthly View Container (Monthly Grid) -->
+    <main class="monthly-wrapper hidden" id="monthlyViewWrapper">
+      <!-- Region Color Legend Bar -->
+      <div class="month-legend-bar" id="monthColorLegendBar">
+        <!-- Dynamic Legend Chips -->
+      </div>
+
+      <div class="monthly-calendar-container">
+        <div class="monthly-header-row">
+          <div class="month-day-col sun">일</div>
+          <div class="month-day-col">월</div>
+          <div class="month-day-col">화</div>
+          <div class="month-day-col">수</div>
+          <div class="month-day-col">목</div>
+          <div class="month-day-col">금</div>
+          <div class="month-day-col sat">토</div>
+        </div>
+        <div class="monthly-days-grid" id="monthlyDaysGrid">
+          <!-- Dynamic Monthly Grid Cells -->
+        </div>
+      </div>
     </main>
 
     <!-- Multi-Edit Action Bottom Bar Group -->
@@ -334,6 +364,83 @@
           <div class="settings-action-footer">
             <button type="button" class="reset-settings-btn" id="resetColorSettingsBtn">기본값 초기화</button>
             <button type="button" class="save-btn" id="saveColorSettingsBtn">저장 및 적용</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Week Selector Modal Overlay -->
+    <div class="modal-overlay" id="weekSelectModalOverlay">
+      <div class="bottom-sheet" id="weekSelectBottomSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h3>📅 주차 선택</h3>
+          <button class="close-btn" id="closeWeekSelectModalBtn">✕</button>
+        </div>
+
+        <div class="sheet-body">
+          <div class="summary-list" id="weekSelectListContainer">
+            <!-- Dynamic Week Cards -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Statistics Report Modal Overlay -->
+    <div class="modal-overlay" id="statsModalOverlay">
+      <div class="bottom-sheet stats-sheet" id="statsBottomSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h3>📊 통계 요약 리포트</h3>
+          <button class="close-btn" id="closeStatsModalBtn">✕</button>
+        </div>
+
+        <div class="sheet-body stats-sheet-body">
+          <!-- Filter Tabs -->
+          <div class="stats-filter-container">
+            <button class="stats-filter-tab active" data-range="all">전체</button>
+            <button class="stats-filter-tab" data-range="monthly">월별</button>
+            <button class="stats-filter-tab" data-range="weekly">주별</button>
+            <button class="stats-filter-tab" data-range="custom">특정기간</button>
+          </div>
+
+          <!-- Sub-Period Selection (Monthly / Weekly Dropdown) -->
+          <div class="stats-sub-select-wrapper hidden" id="statsSubSelectWrapper">
+            <select class="stats-sub-select" id="statsSubSelectElem">
+              <!-- Dynamic Period Options -->
+            </select>
+          </div>
+
+          <!-- Custom Date Range Picker (Hidden by default) -->
+          <div class="stats-custom-range hidden" id="statsCustomRangeWrapper">
+            <input type="date" class="input-text date-picker-input" id="statsStartDateInput">
+            <span>~</span>
+            <input type="date" class="input-text date-picker-input" id="statsEndDateInput">
+            <button type="button" class="apply-range-btn" id="applyStatsCustomRangeBtn">조회</button>
+          </div>
+
+          <!-- Section 1: Region Ratio -->
+          <div class="stats-section-box">
+            <h4 class="stats-section-title">📍 1. 체류 지역 분포</h4>
+            <div class="stats-content-list" id="statsRegionContent">
+              <!-- Dynamic Region Content -->
+            </div>
+          </div>
+
+          <!-- Section 2: Clinic & HR & Allowance Status -->
+          <div class="stats-section-box">
+            <h4 class="stats-section-title">🏥 2. 진료 & 휴가 & 수당 현황</h4>
+            <div class="stats-content-list" id="statsClinicHrContent">
+              <!-- Dynamic Clinic/HR Content -->
+            </div>
+          </div>
+
+          <!-- Section 3: Transport Usage -->
+          <div class="stats-section-box">
+            <h4 class="stats-section-title">🚆 3. 교통 수단 이용</h4>
+            <div class="stats-content-list" id="statsTransportContent">
+              <!-- Dynamic Transport Content -->
+            </div>
           </div>
         </div>
       </div>

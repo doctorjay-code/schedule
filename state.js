@@ -37,6 +37,8 @@ export const defaultColorSettings = {
   wordRules: []
 };
 
+const initialDate = new Date();
+
 // Reactive Central State Object
 export const state = {
   allWeeksData: [],
@@ -50,7 +52,9 @@ export const state = {
   colorSettings: JSON.parse(JSON.stringify(defaultColorSettings)),
   failedAttempts: parseInt(localStorage.getItem('security_failed_attempts') || '0'),
   lockoutUntil: parseInt(localStorage.getItem('security_lockout_until') || '0'),
-  lockoutInterval: null
+  lockoutInterval: null,
+  currentView: 'weekly', // 'weekly' or 'monthly'
+  currentMonthYear: { year: initialDate.getFullYear(), month: initialDate.getMonth() + 1 }
 };
 
 // Load Color Settings from Local Storage
@@ -129,6 +133,18 @@ export function saveLocalStorageData() {
   localStorage.setItem('user_schedule_data', JSON.stringify(state.allWeeksData));
 }
 
+// Helper to get normalized reason for summary grouping
+export function getItemReason(item, type) {
+  if (!item) return '';
+  const hr = (item.hrDetail || '').trim();
+  const ot = (item.otDetail || '').trim();
+  if (hr) return hr;
+  if (ot) return ot;
+  if (type === 'unapplied') return (item.hrStatus || item.otStatus || '미신청').trim();
+  if (type === 'unapproved') return (item.hrStatus || item.otStatus || '미승인').trim();
+  return '';
+}
+
 // Calculate Dynamic Summary Counts Across All Schedules
 export function updateSummaryCounts() {
   const unpaidCountElem = document.getElementById('unpaidCount');
@@ -136,20 +152,30 @@ export function updateSummaryCounts() {
   const unapprovedCountElem = document.getElementById('unapprovedCount');
 
   let unpaid = 0;
-  let unapplied = 0;
-  let unapproved = 0;
+  const unappliedKeysSet = new Set();
+  const unapprovedKeysSet = new Set();
 
   state.allWeeksData.forEach(wObj => {
     if (wObj.items && Array.isArray(wObj.items)) {
       wObj.items.forEach(item => {
         if (item.transStatus === '결제X') unpaid++;
-        if (item.hrStatus === '신청X' || item.otStatus === '신청X') unapplied++;
-        if (item.hrStatus === '신청O' || item.otStatus === '신청O') unapproved++;
+
+        const isUnapplied = (item.hrStatus === '신청X' || item.otStatus === '신청X' || item.hrStatus === '미신청' || item.otStatus === '미신청');
+        if (isUnapplied && item.date) {
+          const reason = getItemReason(item, 'unapplied');
+          unappliedKeysSet.add(`${wObj.title}_${item.date}_${reason}`);
+        }
+
+        const isUnapproved = (item.hrStatus === '신청O' || item.otStatus === '신청O' || item.hrStatus === '미승인' || item.otStatus === '미승인');
+        if (isUnapproved && item.date) {
+          const reason = getItemReason(item, 'unapproved');
+          unapprovedKeysSet.add(`${wObj.title}_${item.date}_${reason}`);
+        }
       });
     }
   });
 
   if (unpaidCountElem) unpaidCountElem.textContent = unpaid;
-  if (unappliedCountElem) unappliedCountElem.textContent = unapplied;
-  if (unapprovedCountElem) unapprovedCountElem.textContent = unapproved;
+  if (unappliedCountElem) unappliedCountElem.textContent = unappliedKeysSet.size;
+  if (unapprovedCountElem) unapprovedCountElem.textContent = unapprovedKeysSet.size;
 }

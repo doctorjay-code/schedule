@@ -1,8 +1,8 @@
 import { state, getTodayWeekIndex, loadLocalStorageData, loadColorSettings, updateSummaryCounts } from './state.js';
 import { initSecurityAuth, setAuthSuccessCallback } from './auth.js';
 import { syncFromGoogleSheets, syncToGoogleSheets, setApiLoadWeekDataCallback } from './api.js';
-import { loadWeekData, renderTable, isCellSelected } from './render.js';
-import { openModal, closeModal, openSummaryModal, closeSummaryModal, saveModalToActiveItem, setupBtnGroupEvents, setupToggleEvents, setupColorSettingsEvents, setModalRenderCallback, setModalLoadWeekDataCallback } from './modal.js';
+import { loadWeekData, renderTable, isCellSelected, renderMonthlyCalendar, switchViewModeUI } from './render.js';
+import { openModal, closeModal, openSummaryModal, closeSummaryModal, openWeekSelectModal, closeWeekSelectModal, saveModalToActiveItem, setupBtnGroupEvents, setupToggleEvents, setupColorSettingsEvents, setupStatsModalEvents, renderStatsReport, setModalRenderCallback, setModalLoadWeekDataCallback } from './modal.js';
 
 // Wire loadWeekData callback to auth and api modules
 setAuthSuccessCallback(initializeAppLogic);
@@ -26,6 +26,8 @@ function initializeAppLogic() {
   loadWeekData(state.currentWeekIndex);
   initEvents();
   setupColorSettingsEvents();
+  setupStatsModalEvents();
+  updateSummaryCounts();
   syncFromGoogleSheets();
 }
 
@@ -76,20 +78,69 @@ function initEvents() {
   const modalOverlay = document.getElementById('modalOverlay');
   const summaryModalOverlay = document.getElementById('summaryModalOverlay');
 
-  // Week Navigation Events
+  // View Switcher Buttons
+  const weeklyViewBtn = document.getElementById('weeklyViewBtn');
+  const monthlyViewBtn = document.getElementById('monthlyViewBtn');
+
+  if (weeklyViewBtn) {
+    weeklyViewBtn.addEventListener('click', () => switchViewModeUI('weekly'));
+  }
+  if (monthlyViewBtn) {
+    monthlyViewBtn.addEventListener('click', () => switchViewModeUI('monthly'));
+  }
+
+  // Week & Month Navigation Events
+  const weekTitle = document.getElementById('weekTitle');
+  if (weekTitle) {
+    weekTitle.addEventListener('click', () => {
+      if (state.currentView === 'weekly') {
+        openWeekSelectModal();
+      }
+    });
+  }
+
   if (prevWeekBtn) {
     prevWeekBtn.addEventListener('click', () => {
-      if (state.currentWeekIndex > 0) loadWeekData(state.currentWeekIndex - 1);
+      if (state.currentView === 'monthly') {
+        if (state.currentMonthYear.month > 1) {
+          state.currentMonthYear.month--;
+        } else {
+          state.currentMonthYear.year--;
+          state.currentMonthYear.month = 12;
+        }
+        renderMonthlyCalendar();
+      } else {
+        if (state.currentWeekIndex > 0) loadWeekData(state.currentWeekIndex - 1);
+      }
     });
   }
+
   if (nextWeekBtn) {
     nextWeekBtn.addEventListener('click', () => {
-      if (state.currentWeekIndex < state.allWeeksData.length - 1) loadWeekData(state.currentWeekIndex + 1);
+      if (state.currentView === 'monthly') {
+        if (state.currentMonthYear.month < 12) {
+          state.currentMonthYear.month++;
+        } else {
+          state.currentMonthYear.year++;
+          state.currentMonthYear.month = 1;
+        }
+        renderMonthlyCalendar();
+      } else {
+        if (state.currentWeekIndex < state.allWeeksData.length - 1) loadWeekData(state.currentWeekIndex + 1);
+      }
     });
   }
+
   if (todayBtn) {
     todayBtn.addEventListener('click', () => {
-      loadWeekData(getTodayWeekIndex());
+      if (state.currentView === 'monthly') {
+        const today = new Date();
+        state.currentMonthYear.year = today.getFullYear();
+        state.currentMonthYear.month = today.getMonth() + 1;
+        renderMonthlyCalendar();
+      } else {
+        loadWeekData(getTodayWeekIndex());
+      }
     });
   }
 
@@ -121,6 +172,15 @@ function initEvents() {
   if (summaryModalOverlay) {
     summaryModalOverlay.addEventListener('click', (e) => {
       if (e.target === summaryModalOverlay) closeSummaryModal();
+    });
+  }
+
+  const weekSelectModalOverlay = document.getElementById('weekSelectModalOverlay');
+  const closeWeekSelectModalBtn = document.getElementById('closeWeekSelectModalBtn');
+  if (closeWeekSelectModalBtn) closeWeekSelectModalBtn.addEventListener('click', closeWeekSelectModal);
+  if (weekSelectModalOverlay) {
+    weekSelectModalOverlay.addEventListener('click', (e) => {
+      if (e.target === weekSelectModalOverlay) closeWeekSelectModal();
     });
   }
 
@@ -239,6 +299,7 @@ function initEvents() {
       syncToGoogleSheets();
       renderTable();
       updateSummaryCounts();
+      if (state.currentView === 'monthly') renderMonthlyCalendar();
       closeModal();
     });
   }
@@ -249,6 +310,8 @@ function initEvents() {
       saveModalToActiveItem();
       renderTable();
       updateSummaryCounts();
+      renderStatsReport();
+      if (state.currentView === 'monthly') renderMonthlyCalendar();
       closeModal();
     });
   }
@@ -476,6 +539,7 @@ function initEvents() {
     if (selectedCountLabel) selectedCountLabel.textContent = '0개 선택됨';
     renderTable();
     updateSummaryCounts();
+    if (state.currentView === 'monthly') renderMonthlyCalendar();
   };
 
   if (bulkPasteBtn) bulkPasteBtn.addEventListener('click', handleBulkPaste);

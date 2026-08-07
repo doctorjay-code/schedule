@@ -14,7 +14,10 @@ export function loadWeekData(index) {
   const currentWeekObj = state.allWeeksData[state.currentWeekIndex];
   if (!currentWeekObj) return;
 
-  if (weekTitleElem) weekTitleElem.textContent = currentWeekObj.title?.split(' (')[0] || '';
+  if (weekTitleElem && state.currentView === 'weekly') {
+    const rawTitle = currentWeekObj.title?.split(' (')[0] || '';
+    weekTitleElem.innerHTML = `${rawTitle} <span class="dropdown-arrow">▾</span>`;
+  }
   state.weekData = currentWeekObj.items || [];
 
   state.selectedCells = [];
@@ -22,6 +25,9 @@ export function loadWeekData(index) {
 
   renderTable();
   updateSummaryCounts();
+  if (state.currentView === 'monthly') {
+    renderMonthlyCalendar();
+  }
 }
 
 // 2026.08 ~ 2027.04 Statutory Holidays & Substitute Holidays
@@ -447,4 +453,232 @@ export function createOtTd(item, aItem = null, isMerged = false) {
     });
   }
   return tdOt;
+}
+
+// Render Monthly View Calendar & Color Legend
+export function renderMonthlyCalendar() {
+  const monthLegendBar = document.getElementById('monthColorLegendBar');
+  const monthlyDaysGrid = document.getElementById('monthlyDaysGrid');
+  const weekTitleElem = document.getElementById('weekTitle');
+
+  if (!monthlyDaysGrid) return;
+
+  // 1. Update Title in Navigator for Monthly View
+  const now = new Date();
+  const curY = state.currentMonthYear.year || now.getFullYear();
+  const curM = state.currentMonthYear.month || (now.getMonth() + 1);
+  if (weekTitleElem && state.currentView === 'monthly') {
+    weekTitleElem.innerHTML = `${curY}년 ${curM}월 <span class="dropdown-arrow">▾</span>`;
+  }
+
+  // 2. Render Region Color Legend Bar
+  if (monthLegendBar) {
+    monthLegendBar.innerHTML = '';
+    const rColors = (state.colorSettings && state.colorSettings.regionColors) ? state.colorSettings.regionColors : {
+      '진주': '#FEF3C7',
+      '서울': '#E0E7FF',
+      '이동': '#D1FAE5',
+      '기타': '#FFEDD5'
+    };
+
+    Object.keys(rColors).forEach(regionKey => {
+      const colorHex = rColors[regionKey];
+      const item = document.createElement('div');
+      item.className = 'legend-item';
+      item.innerHTML = `<span class="color-dot" style="background-color: ${colorHex}"></span><span>${regionKey}</span>`;
+      monthLegendBar.appendChild(item);
+    });
+  }
+
+  // 3. Calculate Calendar Days
+  monthlyDaysGrid.innerHTML = '';
+
+  // Get first day of month (0=Sun, 1=Mon, ...) & total days
+  const firstDay = new Date(curY, curM - 1, 1).getDay();
+  const totalDays = new Date(curY, curM, 0).getDate();
+  const prevMonthTotalDays = new Date(curY, curM - 1, 0).getDate();
+
+  // Helper to get region color dot
+  const getRegionColor = (regionName) => {
+    if (!regionName) return '#CBD5E1';
+    const rColors = (state.colorSettings && state.colorSettings.regionColors) ? state.colorSettings.regionColors : {};
+    return rColors[regionName] || rColors['기타'] || '#FFEDD5';
+  };
+
+  // Helper to find items for a specific day
+  const findItemsForDay = (m, d) => {
+    let morning = null;
+    let afternoon = null;
+    let foundWeekIndex = -1;
+
+    for (let wIdx = 0; wIdx < state.allWeeksData.length; wIdx++) {
+      const wObj = state.allWeeksData[wIdx];
+      if (wObj.items && Array.isArray(wObj.items)) {
+        for (const item of wObj.items) {
+          if (!item.date) continue;
+          const parts = item.date.match(/(\d+)/g);
+          if (parts && parts.length >= 2) {
+            const itemM = parseInt(parts[parts.length - 2], 10);
+            const itemD = parseInt(parts[parts.length - 1], 10);
+            if (itemM === m && itemD === d) {
+              foundWeekIndex = wIdx;
+              if (item.time === '오전') morning = item;
+              else if (item.time === '오후') afternoon = item;
+            }
+          }
+        }
+      }
+      if (morning || afternoon) break;
+    }
+    return { morning, afternoon, weekIndex: foundWeekIndex };
+  };
+
+  // Today Date Check
+  const today = new Date();
+  const isCurrentYearMonth = (today.getFullYear() === curY && (today.getMonth() + 1) === curM);
+
+  const prevM = (curM === 1) ? 12 : (curM - 1);
+  const nextM = (curM === 12) ? 1 : (curM + 1);
+
+  const createCellNode = (targetM, targetD, isOtherMonth) => {
+    const cell = document.createElement('div');
+    cell.className = 'monthly-date-cell';
+    if (isOtherMonth) cell.classList.add('other-month');
+
+    const dayOfWeek = new Date(curY, targetM - 1, targetD).getDay();
+    const isSunday = (dayOfWeek === 0);
+    const isToday = !isOtherMonth && isCurrentYearMonth && (today.getDate() === targetD);
+
+    if (isToday) cell.classList.add('today-cell');
+
+    const dayData = findItemsForDay(targetM, targetD);
+    const mItem = dayData.morning;
+    const aItem = dayData.afternoon;
+
+    const isHolidayDate = (mItem && isRedDate(mItem)) || (aItem && isRedDate(aItem)) || isSunday;
+
+    let dateNumClass = 'monthly-cell-date-num';
+    if (isHolidayDate) dateNumClass += ' red-date';
+
+    let mSlotHtml = '';
+    if (mItem) {
+      const dotBg = getRegionColor(mItem.region);
+      const clinicText = mItem.clinic || '-';
+      mSlotHtml = `<div class="monthly-cell-slot m-slot"><span class="color-dot" style="background-color: ${dotBg}"></span><span class="slot-clinic">${clinicText}</span></div>`;
+    } else {
+      mSlotHtml = `<div class="monthly-cell-slot m-slot"><span class="color-dot" style="background-color: #E2E8F0"></span><span class="slot-clinic">-</span></div>`;
+    }
+
+    let aSlotHtml = '';
+    if (aItem) {
+      const dotBg = getRegionColor(aItem.region);
+      const clinicText = aItem.clinic || '-';
+      aSlotHtml = `<div class="monthly-cell-slot a-slot"><span class="color-dot" style="background-color: ${dotBg}"></span><span class="slot-clinic">${clinicText}</span></div>`;
+    } else {
+      aSlotHtml = `<div class="monthly-cell-slot a-slot"><span class="color-dot" style="background-color: #E2E8F0"></span><span class="slot-clinic">-</span></div>`;
+    }
+
+    cell.innerHTML = `
+      <div class="${dateNumClass}">${targetD}</div>
+      ${mSlotHtml}
+      ${aSlotHtml}
+    `;
+
+    const mSlotElem = cell.querySelector('.m-slot');
+    const aSlotElem = cell.querySelector('.a-slot');
+
+    if (mSlotElem) {
+      mSlotElem.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (dayData.weekIndex !== -1 && mItem) {
+          state.currentWeekIndex = dayData.weekIndex;
+          openModal(mItem);
+        }
+      });
+    }
+
+    if (aSlotElem) {
+      aSlotElem.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (dayData.weekIndex !== -1 && aItem) {
+          state.currentWeekIndex = dayData.weekIndex;
+          openModal(aItem);
+        }
+      });
+    }
+
+    cell.addEventListener('click', (e) => {
+      if (dayData.weekIndex !== -1) {
+        state.currentWeekIndex = dayData.weekIndex;
+
+        const rect = cell.getBoundingClientRect();
+        const clickY = e.clientY - rect.top;
+        const isTopHalf = (clickY < (rect.height / 2));
+
+        if (isTopHalf) {
+          if (mItem) openModal(mItem);
+          else if (aItem) openModal(aItem);
+        } else {
+          if (aItem) openModal(aItem);
+          else if (mItem) openModal(mItem);
+        }
+      }
+    });
+
+    return cell;
+  };
+
+  // Padding cells for Previous Month
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const prevD = prevMonthTotalDays - i;
+    const cellNode = createCellNode(prevM, prevD, true);
+    monthlyDaysGrid.appendChild(cellNode);
+  }
+
+  // Days of Current Month
+  for (let d = 1; d <= totalDays; d++) {
+    const cellNode = createCellNode(curM, d, false);
+    monthlyDaysGrid.appendChild(cellNode);
+  }
+
+  // Padding cells for Next Month
+  const totalRendered = firstDay + totalDays;
+  const nextMonthPadding = (7 - (totalRendered % 7)) % 7;
+  for (let d = 1; d <= nextMonthPadding; d++) {
+    const cellNode = createCellNode(nextM, d, true);
+    monthlyDaysGrid.appendChild(cellNode);
+  }
+}
+
+export function switchViewModeUI(mode) {
+  state.currentView = mode;
+  const weeklyBtn = document.getElementById('weeklyViewBtn');
+  const monthlyBtn = document.getElementById('monthlyViewBtn');
+  const weeklyWrapper = document.getElementById('weeklyViewWrapper');
+  const monthlyWrapper = document.getElementById('monthlyViewWrapper');
+
+  if (mode === 'weekly') {
+    if (weeklyBtn) weeklyBtn.classList.add('active');
+    if (monthlyBtn) monthlyBtn.classList.remove('active');
+    if (weeklyWrapper) weeklyWrapper.classList.remove('hidden');
+    if (monthlyWrapper) monthlyWrapper.classList.add('hidden');
+    loadWeekData(state.currentWeekIndex);
+  } else {
+    if (monthlyBtn) monthlyBtn.classList.add('active');
+    if (weeklyBtn) weeklyBtn.classList.remove('active');
+    if (monthlyWrapper) monthlyWrapper.classList.remove('hidden');
+    if (weeklyWrapper) weeklyWrapper.classList.add('hidden');
+
+    // Update current Month/Year state from active week object title
+    if (state.allWeeksData && state.allWeeksData[state.currentWeekIndex]) {
+      const currentWeekObj = state.allWeeksData[state.currentWeekIndex];
+      const titleStr = currentWeekObj.title || '';
+      const numbers = titleStr.match(/(\d+)/g);
+      if (numbers && numbers.length >= 2) {
+        state.currentMonthYear.year = parseInt(numbers[0], 10);
+        state.currentMonthYear.month = parseInt(numbers[1], 10);
+      }
+    }
+    renderMonthlyCalendar();
+  }
 }

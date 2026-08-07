@@ -1,4 +1,4 @@
-import { GAS_WEB_APP_URL, state, getTodayWeekIndex, saveLocalStorageData, saveColorSettings, defaultColorSettings } from './state.js';
+import { GAS_WEB_APP_URL, state, getTodayWeekIndex, saveLocalStorageData, saveColorSettings, defaultColorSettings, updateSummaryCounts } from './state.js';
 
 let apiLoadWeekDataFn = null;
 
@@ -15,6 +15,7 @@ export async function syncFromGoogleSheets() {
       const records = await res.json();
       if (Array.isArray(records) && records.length > 0) {
         parseGoogleSheetsRecordsUniversal(records);
+        updateSummaryCounts();
       }
     }
   } catch (e) {
