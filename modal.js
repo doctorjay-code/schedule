@@ -1,5 +1,5 @@
 import { state, standardTransCategories, standardHrCategories, standardOtCategories, pastelPalette, loadColorSettings, saveColorSettings, resetColorSettings } from './state.js';
-import { syncToGoogleSheets } from './api.js';
+import { syncToGoogleSheets, syncColorSettingsToSheets } from './api.js';
 
 let renderTableFn = null;
 export function setModalRenderCallback(fn) { renderTableFn = fn; }
@@ -510,6 +510,7 @@ export function setupColorSettingsEvents() {
   if (saveBtn) {
     saveBtn.addEventListener('click', () => {
       saveColorSettings();
+      syncColorSettingsToSheets();
       if (renderTableFn) renderTableFn();
       closeColorSettingsModal();
     });

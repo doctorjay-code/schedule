@@ -1,4 +1,4 @@
-import { GAS_WEB_APP_URL, state, getTodayWeekIndex, saveLocalStorageData } from './state.js';
+import { GAS_WEB_APP_URL, state, getTodayWeekIndex, saveLocalStorageData, saveColorSettings, defaultColorSettings } from './state.js';
 
 let apiLoadWeekDataFn = null;
 
@@ -19,6 +19,48 @@ export async function syncFromGoogleSheets() {
     }
   } catch (e) {
     console.log('Google Sheets sync skipped or offline, using local cache:', e);
+  }
+  // 색상 설정도 함께 동기화
+  await syncColorSettingsFromSheets();
+}
+
+export async function syncColorSettingsFromSheets() {
+  if (!GAS_WEB_APP_URL) return;
+  try {
+    const url = GAS_WEB_APP_URL + '?action=GET_COLORS&t=' + Date.now();
+    const res = await fetch(url, { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.colorSettings) {
+        const parsed = data.colorSettings;
+        state.colorSettings = {
+          regionColors: { ...defaultColorSettings.regionColors, ...(parsed.regionColors || {}) },
+          clinicColors: { ...defaultColorSettings.clinicColors, ...(parsed.clinicColors || {}) },
+          wordRules: Array.isArray(parsed.wordRules) ? parsed.wordRules : []
+        };
+        saveColorSettings();
+        // 색상 적용 (렌더 갱신)
+        if (typeof applyColorSettings === 'function') applyColorSettings();
+      }
+    }
+  } catch (e) {
+    console.log('Color settings sync skipped:', e);
+  }
+}
+
+export async function syncColorSettingsToSheets() {
+  if (!GAS_WEB_APP_URL) return;
+  try {
+    await fetch(GAS_WEB_APP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action: 'SET_COLORS',
+        colorSettings: state.colorSettings
+      })
+    });
+  } catch (e) {
+    console.error('Error syncing color settings to Google Sheets:', e);
   }
 }
 

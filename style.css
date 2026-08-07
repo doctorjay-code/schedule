@@ -142,6 +142,13 @@
   border-radius: 8px;
 }
 
+.auth-build-time {
+  margin-top: 16px;
+  font-size: 11px;
+  color: #94A3B8;
+  letter-spacing: 0.02em;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;

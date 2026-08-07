@@ -1,5 +1,5 @@
 // Google Apps Script Live Sync URL & Security Consts
-export const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwWDkrKXfT-eKbJS6D5uhvfgmHchGm2WSAfuTKRCvvp-uHrV01nI8nJw6K4qGsm8kEcMQ/exec";
+export const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzjnIdn0O3TcAav5sshkKDB_B6zP8Nw9woJ00OFw9pMIYyK8p75G8yW3A8KRpgYRnR5YA/exec";
 export const SECURITY_PASSWORD_HASH = 'f0fee696ab48d4321ec49b94c7efb48a02da6f9798c3f6afc95c626d028cb7e0'; // Password: 140817!
 
 // Standard Preset Categories
