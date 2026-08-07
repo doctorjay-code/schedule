@@ -160,7 +160,8 @@ export function openSummaryModal(type) {
       wObj.items.forEach(item => {
         allScheduleItems.push({
           ...item,
-          weekTitleName: wName
+          weekTitleName: wName,
+          _original: item
         });
       });
     }
@@ -209,7 +210,7 @@ export function openSummaryModal(type) {
 
         card.innerHTML = `
           <div class="summary-item-left">
-            <div class="summary-item-date">${firstItem.weekTitleName} ${firstItem.date} (${firstItem.region || '-'})</div>
+            <div class="summary-item-date">${firstItem.date} (${firstItem.region || '-'})</div>
             <div class="summary-item-desc">${descText}</div>
           </div>
           <div>${statusBadgeHtml}</div>
@@ -220,7 +221,7 @@ export function openSummaryModal(type) {
           if (targetWeekIdx !== -1 && loadWeekDataFn) {
             loadWeekDataFn(targetWeekIdx);
           }
-          openModal(firstItem);
+          openModal(firstItem._original || firstItem);
         });
 
         summaryListContainer.appendChild(card);
@@ -235,7 +236,7 @@ export function openSummaryModal(type) {
 
         card.innerHTML = `
           <div class="summary-item-left">
-            <div class="summary-item-date">${item.weekTitleName} ${item.date} ${item.time} (${item.region || '-'})</div>
+            <div class="summary-item-date">${item.date} ${item.time} (${item.region || '-'})</div>
             <div class="summary-item-desc">${descText}</div>
           </div>
           <div>${statusBadgeHtml}</div>
@@ -246,7 +247,7 @@ export function openSummaryModal(type) {
           if (targetWeekIdx !== -1 && loadWeekDataFn) {
             loadWeekDataFn(targetWeekIdx);
           }
-          openModal(item);
+          openModal(item._original || item);
         });
 
         summaryListContainer.appendChild(card);
@@ -773,6 +774,44 @@ function formatHoursToDaysString(totalHours) {
   }
 }
 
+// Calculate Required Clinic Sessions for a Weekly Period
+function calculateRequiredClinicSessions(weekEntries) {
+  let availableSessions = 0;
+
+  const weekdayEntries = weekEntries.filter(e => {
+    const dStr = e.item ? (e.item.date || '') : '';
+    return !dStr.includes('(토)') && !dStr.includes('(일)');
+  });
+
+  weekdayEntries.forEach(e => {
+    const item = e.item || {};
+    const hrStr = item.hrDetail || '';
+    const otStr = item.otDetail || '';
+    const combined = `${item.clinic || ''} ${hrStr} ${otStr}`;
+
+    const isPetitionLeave = combined.includes('청원휴가');
+    // 시간 단위 연가 (예: "연가 1시간", "연가 2시간" 등)는 세션을 차감하지 않음
+    const isHourlyLeave = combined.includes('연가') && /\d+\s*시간/.test(combined);
+
+    // 휴일 조건: '휴무', '공휴일', '휴가', 또는 시간 단위가 아닌 전일/일반 '연가'
+    let isHoliday = combined.includes('휴무') || combined.includes('공휴일') || combined.includes('휴가');
+    if (combined.includes('연가') && !isHourlyLeave) {
+      isHoliday = true;
+    }
+
+    if ((!isHoliday || isPetitionLeave) || isHourlyLeave) {
+      availableSessions++;
+    }
+  });
+
+  if (availableSessions >= 9) return 6;
+  if (availableSessions === 8) return 5;
+  if (availableSessions >= 6) return 4;
+  if (availableSessions >= 4) return 3;
+  if (availableSessions >= 2) return 2;
+  return availableSessions;
+}
+
 export function renderStatsReport() {
   const regionContainer = document.getElementById('statsRegionContent');
   const clinicHrContainer = document.getElementById('statsClinicHrContent');
@@ -973,11 +1012,44 @@ export function renderStatsReport() {
 
   // Filtered Leave & Clinic Hours for Selected Period (Approved Only)
   const filteredPetitionDatesMap = new Map();
+  
+  // 🩺 진료 현황 분류 구조 (진료, 행정, 휴가, 휴무, 기타)
+  const clinicGroup = {
+    '진료': { count: 0, rawKeys: ['O', '진료'] },
+    '행정': { count: 0, rawKeys: ['행정'] },
+    '휴가': { count: 0, rawKeys: ['휴가'] },
+    '휴무': { count: 0, rawKeys: ['휴무'] },
+    '기타': { count: 0, subMap: {} }
+  };
 
   filteredItems.forEach(entry => {
     const { item } = entry;
-    if (item.clinic === 'O') clinicOCount++;
-    if (item.clinic === '행정') clinicAdminCount++;
+    const dStr = item.date || '';
+    const isWeekend = dStr.includes('(토)') || dStr.includes('(일)');
+
+    // 진료 현황은 평일(월~금) 항목만 카운팅 (주말 제외)
+    if (!isWeekend) {
+      const rawVal = (item.clinic || '').trim();
+      if (rawVal) {
+        if (rawVal === 'O' || rawVal === '진료') {
+          clinicGroup['진료'].count++;
+        } else if (rawVal === '행정') {
+          clinicGroup['행정'].count++;
+        } else if (rawVal.includes('휴가')) {
+          clinicGroup['휴가'].count++;
+          if (!clinicGroup['휴가'].rawKeys.includes(rawVal)) clinicGroup['휴가'].rawKeys.push(rawVal);
+        } else if (rawVal.includes('휴무')) {
+          clinicGroup['휴무'].count++;
+          if (!clinicGroup['휴무'].rawKeys.includes(rawVal)) clinicGroup['휴무'].rawKeys.push(rawVal);
+        } else {
+          clinicGroup['기타'].count++;
+          if (!clinicGroup['기타'].subMap[rawVal]) {
+            clinicGroup['기타'].subMap[rawVal] = { rawVal, count: 0 };
+          }
+          clinicGroup['기타'].subMap[rawVal].count++;
+        }
+      }
+    }
 
     const hrStr = item.hrDetail || '';
     const otStr = item.otDetail || '';
@@ -1047,10 +1119,39 @@ export function renderStatsReport() {
     otHtml += `<div class="stats-stat-row clickable" id="statsRowOt_TOTAL" style="border-top: 1px dashed #CBD5E1; margin-top:4px; padding-top:4px;"><span class="stats-stat-label" style="font-weight:700; color:#1E3A8A;">• 전체</span><span class="stats-stat-val" style="color:#1E3A8A;">(${totalOtCount}회) ${formatOtHoursString(totalOtHours)}</span></div>`;
   }
 
+  // 슬롯(세션) 수를 일수로 변환하는 헬퍼 (예: 1슬롯 -> 0.5일, 2슬롯 -> 1일)
+  function formatSlotsToDaysString(slotCount) {
+    if (!slotCount || slotCount <= 0) return '0일';
+    const days = slotCount / 2;
+    return Number.isInteger(days) ? `${days}일` : `${days.toFixed(1)}일`;
+  }
+
+  let reqBadgeHtml = '';
+  if (statsCurrentRange === 'weekly') {
+    const reqCount = calculateRequiredClinicSessions(filteredItems);
+    reqBadgeHtml = `<span class="stats-highlight-badge">(필수 ${reqCount} 세션)</span> `;
+  }
+
+  const etcSubKeys = Object.keys(clinicGroup['기타'].subMap);
+  let etcSubRowsHtml = '';
+  if (etcSubKeys.length > 0) {
+    etcSubKeys.forEach(sKey => {
+      const { count } = clinicGroup['기타'].subMap[sKey];
+      const safeId = `statsSubRowClinic_${encodeURIComponent(sKey)}`;
+      etcSubRowsHtml += `<div class="stats-stat-row clickable" id="${safeId}"><span class="stats-stat-label" style="color:#475569;">└ • ${sKey}</span><span class="stats-stat-val" style="color:#475569;">${count}회</span></div>`;
+    });
+  }
+
+  const etcLabel = etcSubKeys.length > 0 ? `• 기타 <span style="font-size:10px; color:#64748B;">▾</span>` : `• 기타`;
+
   clinicHrContainer.innerHTML = `
     <div style="font-size:12px; font-weight:700; color:#2F5597; margin-bottom:4px;">[ 🩺 진료 현황 ]</div>
-    <div class="stats-stat-row clickable" id="statsRowClinicO"><span class="stats-stat-label">• 진료</span><span class="stats-stat-val">${clinicOCount}회</span></div>
-    <div class="stats-stat-row clickable" id="statsRowClinicAdmin"><span class="stats-stat-label">• 행정</span><span class="stats-stat-val">${clinicAdminCount}회</span></div>
+    <div class="stats-stat-row clickable" id="statsRowClinic_진료"><span class="stats-stat-label">• 진료</span><span class="stats-stat-val">${reqBadgeHtml}${clinicGroup['진료'].count}회</span></div>
+    <div class="stats-stat-row clickable" id="statsRowClinic_행정"><span class="stats-stat-label">• 행정</span><span class="stats-stat-val">${clinicGroup['행정'].count}회</span></div>
+    <div class="stats-stat-row clickable" id="statsRowClinic_휴가"><span class="stats-stat-label">• 휴가</span><span class="stats-stat-val">${formatSlotsToDaysString(clinicGroup['휴가'].count)}</span></div>
+    <div class="stats-stat-row clickable" id="statsRowClinic_휴무"><span class="stats-stat-label">• 휴무</span><span class="stats-stat-val">${formatSlotsToDaysString(clinicGroup['휴무'].count)}</span></div>
+    <div class="stats-stat-row clickable" id="statsRowClinic_기타"><span class="stats-stat-label">${etcLabel}</span><span class="stats-stat-val">${clinicGroup['기타'].count}회</span></div>
+    ${etcSubRowsHtml ? `<div id="statsClinicEtcSubContainer" class="hidden" style="padding-left:10px; background:#F8FAFC; border-radius:6px; margin-top:2px; margin-bottom:6px;">${etcSubRowsHtml}</div>` : ''}
     
     <div style="font-size:12px; font-weight:700; color:#2F5597; margin-top:10px; margin-bottom:4px;">[ 📋 휴가 현황 ]</div>
     <div class="stats-stat-row clickable" id="statsRowAnnualLeave">
@@ -1069,12 +1170,42 @@ export function renderStatsReport() {
     ${otHtml}
   `;
 
-  document.getElementById('statsRowClinicO')?.addEventListener('click', () => {
-    openCustomFilteredSummaryModal('🩺 진료 일정 모아보기', filteredItems.filter(e => e.item.clinic === 'O'), 'clinic');
+  // 이벤트 바인딩 (진료, 행정, 휴가, 휴무, 기타)
+  const getWeekdayMatches = (keys) => filteredItems.filter(e => {
+    const dStr = e.item ? (e.item.date || '') : '';
+    const isWknd = dStr.includes('(토)') || dStr.includes('(일)');
+    const raw = (e.item ? e.item.clinic : '') || '';
+    return !isWknd && keys.some(k => raw === k || (k === '진료' && raw === 'O') || (raw && raw.includes(k)));
   });
-  document.getElementById('statsRowClinicAdmin')?.addEventListener('click', () => {
-    openCustomFilteredSummaryModal('🩺 행정 일정 모아보기', filteredItems.filter(e => e.item.clinic === '행정'), 'clinic');
+
+  document.getElementById('statsRowClinic_진료')?.addEventListener('click', () => {
+    openCustomFilteredSummaryModal('🩺 진료 일정 모아보기', getWeekdayMatches(['O', '진료']), 'clinic');
   });
+  document.getElementById('statsRowClinic_행정')?.addEventListener('click', () => {
+    openCustomFilteredSummaryModal('🩺 행정 일정 모아보기', getWeekdayMatches(['행정']), 'clinic');
+  });
+  document.getElementById('statsRowClinic_휴가')?.addEventListener('click', () => {
+    openCustomFilteredSummaryModal('🩺 휴가 일정 모아보기', getWeekdayMatches(clinicGroup['휴가'].rawKeys.length ? clinicGroup['휴가'].rawKeys : ['휴가']), 'vacation');
+  });
+  document.getElementById('statsRowClinic_휴무')?.addEventListener('click', () => {
+    openCustomFilteredSummaryModal('🩺 휴무 일정 모아보기', getWeekdayMatches(clinicGroup['휴무'].rawKeys.length ? clinicGroup['휴무'].rawKeys : ['휴무']), 'clinic');
+  });
+  document.getElementById('statsRowClinic_기타')?.addEventListener('click', () => {
+    const subContainer = document.getElementById('statsClinicEtcSubContainer');
+    if (subContainer) {
+      subContainer.classList.toggle('hidden');
+    }
+  });
+
+  if (etcSubKeys.length > 0) {
+    etcSubKeys.forEach(sKey => {
+      const safeId = `statsSubRowClinic_${encodeURIComponent(sKey)}`;
+      document.getElementById(safeId)?.addEventListener('click', () => {
+        openCustomFilteredSummaryModal(`🩺 ${sKey} 일정 모아보기`, getWeekdayMatches([sKey]), 'clinic');
+      });
+    });
+  }
+
   document.getElementById('statsRowAnnualLeave')?.addEventListener('click', () => {
     openCustomFilteredSummaryModal('📋 연가 일정 모아보기', filteredItems.filter(e => isApprovedLeaveItem(e.item, '연가')), 'annualLeave');
   });
@@ -1175,7 +1306,7 @@ function openCustomFilteredSummaryModal(titleText, itemsList, modalCategoryType 
 
         card.innerHTML = `
           <div class="summary-item-left">
-            <div class="summary-item-date">${weekName} ${item.date} (${item.region || '-'})</div>
+            <div class="summary-item-date">${item.date} (${item.region || '-'})</div>
           </div>
           <div><span class="badge-apply-ok">상세보기</span></div>
         `;
@@ -1221,7 +1352,7 @@ function openCustomFilteredSummaryModal(titleText, itemsList, modalCategoryType 
 
         card.innerHTML = `
           <div class="summary-item-left">
-            <div class="summary-item-date">${weekName} ${firstItem.date}${timeLabel} (${firstItem.region || '-'})</div>
+            <div class="summary-item-date">${firstItem.date}${timeLabel} (${firstItem.region || '-'})</div>
             <div class="summary-item-desc">${leaveText}</div>
           </div>
           <div><span class="badge-apply-ok">상세보기</span></div>
@@ -1253,11 +1384,19 @@ function openCustomFilteredSummaryModal(titleText, itemsList, modalCategoryType 
           if (item.otDetail) {
             descHtml = `<div class="summary-item-desc">${item.otDetail}</div>`;
           }
+        } else if (modalCategoryType === 'vacation' || (titleText && titleText.includes('휴가'))) {
+          const hrDetail = (item.hrDetail || '').trim();
+          const clinicVal = (item.clinic || '').trim();
+          const detailText = hrDetail || (clinicVal !== 'O' && clinicVal !== '휴가' ? clinicVal : '');
+
+          if (detailText) {
+            descHtml = `<div class="summary-item-desc">${detailText}</div>`;
+          }
         }
 
         card.innerHTML = `
           <div class="summary-item-left">
-            <div class="summary-item-date">${weekName} ${item.date} ${item.time} (${item.region || '-'})</div>
+            <div class="summary-item-date">${item.date} ${item.time} (${item.region || '-'})</div>
             ${descHtml}
           </div>
           <div><span class="badge-apply-ok">상세보기</span></div>
