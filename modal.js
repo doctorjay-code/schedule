@@ -1,4 +1,4 @@
-import { state, standardTransCategories, standardHrCategories, standardOtCategories, pastelPalette, loadColorSettings, saveColorSettings, resetColorSettings } from './state.js';
+import { state, standardTransCategories, standardHrCategories, standardOtCategories, pastelPalette, saveColorSettings, resetColorSettings } from './state.js';
 import { syncToGoogleSheets, syncColorSettingsToSheets } from './api.js';
 
 let renderTableFn = null;
@@ -500,6 +500,7 @@ export function setupColorSettingsEvents() {
     resetBtn.addEventListener('click', () => {
       if (confirm('모든 색상 설정을 기본값으로 초기화하시겠습니까?')) {
         resetColorSettings();
+        syncColorSettingsToSheets();
         renderPaletteChipsRows();
         renderWordRulesList();
         if (renderTableFn) renderTableFn();

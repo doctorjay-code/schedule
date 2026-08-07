@@ -293,7 +293,7 @@ export function applyCustomCellColor(tdElem, text, type) {
 
   // 1. Specific Word Rules Match
   if (state.colorSettings && Array.isArray(state.colorSettings.wordRules)) {
-    const matchedRule = state.colorSettings.wordRules.find(r => text.includes(r.word));
+    const matchedRule = state.colorSettings.wordRules.find(r => r.word && text.includes(r.word));
     if (matchedRule) {
       tdElem.style.backgroundColor = matchedRule.color;
       tdElem.style.color = '#1E293B';

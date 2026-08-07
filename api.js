@@ -40,7 +40,7 @@ export async function syncColorSettingsFromSheets() {
         };
         saveColorSettings();
         // 색상 적용 (렌더 갱신)
-        if (typeof applyColorSettings === 'function') applyColorSettings();
+        if (apiLoadWeekDataFn) apiLoadWeekDataFn(state.currentWeekIndex);
       }
     }
   } catch (e) {

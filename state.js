@@ -93,10 +93,12 @@ export function getTodayWeekIndex() {
     if (state.allWeeksData[i].items) {
       for (const it of state.allWeeksData[i].items) {
         if (!it.date) continue;
-        const match = it.date.match(/(\d+)\.\s*(\d+)\./);
-        if (match) {
-          const m = parseInt(match[1], 10);
-          const d = parseInt(match[2], 10);
+        // 날짜 형식: "8. 7.(금)" 또는 "2026. 8. 7.(금)" 모두 처리
+        const parts = it.date.match(/(\d+)/g);
+        if (parts && parts.length >= 2) {
+          // 마지막 두 숫자 그룹 = 월, 일 (연도가 있으면 앞에 붙음)
+          const m = parseInt(parts[parts.length - 2], 10);
+          const d = parseInt(parts[parts.length - 1], 10);
           if (m === todayM && d === todayD) {
             return i;
           }

@@ -1,6 +1,6 @@
 import { state, getTodayWeekIndex, loadLocalStorageData, loadColorSettings, updateSummaryCounts } from './state.js';
 import { initSecurityAuth, setAuthSuccessCallback } from './auth.js';
-import { syncFromGoogleSheets, syncToGoogleSheets, syncColorSettingsToSheets, setApiLoadWeekDataCallback } from './api.js';
+import { syncFromGoogleSheets, syncToGoogleSheets, setApiLoadWeekDataCallback } from './api.js';
 import { loadWeekData, renderTable, isCellSelected } from './render.js';
 import { openModal, closeModal, openSummaryModal, closeSummaryModal, saveModalToActiveItem, setupBtnGroupEvents, setupToggleEvents, setupColorSettingsEvents, setModalRenderCallback, setModalLoadWeekDataCallback } from './modal.js';
 
