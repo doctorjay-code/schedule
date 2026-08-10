@@ -31,7 +31,11 @@ export const defaultColorSettings = {
   clinicColors: {
     'O': '#FEF3C7',
     '행정': '#E0F2FE',
-    '휴가': '#FCE7F3',
+    '주말': '#FEE2E2',
+    '휴일': '#FFEDD5',
+    '당직': '#E0E7FF',
+    '당직OFF': '#F3E8FF',
+    '청원휴가': '#FCE7F3',
     '기타': '#F1F5F9'
   },
   wordRules: []

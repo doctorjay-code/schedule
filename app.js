@@ -184,9 +184,12 @@ function initEvents() {
     });
   }
 
+  const holidayStatusToggle = document.getElementById('holidayStatusToggle');
+
   setupBtnGroupEvents(regionBtnGroup, customRegionInput);
   setupBtnGroupEvents(clinicBtnGroup, customClinicInput);
 
+  setupToggleEvents(holidayStatusToggle);
   setupToggleEvents(transStatusToggle);
   setupToggleEvents(hrStatusToggle);
   setupToggleEvents(otStatusToggle);

@@ -1089,12 +1089,14 @@ td.cell-date {
 
 .btn-group {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
 .option-btn {
-  flex: 1;
-  padding: 8px;
+  flex: 1 1 calc(25% - 6px);
+  min-width: 60px;
+  padding: 8px 4px;
   border: 1px solid #CBD5E1;
   background-color: #F8FAFC;
   color: var(--text-main);
@@ -1102,6 +1104,7 @@ td.cell-date {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  text-align: center;
 }
 
 .option-btn.active {
@@ -1161,6 +1164,20 @@ td.cell-date {
   background-color: #1E293B;
   color: white;
   border-color: #1E293B;
+}
+
+.status-toggle-btn.holiday-on-btn.active {
+  background-color: #DC2626;
+  color: white;
+  border-color: #DC2626;
+}
+
+.holiday-toggle-group {
+  background-color: #FEF2F2;
+  border: 1px solid #FCA5A5;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
 }
 
 /* Horizontal 2-Column In-place Swapping Row */
