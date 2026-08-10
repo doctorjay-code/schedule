@@ -97,7 +97,7 @@ export function openModal(item) {
 
   if (modalDateTitle) modalDateTitle.textContent = `${item.date} ${item.time} 일정 상세`;
 
-  const standardRegions = ['서울', '진주', '이동'];
+  const standardRegions = ['서울', '진주', '대구', '이동'];
   if (standardRegions.includes(item.region)) {
     if (regionBtnGroup) updateBtnGroup(regionBtnGroup, item.region);
     if (customRegionInput) {
@@ -112,7 +112,7 @@ export function openModal(item) {
     }
   }
 
-  const standardClinics = ['O', '행정', '주말', '휴일', '당직', '당직OFF', '청원휴가'];
+  const standardClinics = ['O', '행정', '당직', '주말', '휴일', '당직OFF', '청원휴가', '연가', '위로휴가'];
   if (standardClinics.includes(item.clinic)) {
     if (clinicBtnGroup) updateBtnGroup(clinicBtnGroup, item.clinic);
     if (customClinicInput) {
@@ -340,6 +340,15 @@ export function updateBtnGroup(groupElem, activeVal) {
 }
 
 export function updateToggleGroup(toggleElem, activeVal) {
+  if (toggleElem.classList.contains('single-status-toggle')) {
+    const isOn = activeVal === 'ON';
+    toggleElem.dataset.val = isOn ? 'ON' : 'OFF';
+    toggleElem.textContent = isOn ? 'ON' : 'OFF';
+    toggleElem.classList.toggle('active', isOn);
+    toggleElem.setAttribute('aria-pressed', String(isOn));
+    return;
+  }
+
   const btns = toggleElem.querySelectorAll('.status-toggle-btn');
   btns.forEach(btn => {
     if (activeVal && btn.dataset.val === activeVal) btn.classList.add('active');
@@ -416,7 +425,9 @@ export function saveModalToActiveItem() {
 
   const holidayStatusToggle = document.getElementById('holidayStatusToggle');
   if (holidayStatusToggle) {
-    const activeVal = holidayStatusToggle.querySelector('.status-toggle-btn.active')?.dataset.val || 'OFF';
+    const activeVal = holidayStatusToggle.classList.contains('single-status-toggle')
+      ? holidayStatusToggle.dataset.val
+      : holidayStatusToggle.querySelector('.status-toggle-btn.active')?.dataset.val || 'OFF';
     const isHolidayVal = (activeVal === 'ON');
     state.activeItem.isHoliday = isHolidayVal;
 
@@ -427,6 +438,7 @@ export function saveModalToActiveItem() {
           wObj.items.forEach(item => {
             if (item.date === targetDate) {
               item.isHoliday = isHolidayVal;
+              item.holidayOverride = isHolidayVal;
             }
           });
         }
@@ -462,6 +474,14 @@ export function setupBtnGroupEvents(groupElem, customInputElem) {
 
 export function setupToggleEvents(toggleElem) {
   if (!toggleElem) return;
+  if (toggleElem.classList.contains('single-status-toggle')) {
+    toggleElem.addEventListener('click', () => {
+      const nextVal = toggleElem.dataset.val === 'ON' ? 'OFF' : 'ON';
+      updateToggleGroup(toggleElem, nextVal);
+    });
+    return;
+  }
+
   const btns = toggleElem.querySelectorAll('.status-toggle-btn');
   btns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -949,7 +969,7 @@ export function renderStatsReport() {
       
       row.addEventListener('click', () => {
         const matches = filteredItems.filter(e => e.item.region === rKey || (e.item.region === '이동'));
-        openCustomFilteredSummaryModal(`📍 ${rKey} 체류 일정 모아보기`, matches, 'region');
+        openCustomFilteredSummaryModal(`📍 ${rKey} 체류 일정 모아보기`, matches, 'region', rKey);
       });
 
       regionContainer.appendChild(row);
@@ -967,7 +987,7 @@ export function renderStatsReport() {
 
         row.addEventListener('click', () => {
           const matches = filteredItems.filter(e => e.item.region === etcKey);
-          openCustomFilteredSummaryModal(`📍 ${etcKey} 체류 일정 모아보기`, matches, 'region');
+          openCustomFilteredSummaryModal(`📍 ${etcKey} 체류 일정 모아보기`, matches, 'region', etcKey);
         });
 
         regionContainer.appendChild(row);
@@ -1017,18 +1037,38 @@ export function renderStatsReport() {
     return true;
   }
 
+  // 같은 날짜에 오전·오후 모두 "연가 1일"로 기록된 경우는 하루(8시간) 한 번만 차감한다.
+  // 시간 단위 연가는 세션별 실제 시간을 합산한다.
+  function calculateAnnualLeaveHours(entries) {
+    const dailyHours = new Map();
+
+    entries.forEach(entry => {
+      const item = entry.item || entry;
+      if (!isApprovedLeaveItem(item, '연가') || !item.date) return;
+
+      const weekTitle = entry.wObj?.title || item.weekTitleName || '';
+      const key = `${weekTitle}_${item.date}`;
+      const combined = `${item.clinic || ''} ${item.hrDetail || ''} ${item.otDetail || ''}`;
+      const hours = parseHoursFromDetail(combined) || 4;
+      const isDayUnitLeave = /\d+(\.\d+)?\s*일/.test(combined);
+      const totals = dailyHours.get(key) || { dayUnit: 0, hourly: 0 };
+
+      if (isDayUnitLeave) totals.dayUnit = Math.max(totals.dayUnit, hours);
+      else totals.hourly += hours;
+
+      dailyHours.set(key, totals);
+    });
+
+    return Array.from(dailyHours.values())
+      .reduce((sum, totals) => sum + Math.max(totals.dayUnit, totals.hourly), 0);
+  }
+
   // Calculate Global Petition & Annual Leave Hours (Approved Only)
   const globalPetitionDatesMap = new Map();
+  globalAnnualHours = calculateAnnualLeaveHours(allItemsFlat);
   allItemsFlat.forEach(entry => {
     const { item } = entry;
-    const hrStr = item.hrDetail || '';
-    const otStr = item.otDetail || '';
-    const combined = `${item.clinic || ''} ${hrStr} ${otStr}`;
 
-    if (isApprovedLeaveItem(item, '연가')) {
-      const h = parseHoursFromDetail(combined) || 4;
-      globalAnnualHours += h;
-    }
     if (isApprovedLeaveItem(item, '청원휴가') && item.date) {
       const key = `${entry.wObj.title}_${item.date}`;
       globalPetitionDatesMap.set(key, (globalPetitionDatesMap.get(key) || 0) + 1);
@@ -1041,6 +1081,7 @@ export function renderStatsReport() {
 
   // Filtered Leave & Clinic Hours for Selected Period (Approved Only)
   const filteredPetitionDatesMap = new Map();
+  filteredAnnualHours = calculateAnnualLeaveHours(filteredItems);
   
   // 🩺 진료 현황 분류 구조 (1.진료, 2.행정, 3.휴가, 4.휴일, 5.주말, 6.당직, 7.기타)
   const vacationKeys = ['휴가', '당직OFF', '청원휴가', '연가', '위로휴가'];
@@ -1085,13 +1126,6 @@ export function renderStatsReport() {
       }
     }
 
-    const hrStr = item.hrDetail || '';
-    const otStr = item.otDetail || '';
-    const combined = `${item.clinic || ''} ${hrStr} ${otStr}`;
-
-    if (isApprovedLeaveItem(item, '연가')) {
-      filteredAnnualHours += (parseHoursFromDetail(combined) || 4);
-    }
     if (isApprovedLeaveItem(item, '청원휴가') && item.date) {
       const key = `${entry.wObj.title}_${item.date}`;
       filteredPetitionDatesMap.set(key, (filteredPetitionDatesMap.get(key) || 0) + 1);
@@ -1394,7 +1428,7 @@ export function renderStatsReport() {
   }
 }
 
-function openCustomFilteredSummaryModal(titleText, itemsList, modalCategoryType = '') {
+function openCustomFilteredSummaryModal(titleText, itemsList, modalCategoryType = '', statsContextRegion = '') {
   const summaryModalTitle = document.getElementById('summaryModalTitle');
   const summaryListContainer = document.getElementById('summaryListContainer');
   const summaryModalOverlay = document.getElementById('summaryModalOverlay');
@@ -1411,6 +1445,9 @@ function openCustomFilteredSummaryModal(titleText, itemsList, modalCategoryType 
       modalCategoryType === 'petitionLeave' ||
       modalCategoryType === 'dutyOff' ||
       modalCategoryType === 'annualLeave' ||
+      modalCategoryType === 'clinic' ||
+      modalCategoryType === 'allowance' ||
+      modalCategoryType === 'region' ||
       (titleText && ['당직OFF', '청원휴가', '연가', '위로휴가', '휴가', '휴일', '주말', '당직'].some(k => titleText.includes(k)))
     );
 
@@ -1433,28 +1470,89 @@ function openCustomFilteredSummaryModal(titleText, itemsList, modalCategoryType 
         }
       });
 
+      const findSessionEntry = (sourceEntry, timeLabel) => {
+        const sourceItem = sourceEntry?.item || sourceEntry;
+        if (!sourceItem) return null;
+
+        const sourceWeek = sourceEntry?.wObj || state.allWeeksData.find(w =>
+          w.items && w.items.some(it => it.id === sourceItem.id && it.date === sourceItem.date)
+        );
+        const sessionItem = sourceWeek?.items?.find(it =>
+          it.date === sourceItem.date && (it.time || '').includes(timeLabel)
+        );
+
+        return sessionItem ? { item: sessionItem, wObj: sourceWeek } : null;
+      };
+
       dateGroupMap.forEach(({ morning, afternoon, entryList, firstItem }) => {
         const card = document.createElement('div');
         card.className = 'summary-item-card';
 
-        const mEntry = morning || entryList[0];
-        const aEntry = afternoon || entryList[entryList.length - 1];
+        // 오전/오후에 실제로 해당하는 일정만 활성화한다.
+        // 한 세션만 있는 날에는 다른 세션을 대신 열지 않고 비활성화한다.
+        const mEntry = morning;
+        const aEntry = afternoon;
+        // 통계 항목에는 없더라도 실제 해당 시간 일정이 있으면 회색 버튼으로 편집을 허용한다.
+        const mEditEntry = mEntry || findSessionEntry(entryList[0], '오전');
+        const aEditEntry = aEntry || findSessionEntry(entryList[0], '오후');
 
-        const mItem = mEntry ? (mEntry.item || mEntry) : firstItem;
-        const aItem = aEntry ? (aEntry.item || aEntry) : firstItem;
+        const mItem = mEditEntry ? (mEditEntry.item || mEditEntry) : null;
+        const aItem = aEditEntry ? (aEditEntry.item || aEditEntry) : null;
 
         const getItemDetailText = (it) => {
           if (!it) return '';
           const hr = (it.hrDetail || '').trim();
           const ot = (it.otDetail || '').trim();
           const cl = (it.clinic || '').trim();
-          if (hr) return hr;
-          if (ot) return ot;
-          if (cl && cl !== 'O') return cl;
-          return '';
+          const details = [hr, ot].filter(Boolean);
+          if (details.length > 0) return details.join(' / ');
+          return (cl && cl !== 'O') ? cl : '';
         };
 
-        let detailText = getItemDetailText(aItem) || getItemDetailText(mItem);
+        const getClinicText = (it) => {
+          const clinic = (it?.clinic || '').trim();
+          return clinic === 'O' ? '진료' : clinic || '-';
+        };
+        const isSingleClinicDetail = modalCategoryType === 'vacation' ||
+          (modalCategoryType === 'clinic' && ['휴가', '휴일', '주말', '당직'].some(key => titleText.includes(key)));
+        const isSplitClinicDetail = modalCategoryType === 'region' ||
+          (modalCategoryType === 'clinic' && !isSingleClinicDetail);
+        const isLeaveStatusReport = ['annualLeave', 'petitionLeave', 'dutyOff'].includes(modalCategoryType);
+        const getMatchedFieldDetails = (fieldName, deduplicate = false) => {
+          const details = [mEntry, aEntry]
+            .map(entry => (entry?.item || entry)?.[fieldName]?.trim())
+            .filter(Boolean);
+          return (deduplicate ? [...new Set(details)] : details).join(' / ');
+        };
+
+        // 체류 지역과 일반 진료 항목은 오전·오후 진료 구분을 각각 보여준다.
+        // 진료 현황의 휴가·휴일/주말·당직은 같은 내용이 반복되는 경우가 많아 한 번만 표시한다.
+        let detailText = '';
+        if (isSplitClinicDetail) {
+          detailText = `${getClinicText(mItem)} / ${getClinicText(aItem)}`;
+        } else if (modalCategoryType === 'allowance') {
+          detailText = getMatchedFieldDetails('otDetail');
+        } else if (isLeaveStatusReport) {
+          detailText = getMatchedFieldDetails('hrDetail', true);
+        } else if (isSingleClinicDetail) {
+          detailText = getItemDetailText(mItem) || getItemDetailText(aItem);
+        } else {
+          detailText = [getItemDetailText(mItem), getItemDetailText(aItem)].filter(Boolean).join(' / ');
+        }
+        const regionLabels = [mItem?.region || '-', aItem?.region || '-']
+          .map(region => `(${region})`)
+          .join(' ');
+        const getTravelClass = (item, pairedItem) => {
+          if (modalCategoryType !== 'region' || item?.region !== '이동') return '';
+
+          // 이동은 현재 보고 있는 지역을 기준으로 출발(왼쪽)·도착(오른쪽)을 나타낸다.
+          const isContextRegion = pairedItem?.region === statsContextRegion;
+          const isMorning = (item.time || '').includes('오전');
+          const isColorOnLeft = isMorning ? !isContextRegion : isContextRegion;
+          return ` summary-session-travel-${isColorOnLeft ? 'left' : 'right'}`;
+        };
+        const mTravelClass = getTravelClass(mItem, aItem);
+        const aTravelClass = getTravelClass(aItem, mItem);
 
         let descHtml = '';
         if (detailText) {
@@ -1463,12 +1561,12 @@ function openCustomFilteredSummaryModal(titleText, itemsList, modalCategoryType 
 
         card.innerHTML = `
           <div class="summary-item-left">
-            <div class="summary-item-date">${firstItem.date} (${firstItem.region || '-'})</div>
+            <div class="summary-item-date">${firstItem.date} ${regionLabels}</div>
             ${descHtml}
           </div>
           <div class="summary-item-actions" style="display:flex; gap:6px; align-items:center;">
-            <button type="button" class="badge-apply-ok btn-m-edit" style="cursor:pointer; background-color:#3B82F6; border:none; padding:4px 8px; border-radius:4px; color:white; font-size:11px; font-weight:600;">오전</button>
-            <button type="button" class="badge-apply-ok btn-a-edit" style="cursor:pointer; background-color:#10B981; border:none; padding:4px 8px; border-radius:4px; color:white; font-size:11px; font-weight:600;">오후</button>
+            <button type="button" class="badge-apply-ok btn-m-edit${mEntry ? '' : ' summary-session-disabled'}${mTravelClass}" ${mEditEntry ? '' : 'disabled'} style="background-color:#3B82F6; border:none; padding:4px 8px; border-radius:4px; color:white; font-size:11px; font-weight:600;">오전</button>
+            <button type="button" class="badge-apply-ok btn-a-edit${aEntry ? '' : ' summary-session-disabled'}${aTravelClass}" ${aEditEntry ? '' : 'disabled'} style="background-color:#10B981; border:none; padding:4px 8px; border-radius:4px; color:white; font-size:11px; font-weight:600;">오후</button>
           </div>
         `;
 
@@ -1485,17 +1583,17 @@ function openCustomFilteredSummaryModal(titleText, itemsList, modalCategoryType 
         const mBtn = card.querySelector('.btn-m-edit');
         const aBtn = card.querySelector('.btn-a-edit');
 
-        if (mBtn) {
+        if (mBtn && mEditEntry) {
           mBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            handleItemClick(mEntry || aEntry);
+            handleItemClick(mEditEntry);
           });
         }
 
-        if (aBtn) {
+        if (aBtn && aEditEntry) {
           aBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            handleItemClick(aEntry || mEntry);
+            handleItemClick(aEditEntry);
           });
         }
 

@@ -148,20 +148,18 @@
           <!-- Holiday Toggle Field -->
           <div class="form-group holiday-toggle-group">
             <div class="holiday-header" style="display:flex; justify-content:space-between; align-items:center;">
-              <label style="color:#DC2626; font-weight:700; margin-bottom:0;">🔴 공휴일 / 빨간날</label>
-              <div class="toggle-group" id="holidayStatusToggle">
-                <button type="button" class="status-toggle-btn" data-val="OFF">평일 (OFF)</button>
-                <button type="button" class="status-toggle-btn holiday-on-btn" data-val="ON">공휴일 (ON)</button>
-              </div>
+              <label style="color:#DC2626; font-weight:700; margin-bottom:0;">🔴 빨간날</label>
+              <button type="button" class="status-toggle-btn single-status-toggle" id="holidayStatusToggle" data-val="OFF" aria-pressed="false">OFF</button>
             </div>
           </div>
 
           <!-- Region Field -->
           <div class="form-group">
             <label>체류 지역</label>
-            <div class="btn-group" id="regionBtnGroup">
+            <div class="btn-group five-option-grid" id="regionBtnGroup">
               <button type="button" class="option-btn" data-val="서울">서울</button>
               <button type="button" class="option-btn" data-val="진주">진주</button>
+              <button type="button" class="option-btn" data-val="대구">대구</button>
               <button type="button" class="option-btn" data-val="이동">이동</button>
               <button type="button" class="option-btn" data-val="기타">기타</button>
             </div>
@@ -171,14 +169,16 @@
           <!-- Clinic Field -->
           <div class="form-group">
             <label>진료 구분</label>
-            <div class="btn-group" id="clinicBtnGroup">
+            <div class="btn-group five-option-grid" id="clinicBtnGroup">
               <button type="button" class="option-btn" data-val="O">O</button>
               <button type="button" class="option-btn" data-val="행정">행정</button>
+              <button type="button" class="option-btn" data-val="당직">당직</button>
               <button type="button" class="option-btn" data-val="주말">주말</button>
               <button type="button" class="option-btn" data-val="휴일">휴일</button>
-              <button type="button" class="option-btn" data-val="당직">당직</button>
               <button type="button" class="option-btn" data-val="당직OFF">당직OFF</button>
               <button type="button" class="option-btn" data-val="청원휴가">청원휴가</button>
+              <button type="button" class="option-btn" data-val="연가">연가</button>
+              <button type="button" class="option-btn" data-val="위로휴가">위로휴가</button>
               <button type="button" class="option-btn" data-val="기타">기타</button>
             </div>
             <input type="text" class="input-text sub-input hidden" id="customClinicInput" placeholder="진료 구분 직접 입력">

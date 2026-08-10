@@ -44,6 +44,8 @@ export const fixedHolidays = [
 // Helper: Check if date is weekend or holiday
 export function isRedDate(item) {
   if (!item || !item.date) return false;
+  if (item.holidayOverride === true) return true;
+  if (item.holidayOverride === false) return false;
   return item.isHoliday || 
          item.date.includes('토') || 
          item.date.includes('일') ||
@@ -555,7 +557,10 @@ export function renderMonthlyCalendar() {
     const mItem = dayData.morning;
     const aItem = dayData.afternoon;
 
-    const isHolidayDate = (mItem && isRedDate(mItem)) || (aItem && isRedDate(aItem)) || isSunday;
+    // 일정이 있는 날짜는 사용자가 설정한 빨간날 ON/OFF 값을 우선한다.
+    const isHolidayDate = (mItem && isRedDate(mItem)) ||
+      (aItem && isRedDate(aItem)) ||
+      (!mItem && !aItem && isSunday);
 
     let dateNumClass = 'monthly-cell-date-num';
     if (isHolidayDate) dateNumClass += ' red-date';

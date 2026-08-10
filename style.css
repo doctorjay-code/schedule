@@ -1093,6 +1093,15 @@ td.cell-date {
   gap: 6px;
 }
 
+.btn-group.five-option-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.five-option-grid .option-btn {
+  min-width: 0;
+}
+
 .option-btn {
   flex: 1 1 calc(25% - 6px);
   min-width: 60px;
@@ -1166,7 +1175,11 @@ td.cell-date {
   border-color: #1E293B;
 }
 
-.status-toggle-btn.holiday-on-btn.active {
+.single-status-toggle {
+  min-width: 54px;
+}
+
+.status-toggle-btn.single-status-toggle.active {
   background-color: #DC2626;
   color: white;
   border-color: #DC2626;
@@ -1327,6 +1340,32 @@ td.cell-date {
 .summary-item-card > div:last-child {
   flex-shrink: 0;
   white-space: nowrap;
+}
+
+.summary-item-actions .summary-session-disabled {
+  background-color: #CBD5E1 !important;
+  cursor: pointer;
+  opacity: 1;
+}
+
+.summary-item-actions button {
+  color: #FFFFFF !important;
+}
+
+.summary-item-actions .btn-m-edit.summary-session-travel-left {
+  background: linear-gradient(90deg, #3B82F6 50%, #CBD5E1 50%) !important;
+}
+
+.summary-item-actions .btn-m-edit.summary-session-travel-right {
+  background: linear-gradient(90deg, #CBD5E1 50%, #3B82F6 50%) !important;
+}
+
+.summary-item-actions .btn-a-edit.summary-session-travel-left {
+  background: linear-gradient(90deg, #10B981 50%, #CBD5E1 50%) !important;
+}
+
+.summary-item-actions .btn-a-edit.summary-session-travel-right {
+  background: linear-gradient(90deg, #CBD5E1 50%, #10B981 50%) !important;
 }
 
 .summary-item-left {
