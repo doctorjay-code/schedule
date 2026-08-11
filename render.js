@@ -1,5 +1,5 @@
 import { state, updateSummaryCounts } from './state.js';
-import { openModal } from './modal.js';
+import { openModal } from './modal-edit.js';
 
 // Load Specified Week Data
 export function loadWeekData(index) {

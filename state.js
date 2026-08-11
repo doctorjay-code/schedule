@@ -1,6 +1,7 @@
 // Google Apps Script Live Sync URL & Security Consts
 export const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzjnIdn0O3TcAav5sshkKDB_B6zP8Nw9woJ00OFw9pMIYyK8p75G8yW3A8KRpgYRnR5YA/exec";
-export const SECURITY_PASSWORD_HASH = 'f0fee696ab48d4321ec49b94c7efb48a02da6f9798c3f6afc95c626d028cb7e0'; // Password: 140817!
+// SHA-256 hash of the access password. (Do NOT store the plaintext password in a comment.)
+export const SECURITY_PASSWORD_HASH = '4417e9d3ebf53ef7033b6f05f7c19272baaf187eafd6459c7c1268e0abc26d22';
 
 // Standard Preset Categories
 export const standardTransCategories = ['KTX', '고속버스'];

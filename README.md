@@ -97,13 +97,21 @@
 ├── style.css          # 반응형 디자인 시스템, 월간/주간 그리드, 파스텔 팔레트 & Glassmorphic 테마
 ├── state.js           # 전역 반응형 데이터 상태(state), currentView/currentMonthYear, 커스텀 색상/단어 규칙, LocalStorage
 ├── auth.js            # 패스워드 SHA-256 인증 & 10회 실패 락아웃 타이머
-├── api.js             # 구글 시트 GET/POST 실시간 연동 & 색상 설정(GET_COLORS/SET_COLORS) 동기화
+├── api.js             # 구글 시트 GET/POST 실시간 연동 & 색상 설정 동기화
 ├── render.js          # 주간 Grid 테이블 및 월간 7열 달력(renderMonthlyCalendar) 렌더링, 뷰 스위칭(switchViewModeUI), 셀 병합 & 클릭 로직
-├── modal.js           # 일정 상세 편집, 요약 모아보기, 주차 선택 바텀시트, 커스텀 색상 설정 모달 UI & 이벤트
-├── app.js             # 애플리케이션 메인 엔트리 포인트, 주간/월간 통합 네비게이션 & 이벤트 바인딩
+├── modal.js           # 배럴(barrel) 파일: 아래 modal-*.js 를 재수출 (app.js 가 기존처럼 import)
+├── modal-edit.js      # 일정 상세 편집 모달 + 공용 헬퍼(parseSectionField/assembleSectionField) + 공유 콜백 상태
+├── modal-summary.js   # 전체 미결제 / 미신청 / 미승인 모아보기 모달
+├── modal-week.js      # 주차 선택 바텀시트 모달
+├── modal-color.js     # 커스텀 색상 / 단어 규칙 설정 모달
+├── modal-stats.js     # 통계 요약 리포트 대시보드 모달
+├── app.js             # 애플리케이션 메인 엔트리 포인트, 주간/월간 통합 네비게이션 & 이벤트 바인딩 & 콜백 와이어링
 ├── apple-touch-icon.png # 애플 홈 화면 파비콘 아이콘
 └── color.png          # 파스텔 팔레트 참고 자산 이미지
 ```
+
+> `render.js`는 `modal.js`가 아닌 **`modal-edit.js`에서 `openModal`을 직접 import**합니다.  
+> (과거 `render ↔ modal` 간 순환 참조를 끊어냈으며, 콜백 주입 패턴(`setModalRenderCallback`)은 유지됩니다.)
 
 ---
 
@@ -143,5 +151,10 @@ ES Modules 규격(`type="module"`)을 사용하므로 브라우저 보안 정책
 
 ## 🔒 보안 정책 (Security)
 
-- 기본 접속 비밀번호: `140817!` (SHA-256 암호화 검증)
+- **접속 비밀번호는 README/소스에 평문으로 저장하지 마세요.** (이전 버전에서 평문이 노출된 적 있음)
+- **⚠️ 비밀번호 재설정 권장**: 이 비밀번호는 이미 공개된 상태이므로, `state.js`의 `SECURITY_PASSWORD_HASH` 값을 **새 비밀번호의 SHA-256**로 교체하세요.
+  - ```bash
+    node -e "console.log(require('crypto').createHash('sha256').update('새비밀번호').digest('hex'))"
+    ```
+- 검증 방식: 사용자가 입력한 비밀번호의 SHA-256 해시를 `state.js`의 `SECURITY_PASSWORD_HASH`와 비교합니다.
 - 10회 연속 실패 시 해당 단말기에서 5분간 접속이 자동 차단됩니다. (`localStorage` 기반 타이머 유지)
