@@ -87,11 +87,8 @@ export function parseGoogleSheetsRecordsUniversal(records) {
 
       if (!grouped[weekName]) grouped[weekName] = [];
       const clinicVal = getProp(r, 'clinic') || getProp(r, '진료') || '';
-      const fixedHolidays = ['8. 15.', '8. 17.', '9. 24.', '9. 25.', '9. 26.', '9. 28.', '10. 3.', '10. 5.', '10. 9.', '12. 25.', '1. 1.', '2. 6.', '2. 7.', '2. 8.', '2. 9.', '3. 1.'];
+      const fixedHolidays = ['8. 15.', '8. 17.', '9. 24.', '9. 25.', '9. 26.', '9. 28.', '10. 3.', '10. 5.', '10. 9.', '12. 25.', '1. 1.', '2. 6.', '2. 7.', '2. 8.', '2. 9.', '3. 1.', '5. 1.', '5. 5.', '5. 25.', '6. 3.', '7. 17.'];
       const autoHoliday = (dateVal.includes("토") || dateVal.includes("일") || fixedHolidays.some(h => dateVal.includes(h)));
-      const overrideRaw = getProp(r, 'holidayOverride');
-      const hasHolidayOverride = ['true', 'false', 'on', 'off', '1', '0'].includes(overrideRaw.toLowerCase());
-      const holidayOverride = hasHolidayOverride ? parseBoolean(overrideRaw) : undefined;
       const isHolidayRaw = getProp(r, 'isHoliday');
       const isHoliday = isHolidayRaw ? parseBoolean(isHolidayRaw) : autoHoliday;
 
@@ -107,8 +104,7 @@ export function parseGoogleSheetsRecordsUniversal(records) {
         hrDetail: getProp(r, 'hrDetail') || getProp(r, '국인체 상세') || '',
         otStatus: getProp(r, 'otStatus') || getProp(r, '수당 상태') || '',
         otDetail: getProp(r, 'otDetail') || getProp(r, '수당 상세') || '',
-        isHoliday: isHoliday,
-        ...(hasHolidayOverride ? { holidayOverride } : {})
+        isHoliday: isHoliday
       });
     });
 
@@ -235,8 +231,7 @@ export async function syncToGoogleSheets() {
           hrDetail: it.hrDetail || '',
           otStatus: it.otStatus || '',
           otDetail: it.otDetail || '',
-          isHoliday: Boolean(it.isHoliday),
-          holidayOverride: typeof it.holidayOverride === 'boolean' ? it.holidayOverride : null
+          isHoliday: Boolean(it.isHoliday)
         });
       });
     });

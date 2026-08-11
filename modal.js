@@ -1,6 +1,6 @@
 import { state, standardTransCategories, standardHrCategories, standardOtCategories, pastelPalette, saveColorSettings, resetColorSettings, getItemReason } from './state.js';
 import { syncToGoogleSheets, syncColorSettingsToSheets } from './api.js';
-import { renderMonthlyCalendar, isRedDate } from './render.js';
+import { renderMonthlyCalendar } from './render.js';
 
 let renderTableFn = null;
 export function setModalRenderCallback(fn) { renderTableFn = fn; }
@@ -130,10 +130,6 @@ export function openModal(item) {
   if (transStatusToggle) updateToggleGroup(transStatusToggle, item.transStatus || '');
   if (hrStatusToggle) updateToggleGroup(hrStatusToggle, item.hrStatus || '');
   if (otStatusToggle) updateToggleGroup(otStatusToggle, item.otStatus || '');
-
-  const holidayStatusToggle = document.getElementById('holidayStatusToggle');
-  const isHoliday = isRedDate(item);
-  if (holidayStatusToggle) updateToggleGroup(holidayStatusToggle, isHoliday ? 'ON' : 'OFF');
 
   // Section Parsings
   parseSectionField(item.transDetail, standardTransCategories, transSelectCategory, customTransWrapper, customTransCategoryInput, transDetailInput);
@@ -422,29 +418,6 @@ export function saveModalToActiveItem() {
     state.activeItem.otStatus = otStatusToggle.querySelector('.status-toggle-btn.active')?.dataset.val || '';
   }
   state.activeItem.otDetail = assembleSectionField(otSelectCategory, customOtWrapper, customOtCategoryInput, otDetailInput);
-
-  const holidayStatusToggle = document.getElementById('holidayStatusToggle');
-  if (holidayStatusToggle) {
-    const activeVal = holidayStatusToggle.classList.contains('single-status-toggle')
-      ? holidayStatusToggle.dataset.val
-      : holidayStatusToggle.querySelector('.status-toggle-btn.active')?.dataset.val || 'OFF';
-    const isHolidayVal = (activeVal === 'ON');
-    state.activeItem.isHoliday = isHolidayVal;
-
-    const targetDate = state.activeItem.date;
-    if (targetDate) {
-      state.allWeeksData.forEach(wObj => {
-        if (wObj.items && Array.isArray(wObj.items)) {
-          wObj.items.forEach(item => {
-            if (item.date === targetDate) {
-              item.isHoliday = isHolidayVal;
-              item.holidayOverride = isHolidayVal;
-            }
-          });
-        }
-      });
-    }
-  }
 
   syncToGoogleSheets();
 }
@@ -1003,6 +976,7 @@ export function renderStatsReport() {
 
   let filteredAnnualHours = 0;
   let filteredPetitionHours = 0;
+  let filteredWiroHours = 0;
   let dutyOffCount = 0;
 
   let globalAnnualHours = 0;
@@ -1081,6 +1055,7 @@ export function renderStatsReport() {
 
   // Filtered Leave & Clinic Hours for Selected Period (Approved Only)
   const filteredPetitionDatesMap = new Map();
+  const filteredWiroDatesMap = new Map();
   filteredAnnualHours = calculateAnnualLeaveHours(filteredItems);
   
   // 🩺 진료 현황 분류 구조 (1.진료, 2.행정, 3.휴가, 4.휴일, 5.주말, 6.당직, 7.기타)
@@ -1133,10 +1108,19 @@ export function renderStatsReport() {
     if (isApprovedLeaveItem(item, '당직OFF')) {
       dutyOffCount++;
     }
+
+    if (isApprovedLeaveItem(item, '위로휴가') && item.date) {
+      const key = `${entry.wObj.title}_${item.date}`;
+      filteredWiroDatesMap.set(key, (filteredWiroDatesMap.get(key) || 0) + 1);
+    }
   });
 
   filteredPetitionDatesMap.forEach(slotCount => {
     filteredPetitionHours += (slotCount >= 2) ? 8 : 4;
+  });
+
+  filteredWiroDatesMap.forEach(slotCount => {
+    filteredWiroHours += (slotCount >= 2) ? 8 : 4;
   });
 
   // SECTION 2-C: Allowance Calculation (Approved Only)
@@ -1200,8 +1184,13 @@ export function renderStatsReport() {
     reqBadgeHtml = `<span class="stats-highlight-badge">(필수 ${reqCount} 세션)</span> `;
   }
 
-  // 휴가 서브 항목 HTML
-  const vacationSubKeys = Object.keys(clinicGroup['휴가'].subMap);
+  // 휴가 서브 항목 HTML (연가 → 청원휴가 → 위로휴가 → 당직OFF 순으로 정렬)
+  const vacationOrder = ['연가', '청원휴가', '위로휴가', '당직OFF'];
+  const vacationSubKeys = Object.keys(clinicGroup['휴가'].subMap).sort((a, b) => {
+    const ia = vacationOrder.indexOf(a);
+    const ib = vacationOrder.indexOf(b);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
   let vacationSubRowsHtml = '';
   if (vacationSubKeys.length > 0) {
     vacationSubKeys.forEach(vKey => {
@@ -1273,7 +1262,7 @@ export function renderStatsReport() {
   clinicHrContainer.innerHTML = `
     ${clinicHtml}
     
-    <div style="font-size:12px; font-weight:700; color:#2F5597; margin-top:10px; margin-bottom:4px;">[ 📋 휴가 현황 ]</div>
+    <div style="font-size:12px; font-weight:700; color:#2F5597; margin-top:10px; margin-bottom:4px;">[ 📋 국인체 휴가 현황 ]</div>
     <div class="stats-stat-row clickable" id="statsRowAnnualLeave">
       <span class="stats-stat-label">• 연가</span>
       <span class="stats-stat-val"><span class="stats-highlight-badge">(잔여 연가: ${formatHoursToDaysString(remainingAnnualHours)})</span> ${formatHoursToDaysString(filteredAnnualHours)}</span>
@@ -1281,6 +1270,10 @@ export function renderStatsReport() {
     <div class="stats-stat-row clickable" id="statsRowPetitionLeave">
       <span class="stats-stat-label">• 청원휴가</span>
       <span class="stats-stat-val"><span class="stats-highlight-badge">(잔여 청원휴가: ${formatHoursToDaysString(remainingPetitionHours)})</span> ${formatHoursToDaysString(filteredPetitionHours)}</span>
+    </div>
+    <div class="stats-stat-row clickable" id="statsRowWiroLeave">
+      <span class="stats-stat-label">• 위로휴가</span>
+      <span class="stats-stat-val">${formatHoursToDaysString(filteredWiroHours)}</span>
     </div>
     <div class="stats-stat-row clickable" id="statsRowDutyOff">
       <span class="stats-stat-label">• 당직OFF</span>
@@ -1367,6 +1360,9 @@ export function renderStatsReport() {
   document.getElementById('statsRowDutyOff')?.addEventListener('click', () => {
     openCustomFilteredSummaryModal('📋 당직OFF 일정 모아보기', filteredItems.filter(e => isApprovedLeaveItem(e.item, '당직OFF')), 'dutyOff');
   });
+  document.getElementById('statsRowWiroLeave')?.addEventListener('click', () => {
+    openCustomFilteredSummaryModal('📋 위로휴가 일정 모아보기', filteredItems.filter(e => isApprovedLeaveItem(e.item, '위로휴가')), 'wiroLeave');
+  });
 
   if (otKeys.length > 0) {
     otKeys.forEach(tKey => {
@@ -1443,6 +1439,7 @@ function openCustomFilteredSummaryModal(titleText, itemsList, modalCategoryType 
     const isFullDayCategory = (
       modalCategoryType === 'vacation' ||
       modalCategoryType === 'petitionLeave' ||
+      modalCategoryType === 'wiroLeave' ||
       modalCategoryType === 'dutyOff' ||
       modalCategoryType === 'annualLeave' ||
       modalCategoryType === 'clinic' ||
@@ -1517,7 +1514,7 @@ function openCustomFilteredSummaryModal(titleText, itemsList, modalCategoryType 
           (modalCategoryType === 'clinic' && ['휴가', '휴일', '주말', '당직'].some(key => titleText.includes(key)));
         const isSplitClinicDetail = modalCategoryType === 'region' ||
           (modalCategoryType === 'clinic' && !isSingleClinicDetail);
-        const isLeaveStatusReport = ['annualLeave', 'petitionLeave', 'dutyOff'].includes(modalCategoryType);
+        const isLeaveStatusReport = ['annualLeave', 'petitionLeave', 'wiroLeave', 'dutyOff'].includes(modalCategoryType);
         const getMatchedFieldDetails = (fieldName, deduplicate = false) => {
           const details = [mEntry, aEntry]
             .map(entry => (entry?.item || entry)?.[fieldName]?.trim())

@@ -3,8 +3,8 @@ export const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzjnIdn0
 export const SECURITY_PASSWORD_HASH = 'f0fee696ab48d4321ec49b94c7efb48a02da6f9798c3f6afc95c626d028cb7e0'; // Password: 140817!
 
 // Standard Preset Categories
-export const standardTransCategories = ['KTX', '고속버스', '버스', '무궁화호', '신화호'];
-export const standardHrCategories = ['연가', '당직OFF', '청원휴가'];
+export const standardTransCategories = ['KTX', '고속버스'];
+export const standardHrCategories = ['연가', '청원휴가', '위로휴가', '당직OFF'];
 export const standardOtCategories = ['야간', '당직', '휴일'];
 
 // 10 Pastel Palette Colors (color.png)
@@ -23,19 +23,22 @@ export const pastelPalette = [
 
 export const defaultColorSettings = {
   regionColors: {
-    '진주': '#FEF3C7',
     '서울': '#E0E7FF',
+    '진주': '#FEF3C7',
+    '대구': '#DBEAFE',
     '이동': '#D1FAE5',
     '기타': '#FFEDD5'
   },
   clinicColors: {
     'O': '#FEF3C7',
     '행정': '#E0F2FE',
+    '당직': '#E0E7FF',
     '주말': '#FEE2E2',
     '휴일': '#FFEDD5',
-    '당직': '#E0E7FF',
-    '당직OFF': '#F3E8FF',
+    '연가': '#EDE9FE',
     '청원휴가': '#FCE7F3',
+    '위로휴가': '#D1FAE5',
+    '당직OFF': '#F3E8FF',
     '기타': '#F1F5F9'
   },
   wordRules: []

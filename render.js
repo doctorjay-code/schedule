@@ -38,16 +38,14 @@ export const fixedHolidays = [
   '12. 25.',
   '1. 1.',
   '2. 6.', '2. 7.', '2. 8.', '2. 9.',
-  '3. 1.'
+  '3. 1.',
+  '5. 1.', '5. 5.', '5. 25.', '6. 3.', '7. 17.'
 ];
 
 // Helper: Check if date is weekend or holiday
 export function isRedDate(item) {
   if (!item || !item.date) return false;
-  if (item.holidayOverride === true) return true;
-  if (item.holidayOverride === false) return false;
-  return item.isHoliday || 
-         item.date.includes('토') || 
+  return item.date.includes('토') ||
          item.date.includes('일') ||
          fixedHolidays.some(h => item.date.includes(h));
 }
@@ -477,8 +475,9 @@ export function renderMonthlyCalendar() {
   if (monthLegendBar) {
     monthLegendBar.innerHTML = '';
     const rColors = (state.colorSettings && state.colorSettings.regionColors) ? state.colorSettings.regionColors : {
-      '진주': '#FEF3C7',
       '서울': '#E0E7FF',
+      '진주': '#FEF3C7',
+      '대구': '#DBEAFE',
       '이동': '#D1FAE5',
       '기타': '#FFEDD5'
     };
@@ -557,7 +556,7 @@ export function renderMonthlyCalendar() {
     const mItem = dayData.morning;
     const aItem = dayData.afternoon;
 
-    // 일정이 있는 날짜는 사용자가 설정한 빨간날 ON/OFF 값을 우선한다.
+    // 일정이 있는 날짜는 고정 공휴일/주말 기준 빨간 여부를 사용한다.
     const isHolidayDate = (mItem && isRedDate(mItem)) ||
       (aItem && isRedDate(aItem)) ||
       (!mItem && !aItem && isSunday);

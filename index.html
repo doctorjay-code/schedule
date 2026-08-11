@@ -145,14 +145,6 @@
         </div>
 
         <div class="sheet-body">
-          <!-- Holiday Toggle Field -->
-          <div class="form-group holiday-toggle-group">
-            <div class="holiday-header" style="display:flex; justify-content:space-between; align-items:center;">
-              <label style="color:#DC2626; font-weight:700; margin-bottom:0;">🔴 빨간날</label>
-              <button type="button" class="status-toggle-btn single-status-toggle" id="holidayStatusToggle" data-val="OFF" aria-pressed="false">OFF</button>
-            </div>
-          </div>
-
           <!-- Region Field -->
           <div class="form-group">
             <label>체류 지역</label>
@@ -175,10 +167,10 @@
               <button type="button" class="option-btn" data-val="당직">당직</button>
               <button type="button" class="option-btn" data-val="주말">주말</button>
               <button type="button" class="option-btn" data-val="휴일">휴일</button>
-              <button type="button" class="option-btn" data-val="당직OFF">당직OFF</button>
-              <button type="button" class="option-btn" data-val="청원휴가">청원휴가</button>
               <button type="button" class="option-btn" data-val="연가">연가</button>
+              <button type="button" class="option-btn" data-val="청원휴가">청원휴가</button>
               <button type="button" class="option-btn" data-val="위로휴가">위로휴가</button>
+              <button type="button" class="option-btn" data-val="당직OFF">당직OFF</button>
               <button type="button" class="option-btn" data-val="기타">기타</button>
             </div>
             <input type="text" class="input-text sub-input hidden" id="customClinicInput" placeholder="진료 구분 직접 입력">
@@ -199,9 +191,6 @@
                 <option value="">- 구분 -</option>
                 <option value="KTX">KTX</option>
                 <option value="고속버스">고속버스</option>
-                <option value="버스">버스</option>
-                <option value="무궁화호">무궁화호</option>
-                <option value="신화호">신화호</option>
                 <option value="기타">기타</option>
               </select>
 
@@ -229,8 +218,9 @@
               <select class="select-btn" id="hrSelectCategory">
                 <option value="">- 구분 -</option>
                 <option value="연가">연가</option>
-                <option value="당직OFF">당직OFF</option>
                 <option value="청원휴가">청원휴가</option>
+                <option value="위로휴가">위로휴가</option>
+                <option value="당직OFF">당직OFF</option>
                 <option value="기타">기타</option>
               </select>
 
@@ -315,15 +305,19 @@
 
           <!-- Section 1: Region Colors -->
           <div class="color-section-box">
-            <h4 class="section-title">📍 지역 버튼 색상 (4종)</h4>
+            <h4 class="section-title">📍 지역 버튼 색상 (5종)</h4>
             <div class="color-picker-group">
+              <div class="picker-row">
+                <span class="picker-label">서울</span>
+                <div class="palette-chips-row" data-target-type="region" data-target-key="서울"></div>
+              </div>
               <div class="picker-row">
                 <span class="picker-label">진주</span>
                 <div class="palette-chips-row" data-target-type="region" data-target-key="진주"></div>
               </div>
               <div class="picker-row">
-                <span class="picker-label">서울</span>
-                <div class="palette-chips-row" data-target-type="region" data-target-key="서울"></div>
+                <span class="picker-label">대구</span>
+                <div class="palette-chips-row" data-target-type="region" data-target-key="대구"></div>
               </div>
               <div class="picker-row">
                 <span class="picker-label">이동</span>
@@ -338,7 +332,7 @@
 
           <!-- Section 2: Clinic Colors -->
           <div class="color-section-box">
-            <h4 class="section-title">🏥 진료 버튼 색상 (8종)</h4>
+            <h4 class="section-title">🏥 진료 버튼 색상 (10종)</h4>
             <div class="color-picker-group">
               <div class="picker-row">
                 <span class="picker-label">O</span>
@@ -349,6 +343,10 @@
                 <div class="palette-chips-row" data-target-type="clinic" data-target-key="행정"></div>
               </div>
               <div class="picker-row">
+                <span class="picker-label">당직</span>
+                <div class="palette-chips-row" data-target-type="clinic" data-target-key="당직"></div>
+              </div>
+              <div class="picker-row">
                 <span class="picker-label">주말</span>
                 <div class="palette-chips-row" data-target-type="clinic" data-target-key="주말"></div>
               </div>
@@ -357,16 +355,20 @@
                 <div class="palette-chips-row" data-target-type="clinic" data-target-key="휴일"></div>
               </div>
               <div class="picker-row">
-                <span class="picker-label">당직</span>
-                <div class="palette-chips-row" data-target-type="clinic" data-target-key="당직"></div>
-              </div>
-              <div class="picker-row">
-                <span class="picker-label">당직OFF</span>
-                <div class="palette-chips-row" data-target-type="clinic" data-target-key="당직OFF"></div>
+                <span class="picker-label">연가</span>
+                <div class="palette-chips-row" data-target-type="clinic" data-target-key="연가"></div>
               </div>
               <div class="picker-row">
                 <span class="picker-label">청원휴가</span>
                 <div class="palette-chips-row" data-target-type="clinic" data-target-key="청원휴가"></div>
+              </div>
+              <div class="picker-row">
+                <span class="picker-label">위로휴가</span>
+                <div class="palette-chips-row" data-target-type="clinic" data-target-key="위로휴가"></div>
+              </div>
+              <div class="picker-row">
+                <span class="picker-label">당직OFF</span>
+                <div class="palette-chips-row" data-target-type="clinic" data-target-key="당직OFF"></div>
               </div>
               <div class="picker-row">
                 <span class="picker-label">기타</span>
