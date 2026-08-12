@@ -1,5 +1,7 @@
-import { state } from './state.js';
+﻿import { state } from './state.js';
 import { openCustomFilteredSummaryModal } from './modal-summary.js';
+import { escapeHtml } from './safe.js';
+import { isHolidayDate, isWeekendDate } from './calendar-rules.js';
 
 // ----------------------------------------------------
 // Statistics Report Modal Functionalities
@@ -91,7 +93,7 @@ function setupStatsFilterTabs() {
             }
           });
 
-          subSelect.innerHTML = Array.from(monthsMap.entries()).map(([k, l]) => `<option value="${k}">${l}</option>`).join('');
+          subSelect.innerHTML = Array.from(monthsMap.entries()).map(([k, l]) => `<option value="${escapeHtml(k)}">${escapeHtml(l)}</option>`).join('');
 
           // Auto-select active/current month dynamically
           const curY = state.currentMonthYear.year || new Date().getFullYear();
@@ -109,7 +111,7 @@ function setupStatsFilterTabs() {
           subWrapper.classList.remove('hidden');
           subSelect.innerHTML = state.allWeeksData.map((w, idx) => {
             const title = w.title.split(' (')[0];
-            return `<option value="${idx}">${title}</option>`;
+            return `<option value="${idx}">${escapeHtml(title)}</option>`;
           }).join('');
 
           // Auto-select active week index dynamically
@@ -162,7 +164,7 @@ function calculateRequiredClinicSessions(weekEntries) {
 
   const weekdayEntries = weekEntries.filter(e => {
     const dStr = e.item ? (e.item.date || '') : '';
-    return !dStr.includes('(토)') && !dStr.includes('(일)');
+    return !isWeekendDate(dStr);
   });
 
   weekdayEntries.forEach(e => {
@@ -176,12 +178,13 @@ function calculateRequiredClinicSessions(weekEntries) {
     const isHourlyLeave = combined.includes('연가') && /\d+\s*시간/.test(combined);
 
     // 휴일 조건: '휴무', '공휴일', '휴가', 또는 시간 단위가 아닌 전일/일반 '연가'
-    let isHoliday = combined.includes('휴무') || combined.includes('공휴일') || combined.includes('휴가');
+    const isCalendarHoliday = isHolidayDate(item);
+    let isLeaveHoliday = combined.includes('휴무') || combined.includes('공휴일') || combined.includes('휴가');
     if (combined.includes('연가') && !isHourlyLeave) {
-      isHoliday = true;
+      isLeaveHoliday = true;
     }
 
-    if ((!isHoliday || isPetitionLeave) || isHourlyLeave) {
+    if (!isCalendarHoliday && ((!isLeaveHoliday || isPetitionLeave) || isHourlyLeave)) {
       availableSessions++;
     }
   });
@@ -303,7 +306,7 @@ export function renderStatsReport() {
       const daysVal = (count / 2).toFixed(1);
       const row = document.createElement('div');
       row.className = 'stats-stat-row clickable';
-      row.innerHTML = `<span class="stats-stat-label">• ${rKey}</span><span class="stats-stat-val">${pct}% (${daysVal}일)</span>`;
+      row.innerHTML = `<span class="stats-stat-label">• ${escapeHtml(rKey)}</span><span class="stats-stat-val">${pct}% (${daysVal}일)</span>`;
       
       row.addEventListener('click', () => {
         const matches = filteredItems.filter(e => e.item.region === rKey || (e.item.region === '이동'));
@@ -321,7 +324,7 @@ export function renderStatsReport() {
         const daysVal = (count / 2).toFixed(1);
         const row = document.createElement('div');
         row.className = 'stats-stat-row clickable';
-        row.innerHTML = `<span class="stats-stat-label">• ${etcKey}</span><span class="stats-stat-val">${pct}% (${daysVal}일)</span>`;
+        row.innerHTML = `<span class="stats-stat-label">• ${escapeHtml(etcKey)}</span><span class="stats-stat-val">${pct}% (${daysVal}일)</span>`;
 
         row.addEventListener('click', () => {
           const matches = filteredItems.filter(e => e.item.region === etcKey);
@@ -531,7 +534,7 @@ export function renderStatsReport() {
   } else {
     otKeys.forEach(tKey => {
       const { count, hours } = otMap[tKey];
-      otHtml += `<div class="stats-stat-row clickable" id="statsRowOt_${tKey}"><span class="stats-stat-label">• ${tKey}</span><span class="stats-stat-val">(${count}회) ${formatOtHoursString(hours)}</span></div>`;
+      otHtml += `<div class="stats-stat-row clickable" id="statsRowOt_${tKey}"><span class="stats-stat-label">• ${escapeHtml(tKey)}</span><span class="stats-stat-val">(${count}회) ${formatOtHoursString(hours)}</span></div>`;
     });
     otHtml += `<div class="stats-stat-row clickable" id="statsRowOt_TOTAL" style="border-top: 1px dashed #CBD5E1; margin-top:4px; padding-top:4px;"><span class="stats-stat-label" style="font-weight:700; color:#1E3A8A;">• 전체</span><span class="stats-stat-val" style="color:#1E3A8A;">(${totalOtCount}회) ${formatOtHoursString(totalOtHours)}</span></div>`;
   }
@@ -561,7 +564,7 @@ export function renderStatsReport() {
     vacationSubKeys.forEach(vKey => {
       const { count } = clinicGroup['휴가'].subMap[vKey];
       const safeId = `statsSubRowVacation_${encodeURIComponent(vKey)}`;
-      vacationSubRowsHtml += `<div class="stats-stat-row clickable" id="${safeId}"><span class="stats-stat-label" style="color:#475569;">└ • ${vKey}</span><span class="stats-stat-val" style="color:#475569;">${formatSlotsToDaysString(count)}</span></div>`;
+      vacationSubRowsHtml += `<div class="stats-stat-row clickable" id="${safeId}"><span class="stats-stat-label" style="color:#475569;">└ • ${escapeHtml(vKey)}</span><span class="stats-stat-val" style="color:#475569;">${formatSlotsToDaysString(count)}</span></div>`;
     });
   }
 
@@ -572,7 +575,7 @@ export function renderStatsReport() {
     etcSubKeys.forEach(sKey => {
       const { count } = clinicGroup['기타'].subMap[sKey];
       const safeId = `statsSubRowClinic_${encodeURIComponent(sKey)}`;
-      etcSubRowsHtml += `<div class="stats-stat-row clickable" id="${safeId}"><span class="stats-stat-label" style="color:#475569;">└ • ${sKey}</span><span class="stats-stat-val" style="color:#475569;">${count}회</span></div>`;
+      etcSubRowsHtml += `<div class="stats-stat-row clickable" id="${safeId}"><span class="stats-stat-label" style="color:#475569;">└ • ${escapeHtml(sKey)}</span><span class="stats-stat-val" style="color:#475569;">${count}회</span></div>`;
     });
   }
 
@@ -777,7 +780,7 @@ export function renderStatsReport() {
       const count = transportMap[tKey];
       const row = document.createElement('div');
       row.className = 'stats-stat-row clickable';
-      row.innerHTML = `<span class="stats-stat-label">• ${tKey}</span><span class="stats-stat-val">${count}건</span>`;
+      row.innerHTML = `<span class="stats-stat-label">• ${escapeHtml(tKey)}</span><span class="stats-stat-val">${count}건</span>`;
 
       row.addEventListener('click', () => {
         const matches = filteredItems.filter(e => (e.item.transDetail || '').includes(tKey));
@@ -788,3 +791,7 @@ export function renderStatsReport() {
     });
   }
 }
+
+
+
+

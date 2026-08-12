@@ -1,5 +1,6 @@
-import { state } from './state.js';
+﻿import { state } from './state.js';
 import { loadWeekDataFn } from './modal-edit.js';
+import { escapeHtml } from './safe.js';
 
 // Open Week Selector Modal
 export function openWeekSelectModal() {
@@ -25,8 +26,8 @@ export function openWeekSelectModal() {
 
     card.innerHTML = `
       <div class="week-select-left">
-        <div class="week-select-title">${weekName}</div>
-        <div class="week-select-date">${dateRange}</div>
+        <div class="week-select-title">${escapeHtml(weekName)}</div>
+        <div class="week-select-date">${escapeHtml(dateRange)}</div>
       </div>
       <div>${isCurrentBadge}</div>
     `;
@@ -64,3 +65,4 @@ export function closeWeekSelectModal() {
   const overlay = document.getElementById('weekSelectModalOverlay');
   if (overlay) overlay.classList.remove('active');
 }
+

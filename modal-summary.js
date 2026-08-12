@@ -1,5 +1,6 @@
-import { state, getItemReason } from './state.js';
+﻿import { state, getItemReason } from './state.js';
 import { openModal, loadWeekDataFn } from './modal-edit.js';
+import { escapeHtml } from './safe.js';
 
 // Open Summary Collector Modal Across All Schedules
 export function openSummaryModal(type) {
@@ -67,8 +68,8 @@ export function openSummaryModal(type) {
 
         card.innerHTML = `
           <div class="summary-item-left">
-            <div class="summary-item-date">${firstItem.date} (${firstItem.region || '-'})</div>
-            <div class="summary-item-desc">${descText}</div>
+            <div class="summary-item-date">${escapeHtml(firstItem.date)} (${escapeHtml(firstItem.region || '-')})</div>
+            <div class="summary-item-desc">${escapeHtml(descText)}</div>
           </div>
           <div>${statusBadgeHtml}</div>
         `;
@@ -93,8 +94,8 @@ export function openSummaryModal(type) {
 
         card.innerHTML = `
           <div class="summary-item-left">
-            <div class="summary-item-date">${item.date} ${item.time} (${item.region || '-'})</div>
-            <div class="summary-item-desc">${descText}</div>
+            <div class="summary-item-date">${escapeHtml(item.date)} ${escapeHtml(item.time)} (${escapeHtml(item.region || '-')})</div>
+            <div class="summary-item-desc">${escapeHtml(descText)}</div>
           </div>
           <div>${statusBadgeHtml}</div>
         `;
@@ -249,12 +250,12 @@ export function openCustomFilteredSummaryModal(titleText, itemsList, modalCatego
 
         let descHtml = '';
         if (detailText) {
-          descHtml = `<div class="summary-item-desc">${detailText}</div>`;
+          descHtml = `<div class="summary-item-desc">${escapeHtml(detailText)}</div>`;
         }
 
         card.innerHTML = `
           <div class="summary-item-left">
-            <div class="summary-item-date">${firstItem.date} ${regionLabels}</div>
+            <div class="summary-item-date">${escapeHtml(firstItem.date)} ${escapeHtml(regionLabels)}</div>
             ${descHtml}
           </div>
           <div class="summary-item-actions" style="display:flex; gap:6px; align-items:center;">
@@ -301,17 +302,17 @@ export function openCustomFilteredSummaryModal(titleText, itemsList, modalCatego
         let descHtml = '';
         if (modalCategoryType === 'transport') {
           if (item.transDetail) {
-            descHtml = `<div class="summary-item-desc">${item.transDetail}</div>`;
+            descHtml = `<div class="summary-item-desc">${escapeHtml(item.transDetail)}</div>`;
           }
         } else if (modalCategoryType === 'allowance') {
           if (item.otDetail) {
-            descHtml = `<div class="summary-item-desc">${item.otDetail}</div>`;
+            descHtml = `<div class="summary-item-desc">${escapeHtml(item.otDetail)}</div>`;
           }
         }
 
         card.innerHTML = `
           <div class="summary-item-left">
-            <div class="summary-item-date">${item.date} ${item.time} (${item.region || '-'})</div>
+            <div class="summary-item-date">${escapeHtml(item.date)} ${escapeHtml(item.time)} (${escapeHtml(item.region || '-')})</div>
             ${descHtml}
           </div>
           <div><span class="badge-apply-ok">상세보기</span></div>
@@ -332,3 +333,4 @@ export function openCustomFilteredSummaryModal(titleText, itemsList, modalCatego
 
   if (summaryModalOverlay) summaryModalOverlay.classList.add('active');
 }
+

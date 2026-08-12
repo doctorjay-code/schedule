@@ -1,7 +1,8 @@
-import { state, pastelPalette, saveColorSettings, resetColorSettings } from './state.js';
+﻿import { state, pastelPalette, saveColorSettings, resetColorSettings } from './state.js';
 import { syncColorSettingsToSheets } from './api.js';
 import { renderTableFn } from './modal-edit.js';
 import { renderMonthlyCalendar } from './render.js';
+import { escapeHtml, safeCssColor } from './safe.js';
 
 // ----------------------------------------------------
 // Color Settings Modal Functionalities
@@ -93,11 +94,11 @@ export function renderWordRulesList() {
   state.colorSettings.wordRules.forEach(rule => {
     const tag = document.createElement('div');
     tag.className = 'word-rule-tag';
-    tag.style.backgroundColor = rule.color;
+    tag.style.backgroundColor = safeCssColor(rule.color, '#F1F5F9');
     tag.style.color = '#1E293B';
 
     tag.innerHTML = `
-      <span>${rule.word}</span>
+      <span>${escapeHtml(rule.word)}</span>
       <button class="delete-rule-btn" title="규칙 삭제">✕</button>
     `;
 
@@ -170,3 +171,4 @@ export function setupColorSettingsEvents() {
     });
   }
 }
+

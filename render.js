@@ -1,9 +1,16 @@
-import { state, updateSummaryCounts } from './state.js';
+﻿import { state, updateSummaryCounts } from './state.js';
 import { openModal } from './modal-edit.js';
+import { escapeHtml, safeCssColor } from './safe.js';
+import { isHolidayDate } from './calendar-rules.js';
 
 // Load Specified Week Data
 export function loadWeekData(index) {
-  if (!state.allWeeksData || state.allWeeksData.length === 0) return;
+  if (!state.allWeeksData || state.allWeeksData.length === 0) {
+    state.weekData = [];
+    renderTable();
+    updateSummaryCounts();
+    return;
+  }
   if (index < 0) index = 0;
   if (index >= state.allWeeksData.length) index = state.allWeeksData.length - 1;
   state.currentWeekIndex = index;
@@ -16,7 +23,7 @@ export function loadWeekData(index) {
 
   if (weekTitleElem && state.currentView === 'weekly') {
     const rawTitle = currentWeekObj.title?.split(' (')[0] || '';
-    weekTitleElem.innerHTML = `${rawTitle} <span class="dropdown-arrow">▾</span>`;
+    weekTitleElem.innerHTML = `${escapeHtml(rawTitle)} <span class="dropdown-arrow">▾</span>`;
   }
   state.weekData = currentWeekObj.items || [];
 
@@ -30,24 +37,9 @@ export function loadWeekData(index) {
   }
 }
 
-// 2026.08 ~ 2027.04 Statutory Holidays & Substitute Holidays
-export const fixedHolidays = [
-  '8. 15.', '8. 17.',
-  '9. 24.', '9. 25.', '9. 26.', '9. 28.',
-  '10. 3.', '10. 5.', '10. 9.',
-  '12. 25.',
-  '1. 1.',
-  '2. 6.', '2. 7.', '2. 8.', '2. 9.',
-  '3. 1.',
-  '5. 1.', '5. 5.', '5. 25.', '6. 3.', '7. 17.'
-];
-
 // Helper: Check if date is weekend or holiday
 export function isRedDate(item) {
-  if (!item || !item.date) return false;
-  return item.date.includes('토') ||
-         item.date.includes('일') ||
-         fixedHolidays.some(h => item.date.includes(h));
+  return isHolidayDate(item);
 }
 
 // Helper: Check filter match
@@ -119,6 +111,12 @@ export function renderTable() {
   const scheduleBody = document.getElementById('scheduleBody');
   if (!scheduleBody) return;
   scheduleBody.innerHTML = '';
+  if (!state.weekData || state.weekData.length === 0) {
+    const emptyRow = document.createElement('tr');
+    emptyRow.innerHTML = '<td class="schedule-empty-state" colspan="7">일정이 없습니다. 새로고침 버튼을 눌러주세요.</td>';
+    scheduleBody.appendChild(emptyRow);
+    return;
+  }
 
   for (let i = 0; i < state.weekData.length; i += 2) {
     const mItem = state.weekData[i];       // Morning Item
@@ -486,7 +484,7 @@ export function renderMonthlyCalendar() {
       const colorHex = rColors[regionKey];
       const item = document.createElement('div');
       item.className = 'legend-item';
-      item.innerHTML = `<span class="color-dot" style="background-color: ${colorHex}"></span><span>${regionKey}</span>`;
+      item.innerHTML = `<span class="color-dot" style="background-color: ${safeCssColor(colorHex)}"></span><span>${escapeHtml(regionKey)}</span>`;
       monthLegendBar.appendChild(item);
     });
   }
@@ -566,8 +564,8 @@ export function renderMonthlyCalendar() {
 
     let mSlotHtml = '';
     if (mItem) {
-      const dotBg = getRegionColor(mItem.region);
-      const clinicText = mItem.clinic || '-';
+      const dotBg = safeCssColor(getRegionColor(mItem.region));
+      const clinicText = escapeHtml(mItem.clinic || '-');
       mSlotHtml = `<div class="monthly-cell-slot m-slot"><span class="color-dot" style="background-color: ${dotBg}"></span><span class="slot-clinic">${clinicText}</span></div>`;
     } else {
       mSlotHtml = `<div class="monthly-cell-slot m-slot"><span class="color-dot" style="background-color: #E2E8F0"></span><span class="slot-clinic">-</span></div>`;
@@ -575,8 +573,8 @@ export function renderMonthlyCalendar() {
 
     let aSlotHtml = '';
     if (aItem) {
-      const dotBg = getRegionColor(aItem.region);
-      const clinicText = aItem.clinic || '-';
+      const dotBg = safeCssColor(getRegionColor(aItem.region));
+      const clinicText = escapeHtml(aItem.clinic || '-');
       aSlotHtml = `<div class="monthly-cell-slot a-slot"><span class="color-dot" style="background-color: ${dotBg}"></span><span class="slot-clinic">${clinicText}</span></div>`;
     } else {
       aSlotHtml = `<div class="monthly-cell-slot a-slot"><span class="color-dot" style="background-color: #E2E8F0"></span><span class="slot-clinic">-</span></div>`;
@@ -686,3 +684,9 @@ export function switchViewModeUI(mode) {
     renderMonthlyCalendar();
   }
 }
+
+
+
+
+
+

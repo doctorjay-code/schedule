@@ -1,16 +1,46 @@
-import { GAS_WEB_APP_URL, state, getTodayWeekIndex, saveLocalStorageData, saveColorSettings, defaultColorSettings, updateSummaryCounts } from './state.js';
+﻿import { GAS_WEB_APP_URL, state, getTodayWeekIndex, saveLocalStorageData, saveColorSettings, defaultColorSettings, updateSummaryCounts } from './state.js';
+import { setSyncStatus } from './sync-ui.js';
+import { isHolidayDate } from './calendar-rules.js';
 
 let apiLoadWeekDataFn = null;
+let saveTimer = null;
+let saveInProgress = false;
+let saveQueued = false;
 
 export function setApiLoadWeekDataCallback(fn) {
   apiLoadWeekDataFn = fn;
 }
 
+export function syncToGoogleSheets() {
+  saveLocalStorageData();
+  if (!GAS_WEB_APP_URL) { setSyncStatus('saved', '기기에만 저장됨'); return; }
+  saveQueued = true;
+  setSyncStatus('saving');
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(flushScheduledSave, 700);
+}
+
+async function flushScheduledSave() {
+  if (saveInProgress || !saveQueued) return;
+  saveQueued = false;
+  saveInProgress = true;
+  try {
+    await postAllSchedules();
+    if (!saveQueued) setSyncStatus('saved');
+  } catch (e) {
+    setSyncStatus('error');
+  } finally {
+    saveInProgress = false;
+    if (saveQueued) flushScheduledSave();
+  }
+}
 export async function syncFromGoogleSheets() {
-  if (!GAS_WEB_APP_URL) return;
+  if (!GAS_WEB_APP_URL) { setSyncStatus('offline', '연결 주소가 설정되지 않음'); return; }
+  setSyncStatus('loading');
   try {
     const freshUrl = GAS_WEB_APP_URL + (GAS_WEB_APP_URL.includes('?') ? '&' : '?') + 't=' + Date.now();
     const res = await fetch(freshUrl, { cache: 'no-store' });
+    if (!res.ok) throw new Error('일정 불러오기 실패');
     if (res.ok) {
       const records = await res.json();
       if (Array.isArray(records) && records.length > 0) {
@@ -20,9 +50,11 @@ export async function syncFromGoogleSheets() {
     }
   } catch (e) {
     console.log('Google Sheets sync skipped or offline, using local cache:', e);
+    setSyncStatus('offline');
   }
   // 색상 설정도 함께 동기화
   await syncColorSettingsFromSheets();
+  if (!saveInProgress && !saveQueued) setSyncStatus('saved', '최신 일정 반영');
 }
 
 export async function syncColorSettingsFromSheets() {
@@ -50,9 +82,10 @@ export async function syncColorSettingsFromSheets() {
 }
 
 export async function syncColorSettingsToSheets() {
-  if (!GAS_WEB_APP_URL) return;
+  if (!GAS_WEB_APP_URL) { setSyncStatus('saved', '기기에만 저장됨'); return; }
+  setSyncStatus('saving');
   try {
-    await fetch(GAS_WEB_APP_URL, {
+    const response = await fetch(GAS_WEB_APP_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({
@@ -60,8 +93,11 @@ export async function syncColorSettingsToSheets() {
         colorSettings: state.colorSettings
       })
     });
+    if (!response.ok) throw new Error('색상 저장 실패');
+    setSyncStatus('saved', '색상 설정 저장 완료');
   } catch (e) {
     console.error('Error syncing color settings to Google Sheets:', e);
+    setSyncStatus('error');
   }
 }
 
@@ -87,10 +123,8 @@ export function parseGoogleSheetsRecordsUniversal(records) {
 
       if (!grouped[weekName]) grouped[weekName] = [];
       const clinicVal = getProp(r, 'clinic') || getProp(r, '진료') || '';
-      const fixedHolidays = ['8. 15.', '8. 17.', '9. 24.', '9. 25.', '9. 26.', '9. 28.', '10. 3.', '10. 5.', '10. 9.', '12. 25.', '1. 1.', '2. 6.', '2. 7.', '2. 8.', '2. 9.', '3. 1.', '5. 1.', '5. 5.', '5. 25.', '6. 3.', '7. 17.'];
-      const autoHoliday = (dateVal.includes("토") || dateVal.includes("일") || fixedHolidays.some(h => dateVal.includes(h)));
       const isHolidayRaw = getProp(r, 'isHoliday');
-      const isHoliday = isHolidayRaw ? parseBoolean(isHolidayRaw) : autoHoliday;
+      const isHoliday = isHolidayRaw ? parseBoolean(isHolidayRaw) : isHolidayDate({ date: dateVal });
 
       grouped[weekName].push({
         id: grouped[weekName].length + 1,
@@ -210,8 +244,7 @@ export function parseGoogleSheetsRecordsUniversal(records) {
   saveLocalStorageData();
 }
 
-export async function syncToGoogleSheets() {
-  saveLocalStorageData();
+async function postAllSchedules() {
   if (!GAS_WEB_APP_URL) return;
 
   try {
@@ -236,7 +269,7 @@ export async function syncToGoogleSheets() {
       });
     });
 
-    await fetch(GAS_WEB_APP_URL, {
+    const response = await fetch(GAS_WEB_APP_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({
@@ -244,7 +277,21 @@ export async function syncToGoogleSheets() {
         items: allItemsToPost
       })
     });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
   } catch (e) {
     console.error('Error posting live update to Google Sheets:', e);
+    throw e;
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+

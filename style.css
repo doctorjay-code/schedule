@@ -1564,3 +1564,32 @@ td.cell-date {
   font-weight: 700;
   cursor: pointer;
 }
+
+
+/* Sync status feedback */
+.sync-status {
+  width: fit-content;
+  margin: 2px auto 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #F1F5F9;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  transition: background-color .2s ease, color .2s ease;
+}
+
+.sync-status[data-state="loading"],
+.sync-status[data-state="saving"] { background: #FEF3C7; color: #92400E; }
+.sync-status[data-state="saved"] { background: #DCFCE7; color: #166534; }
+.sync-status[data-state="offline"],
+.sync-status[data-state="error"] { background: #FEE2E2; color: #B91C1C; }
+
+.schedule-empty-state {
+  padding: 32px 12px !important;
+  color: #64748B;
+  font-size: 13px;
+  text-align: center;
+  background: #F8FAFC;
+}
