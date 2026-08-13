@@ -37,14 +37,27 @@
   <div class="app-container">
     <!-- Header -->
     <header class="app-header">
-      <!-- 0th Row: View Mode Switcher (Weekly vs Monthly) -->
-      <div class="view-switch-container">
-        <button class="view-switch-btn active" id="weeklyViewBtn">📅 주간</button>
-        <button class="view-switch-btn" id="monthlyViewBtn">🗓️ 월간</button>
+      <!-- Primary Menu: Schedule vs Ledger -->
+      <div class="primary-switch-container">
+        <button class="primary-switch-btn active" id="scheduleMenuBtn">📅 일정</button>
+        <button class="primary-switch-btn is-development" id="ledgerMenuBtn" type="button" disabled aria-disabled="true" title="가계부 기능 개발 중">💳 가계부 <span>개발 중</span></button>
       </div>
 
+      <!-- Schedule Submenu: Weekly vs Monthly -->
+      <div class="view-switch-container schedule-only" id="scheduleSubnav">
+        <button class="view-switch-btn active" id="weeklyViewBtn">주간</button>
+        <button class="view-switch-btn" id="monthlyViewBtn">월간</button>
+      </div>
+
+      <!-- Ledger Submenu: Weekly vs Monthly -->
+      <div class="view-switch-container ledger-subnav hidden" id="ledgerSubnav">
+        <button class="view-switch-btn active" id="ledgerWeeklyViewBtn">주간</button>
+        <button class="view-switch-btn" id="ledgerMonthlyViewBtn">월간</button>
+      </div>
+
+
       <!-- 1st Row: Centered Week/Month Navigator -->
-      <div class="week-navigator centered">
+      <div class="week-navigator centered schedule-only">
         <button class="nav-btn" id="prevWeekBtn">◀</button>
         <h1 class="week-title" id="weekTitle" title="주차 직접 선택">2026년 8월 2주차 <span class="dropdown-arrow">▾</span></h1>
         <button class="nav-btn" id="nextWeekBtn">▶</button>
@@ -54,10 +67,10 @@
         <button class="nav-btn" id="openColorSettingsBtn" title="색상 커스텀 설정">⚙️</button>
       </div>
 
-      <div id="syncStatus" class="sync-status" role="status" aria-live="polite" data-state="idle">저장 준비됨</div>
+      <div id="syncStatus" class="sync-status schedule-only" role="status" aria-live="polite" data-state="idle">저장 준비됨</div>
 
       <!-- 2nd Row: 3 Summary Alert Chips -->
-      <div class="alert-row">
+      <div class="alert-row schedule-only">
         <button class="alert-chip alert-unpaid" id="unpaidSummaryBtn">전체 미결제 <span id="unpaidCount">1</span>건 🚨</button>
         <button class="alert-chip alert-unapplied" id="unappliedSummaryBtn">전체 미신청 <span id="unappliedCount">0</span>건 📋</button>
         <button class="alert-chip alert-unapproved" id="unapprovedSummaryBtn">전체 미승인 <span id="unapprovedCount">1</span>건 ⏳</button>
@@ -65,7 +78,7 @@
     </header>
 
     <!-- 3rd Row: Quick Filter Chips & Multi-Edit Mode Switch -->
-    <div class="filter-bar">
+    <div class="filter-bar schedule-only">
       <button class="filter-chip active" data-filter="all">전체</button>
       <button class="filter-chip" data-filter="jinju">진주</button>
       <button class="filter-chip" data-filter="seoul">서울</button>
@@ -119,8 +132,95 @@
       </div>
     </main>
 
+<main class="ledger-wrapper hidden" id="ledgerViewWrapper">
+
+
+<div class="week-navigator centered ledger-main-navigator">
+<button class="nav-btn" id="ledgerPrevPeriodBtn" type="button" aria-label="이전 기간"></button>
+<h1 class="week-title" id="ledgerPeriodTitle">이번 주</h1>
+<button class="nav-btn" id="ledgerNextPeriodBtn" type="button" aria-label="다음 기간"></button>
+<button class="today-btn" id="ledgerLatestBtn" type="button">오늘</button>
+<button class="nav-btn" id="ledgerSyncBtn" type="button" title="선택 카드 최신 거래로 이동">🔄</button>
+<button class="nav-btn" id="ledgerColorSettingsBtn" type="button" title="거래 태그 색상">⚙️</button>
+<button class="nav-btn" id="ledgerReportBtn" type="button" title="지출 리포트">📊</button>
+</div>
+<div class="ledger-card-switch" role="group" aria-label="결제 카드 선택">
+<button class="ledger-card-btn active" id="ledgerTossCardBtn" type="button">토스카드</button>
+<button class="ledger-card-btn" id="ledgerCompanyCardBtn" type="button">기업카드</button>
+</div>
+<section id="ledgerWeeklyWrapper" class="ledger-period-wrapper">
+
+<section class="ledger-summary-grid">
+<article class="ledger-summary-card income"><span>이번 주 수입</span><strong id="ledgerWeeklyIncome">₩0</strong></article>
+<article class="ledger-summary-card expense"><span>이번 주 지출</span><strong id="ledgerWeeklyExpense">₩0</strong></article>
+<article class="ledger-summary-card balance"><span>이번 주 잔액</span><strong id="ledgerWeeklyBalance">₩0</strong></article>
+</section>
+<button class="ledger-toggle-entry-btn" id="ledgerToggleEntryBtn" type="button">＋ 직접 거래 입력</button>
+<section class="ledger-entry-panel hidden" id="ledgerEntryPanel">
+<div class="ledger-section-title"><h3>거래 기록</h3><span id="ledgerFormState">새 거래</span></div>
+<form id="ledgerEntryForm" class="ledger-entry-form">
+<input type="hidden" id="ledgerEditId" name="ledgerEditId">
+<label>날짜<input id="ledgerDate" name="date" type="date" required></label>
+<label>구분<select id="ledgerType" name="type"><option value="expense">지출</option><option value="income">수입</option></select></label>
+<label>금액<input id="ledgerAmount" name="amount" type="number" min="1" step="1" placeholder="0" required></label>
+<label>수단<select id="ledgerPayment" name="payment"><option>토스카드</option><option>기업카드</option><option>현금</option><option>기타</option></select></label>
+<label class="ledger-full">항목<input id="ledgerItem" name="item" maxlength="60" placeholder="예: 점심 식사" required></label>
+<label>분류<select id="ledgerPerson" name="person"><option>쥬쥬</option><option>지니</option><option>콩콩</option><option>공동</option><option>기타</option></select></label>
+<label>분야<select id="ledgerCategory" name="category"><option>식비</option><option>교통</option><option>생활</option><option>문화</option><option>기타</option></select></label>
+<label class="ledger-full">메모<input id="ledgerMemo" name="memo" maxlength="100" placeholder="선택 입력"></label>
+<div class="ledger-form-actions ledger-full"><button class="ledger-save-btn" type="submit" id="ledgerSaveBtn">거래 저장</button><button class="ledger-cancel-btn hidden" type="button" id="ledgerCancelEditBtn">수정 취소</button></div>
+</form>
+</section>
+<section class="ledger-list-panel">
+<div class="ledger-section-title"><h3>이번 주 내역</h3><span id="ledgerTransactionCount">0건</span></div>
+<div id="ledgerTransactionList" class="ledger-transaction-list"></div>
+</section>
+</section>
+<section id="ledgerMonthlyWrapper" class="ledger-period-wrapper hidden">
+
+<section class="ledger-list-panel ledger-monthly-list">
+<div class="ledger-section-title"><h3>이번 달 내역</h3><span id="ledgerMonthlyTransactionCount">0건</span></div>
+<div id="ledgerMonthlyTransactionList" class="ledger-transaction-list"></div>
+</section>
+<section class="ledger-summary-grid">
+<article class="ledger-summary-card income"><span>이번 달 수입</span><strong id="ledgerMonthlyIncome">₩0</strong></article>
+<article class="ledger-summary-card expense"><span>이번 달 지출</span><strong id="ledgerMonthlyExpense">₩0</strong></article>
+<article class="ledger-summary-card balance"><span>이번 달 잔액</span><strong id="ledgerMonthlyBalance">₩0</strong></article>
+</section>
+<section class="ledger-monthly-stats">
+<article class="ledger-stat-card"><div class="ledger-section-title"><h3>분야별 지출</h3><span>이번 달</span></div><div id="ledgerCategoryStats" class="ledger-stat-list"></div></article>
+<article class="ledger-stat-card"><div class="ledger-section-title"><h3>분류별 지출</h3><span>이번 달</span></div><div id="ledgerPersonStats" class="ledger-stat-list"></div></article>
+<article class="ledger-stat-card"><div class="ledger-section-title"><h3>수단별 지출</h3><span>이번 달</span></div><div id="ledgerPaymentStats" class="ledger-stat-list"></div></article>
+</section>
+</section>
+<!-- LEDGER_MONTHLY_INSERT -->
+</main>
+<div class="ledger-report-overlay hidden" id="ledgerReportOverlay">
+<section class="ledger-report-sheet" role="dialog" aria-modal="true" aria-labelledby="ledgerReportTitle">
+<div class="ledger-report-header"><div><p>SPENDING REPORT</p><h3 id="ledgerReportTitle">가계부 리포트</h3><span id="ledgerReportPeriod">선택 기간</span></div><button id="ledgerReportCloseBtn" type="button">✕</button></div>
+<section class="ledger-report-summary">
+<article><span>수입</span><strong id="ledgerReportIncome">₩0</strong></article>
+<article><span>지출</span><strong id="ledgerReportExpense">₩0</strong></article>
+<article><span>순액</span><strong id="ledgerReportBalance">₩0</strong></article>
+</section>
+<section class="ledger-report-groups">
+<article><h4>분야별 지출</h4><div id="ledgerReportCategoryStats" class="ledger-stat-list"></div></article>
+<article><h4>분류별 지출</h4><div id="ledgerReportPersonStats" class="ledger-stat-list"></div></article>
+<article><h4>수단별 지출</h4><div id="ledgerReportPaymentStats" class="ledger-stat-list"></div></article>
+</section>
+</section>
+</div>
+<div class="ledger-report-overlay ledger-color-overlay hidden" id="ledgerColorOverlay">
+  <section class="ledger-report-sheet ledger-color-sheet" role="dialog" aria-modal="true" aria-labelledby="ledgerColorTitle">
+    <div class="ledger-report-header"><div><p>TAG COLORS</p><h3 id="ledgerColorTitle">거래 태그 색상</h3><span>구분과 분류의 색을 선택하세요.</span></div><button id="ledgerColorCloseBtn" type="button">✕</button></div>
+    <div class="ledger-color-settings-content" id="ledgerColorSettingsContent"></div>
+    <div class="settings-action-footer ledger-color-footer"><button class="reset-settings-btn" id="ledgerColorResetBtn" type="button">기본 색상으로</button></div>
+  </section>
+</div>
+<!-- LEDGER_REPORT_INSERT -->
+
     <!-- Multi-Edit Action Bottom Bar Group -->
-    <div class="bottom-action-group">
+    <div class="bottom-action-group schedule-only">
       <!-- Copy Status Toast Bar (Right above bottom bar) -->
       <div class="copy-buffer-bar hidden" id="copyBufferBar">
         <span>📋 <strong id="copiedItemLabel">8.10(월) 오전</strong> 일정 복사됨</span>
@@ -486,4 +586,20 @@
   <script type="module" src="app.js"></script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

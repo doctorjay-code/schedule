@@ -1,7 +1,8 @@
-import { state, getTodayWeekIndex, loadLocalStorageData, loadColorSettings, updateSummaryCounts } from './state.js';
+﻿import { state, getTodayWeekIndex, loadLocalStorageData, loadColorSettings, updateSummaryCounts } from './state.js';
 import { initSecurityAuth, setAuthSuccessCallback } from './auth.js';
 import { syncFromGoogleSheets, syncToGoogleSheets, setApiLoadWeekDataCallback } from './api.js';
 import { loadWeekData, renderTable, isCellSelected, renderMonthlyCalendar, switchViewModeUI } from './render.js';
+import { initLedgerView } from './ledger.js';
 import { openModal, closeModal, openSummaryModal, closeSummaryModal, openWeekSelectModal, closeWeekSelectModal, saveModalToActiveItem, setupBtnGroupEvents, setupToggleEvents, setupColorSettingsEvents, setupStatsModalEvents, renderStatsReport, setModalRenderCallback, setModalLoadWeekDataCallback } from './modal.js';
 
 // Wire loadWeekData callback to auth and api modules
@@ -78,15 +79,17 @@ function initEvents() {
   const modalOverlay = document.getElementById('modalOverlay');
   const summaryModalOverlay = document.getElementById('summaryModalOverlay');
 
+  const leaveLedgerView = initLedgerView();
+
   // View Switcher Buttons
   const weeklyViewBtn = document.getElementById('weeklyViewBtn');
   const monthlyViewBtn = document.getElementById('monthlyViewBtn');
 
   if (weeklyViewBtn) {
-    weeklyViewBtn.addEventListener('click', () => switchViewModeUI('weekly'));
+    weeklyViewBtn.addEventListener('click', () => { leaveLedgerView(); switchViewModeUI('weekly'); });
   }
   if (monthlyViewBtn) {
-    monthlyViewBtn.addEventListener('click', () => switchViewModeUI('monthly'));
+    monthlyViewBtn.addEventListener('click', () => { leaveLedgerView(); switchViewModeUI('monthly'); });
   }
 
   // Week & Month Navigation Events
@@ -564,3 +567,4 @@ function initEvents() {
   if (unappliedSummaryBtn) unappliedSummaryBtn.addEventListener('click', () => openSummaryModal('unapplied'));
   if (unapprovedSummaryBtn) unapprovedSummaryBtn.addEventListener('click', () => openSummaryModal('unapproved'));
 }
+

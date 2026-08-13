@@ -1,4 +1,4 @@
-# Temporary test data & logs
+﻿# Temporary test data & logs
 *.json
 *.log
 *.tmp
@@ -7,3 +7,17 @@ scratch/
 # Keep standard package files if any
 !package.json
 !package-lock.json
+
+# Spreadsheet source data and exports must never be committed
+*.xlsx
+*.xls
+*.xlsm
+*.xlsb
+
+
+# Local development backups and personal transaction seed data
+.backup-*/
+ledger-seed.local.js
+edge-*.txt
+
+
