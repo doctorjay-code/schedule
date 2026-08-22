@@ -51,12 +51,7 @@ function upsertLedgerRecord(record) {
   }
 
   writeLedgerRow(target, existingRow, sourceRowValues, isNew);
-  SpreadsheetApp.flush();
-
-  var savedId = getCellDisplayValue(target.sheet, existingRow, target.index.id);
-  if (!usableRecordId(savedId)) {
-    throw new Error('원본 시트 id가 생성되지 않았습니다. id 수식을 확인해 주세요.');
-  }
+  var savedId = waitForGeneratedLedgerId(target, existingRow);
 
   // 웹 저장으로 생긴 거래는 즉시 잔액전망에 반영한다.
   var syncResult = isBalanceSyncSourceSheet(target.sheetName)
@@ -118,14 +113,46 @@ function writeLedgerRow(target, rowNumber, values, isNew) {
     target.sheet.getRange(rowNumber, target.index['수단'] + 1).setValue(target.sheetName);
   }
 
-  if (isNew && target.index.id !== undefined) {
-    // 새 빈 행에 id 수식이 없을 경우 직전 행의 수식을 복사한다.
-    var idCell = target.sheet.getRange(rowNumber, target.index.id + 1);
-    if (!cleanText(idCell.getFormula())) {
-      var previousRow = Math.max(2, rowNumber - 1);
-      target.sheet.getRange(previousRow, target.index.id + 1).copyTo(idCell, SpreadsheetApp.CopyPasteType.PASTE_FORMULA, false);
+  if (target.index.id !== undefined) ensureLedgerIdFormula(target, rowNumber);
+}
+
+function ensureLedgerIdFormula(target, rowNumber) {
+  var idColumn = target.index.id + 1;
+  var idCell = target.sheet.getRange(rowNumber, idColumn);
+  if (cleanText(idCell.getFormula())) return;
+
+  // 바로 위 행이 아닌 가장 가까운 정상 id 수식을 찾아 복사한다.
+  var maxRows = target.sheet.getMaxRows();
+  var templateRow = 0;
+  for (var previous = rowNumber - 1; previous >= 2; previous -= 1) {
+    if (cleanText(target.sheet.getRange(previous, idColumn).getFormula())) {
+      templateRow = previous;
+      break;
     }
   }
+  if (!templateRow) {
+    for (var next = rowNumber + 1; next <= maxRows; next += 1) {
+      if (cleanText(target.sheet.getRange(next, idColumn).getFormula())) {
+        templateRow = next;
+        break;
+      }
+    }
+  }
+  if (!templateRow) throw new Error(target.sheetName + ' 시트의 id 수식 템플릿을 찾지 못했습니다.');
+  target.sheet.getRange(templateRow, idColumn).copyTo(idCell, SpreadsheetApp.CopyPasteType.PASTE_FORMULA, false);
+}
+
+function waitForGeneratedLedgerId(target, rowNumber) {
+  var idCell = target.sheet.getRange(rowNumber, target.index.id + 1);
+  for (var attempt = 0; attempt < 4; attempt += 1) {
+    ensureLedgerIdFormula(target, rowNumber);
+    SpreadsheetApp.flush();
+    var savedId = cleanText(idCell.getDisplayValue());
+    if (usableRecordId(savedId)) return savedId;
+    // 수식 계산 지연을 기다린 뒤 다시 읽는다. 임의 id는 절대 생성하지 않는다.
+    Utilities.sleep(200);
+  }
+  throw new Error(target.sheetName + ' 시트 ' + rowNumber + '행의 id 수식이 계산되지 않았습니다.');
 }
 
 function findExistingRow(target, record) {

@@ -51,12 +51,7 @@ function upsertLedgerRecord(record) {
   }
 
   writeLedgerRow(target, existingRow, sourceRowValues, isNew);
-  SpreadsheetApp.flush();
-
-  var savedId = getCellDisplayValue(target.sheet, existingRow, target.index.id);
-  if (!usableRecordId(savedId)) {
-    throw new Error('\uC6D0\uBCF8 \uC2DC\uD2B8 id\uAC00 \uC0DD\uC131\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4. id \uC218\uC2DD\uC744 \uD655\uC778\uD574 \uC8FC\uC138\uC694.');
-  }
+  var savedId = waitForGeneratedLedgerId(target, existingRow);
 
   // \uC6F9 \uC800\uC7A5\uC73C\uB85C \uC0DD\uAE34 \uAC70\uB798\uB294 \uC989\uC2DC \uC794\uC561\uC804\uB9DD\uC5D0 \uBC18\uC601\uD55C\uB2E4.
   var syncResult = isBalanceSyncSourceSheet(target.sheetName)
@@ -118,14 +113,46 @@ function writeLedgerRow(target, rowNumber, values, isNew) {
     target.sheet.getRange(rowNumber, target.index['\uC218\uB2E8'] + 1).setValue(target.sheetName);
   }
 
-  if (isNew && target.index.id !== undefined) {
-    // \uC0C8 \uBE48 \uD589\uC5D0 id \uC218\uC2DD\uC774 \uC5C6\uC744 \uACBD\uC6B0 \uC9C1\uC804 \uD589\uC758 \uC218\uC2DD\uC744 \uBCF5\uC0AC\uD55C\uB2E4.
-    var idCell = target.sheet.getRange(rowNumber, target.index.id + 1);
-    if (!cleanText(idCell.getFormula())) {
-      var previousRow = Math.max(2, rowNumber - 1);
-      target.sheet.getRange(previousRow, target.index.id + 1).copyTo(idCell, SpreadsheetApp.CopyPasteType.PASTE_FORMULA, false);
+  if (target.index.id !== undefined) ensureLedgerIdFormula(target, rowNumber);
+}
+
+function ensureLedgerIdFormula(target, rowNumber) {
+  var idColumn = target.index.id + 1;
+  var idCell = target.sheet.getRange(rowNumber, idColumn);
+  if (cleanText(idCell.getFormula())) return;
+
+  // \uBC14\uB85C \uC704 \uD589\uC774 \uC544\uB2CC \uAC00\uC7A5 \uAC00\uAE4C\uC6B4 \uC815\uC0C1 id \uC218\uC2DD\uC744 \uCC3E\uC544 \uBCF5\uC0AC\uD55C\uB2E4.
+  var maxRows = target.sheet.getMaxRows();
+  var templateRow = 0;
+  for (var previous = rowNumber - 1; previous >= 2; previous -= 1) {
+    if (cleanText(target.sheet.getRange(previous, idColumn).getFormula())) {
+      templateRow = previous;
+      break;
     }
   }
+  if (!templateRow) {
+    for (var next = rowNumber + 1; next <= maxRows; next += 1) {
+      if (cleanText(target.sheet.getRange(next, idColumn).getFormula())) {
+        templateRow = next;
+        break;
+      }
+    }
+  }
+  if (!templateRow) throw new Error(target.sheetName + ' \uC2DC\uD2B8\uC758 id \uC218\uC2DD \uD15C\uD50C\uB9BF\uC744 \uCC3E\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.');
+  target.sheet.getRange(templateRow, idColumn).copyTo(idCell, SpreadsheetApp.CopyPasteType.PASTE_FORMULA, false);
+}
+
+function waitForGeneratedLedgerId(target, rowNumber) {
+  var idCell = target.sheet.getRange(rowNumber, target.index.id + 1);
+  for (var attempt = 0; attempt < 4; attempt += 1) {
+    ensureLedgerIdFormula(target, rowNumber);
+    SpreadsheetApp.flush();
+    var savedId = cleanText(idCell.getDisplayValue());
+    if (usableRecordId(savedId)) return savedId;
+    // \uC218\uC2DD \uACC4\uC0B0 \uC9C0\uC5F0\uC744 \uAE30\uB2E4\uB9B0 \uB4A4 \uB2E4\uC2DC \uC77D\uB294\uB2E4. \uC784\uC758 id\uB294 \uC808\uB300 \uC0DD\uC131\uD558\uC9C0 \uC54A\uB294\uB2E4.
+    Utilities.sleep(200);
+  }
+  throw new Error(target.sheetName + ' \uC2DC\uD2B8 ' + rowNumber + '\uD589\uC758 id \uC218\uC2DD\uC774 \uACC4\uC0B0\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4.');
 }
 
 function findExistingRow(target, record) {
