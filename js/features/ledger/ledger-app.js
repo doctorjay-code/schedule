@@ -44,7 +44,9 @@ function setLedgerSyncStatus(status, detail = '') {
 const LEDGER_SHEET_BY_PAYMENT = {
   '\uAE30\uC5C5\uCE74\uB4DC': '\uAE30\uC5C5\uCE74\uB4DC',
   '\uD1A0\uC2A4\uC740\uD589': '\uD1A0\uC2A4\uC740\uD589',
-  '\uD604\uAE08': '\uD604\uAE08'
+  '\uD1A0\uC2A4\uCE74\uB4DC': '\uD1A0\uC2A4\uC740\uD589',
+  '\uD604\uAE08': '\uD604\uAE08',
+  '\uAE30\uC5C5\uC740\uD589': '\uAE30\uC5C5\uC740\uD589'
 };
 const ledgerState = {
   source: 'card',
@@ -60,11 +62,11 @@ const ledgerState = {
 function syncLedgerWriteControls() {
   const entryButton = document.getElementById('ledgerToggleEntryBtn');
   const isSheetConnected = ledgerLiveConnected;
-  const isWritableTab = ['card', 'cash'].includes(ledgerState.source);
+  const isWritableTab = ['card', 'cash', 'bank'].includes(ledgerState.source);
   if (!entryButton) return;
   entryButton.disabled = !isSheetConnected || !isWritableTab;
   entryButton.title = !isWritableTab
-    ? '기업은행과 잔액전망은 원본 시트 기준 읽기 전용입니다.'
+    ? '잔액전망은 원본 시트 기준 읽기 전용입니다.'
     : isSheetConnected
       ? 'Google Sheets에 새 거래를 저장합니다.'
       : '시트 연결 후 거래를 입력할 수 있습니다.';
@@ -172,7 +174,7 @@ async function refreshLedgerSheetData(sheetName = '') {
 }
 
 function loadRecords() {
-  ledgerState.records = [...importedLedgerRecords, ...importedCashRecords];
+  ledgerState.records = [...importedLedgerRecords, ...importedCashRecords, ...importedBankRecords];
   const sheetTotal = ledgerSheetCounts ? Object.values(ledgerSheetCounts).reduce((sum, count) => sum + count, 0) : 0;
   const snapshotLabel = ledgerSnapshotFetchedAt ? ` · 마지막 동기화 ${new Date(ledgerSnapshotFetchedAt).toLocaleString('ko-KR')}` : '';
   setText('ledgerDataBadge', ledgerSheetCounts ? `시트 ${sheetTotal}건${snapshotLabel}` : '시트 불러오는 중');
@@ -432,8 +434,11 @@ function applyOptimisticSave(record) {
   const withoutRecord = rows => (rows || []).filter(item => item.id !== record.id);
   sheetLedgerRecords = withoutRecord(sheetLedgerRecords);
   sheetCashRecords = withoutRecord(sheetCashRecords);
-  if (record.payment === '현금') {
+  sheetBankRecords = withoutRecord(sheetBankRecords);
+  if (record.payment === '현금' || record.sheetName === '현금') {
     sheetCashRecords = upsertLocalRecord(sheetCashRecords, record);
+  } else if (record.payment === '기업은행' || record.sheetName === '기업은행') {
+    sheetBankRecords = upsertLocalRecord(sheetBankRecords, record);
   } else {
     sheetLedgerRecords = upsertLocalRecord(sheetLedgerRecords, record);
   }
@@ -443,8 +448,10 @@ function applyOptimisticSave(record) {
 
 function applyOptimisticDelete(record) {
   const withoutRecord = rows => (rows || []).filter(item => item.id !== record.id);
-  if (record.payment === '현금') {
+  if (record.payment === '현금' || record.sheetName === '현금') {
     sheetCashRecords = withoutRecord(sheetCashRecords);
+  } else if (record.payment === '기업은행' || record.sheetName === '기업은행') {
+    sheetBankRecords = withoutRecord(sheetBankRecords);
   } else {
     sheetLedgerRecords = withoutRecord(sheetLedgerRecords);
   }
@@ -631,7 +638,7 @@ function setLedgerSource(source) {
   document.getElementById('ledgerBankSourceBtn')?.classList.toggle('active', source === 'bank');
   document.getElementById('ledgerCashSourceBtn')?.classList.toggle('active', source === 'cash');
   document.getElementById('ledgerForecastSourceBtn')?.classList.toggle('active', source === 'forecast');
-  document.getElementById('ledgerToggleEntryBtn')?.classList.toggle('hidden', !['card', 'cash'].includes(source));
+  document.getElementById('ledgerToggleEntryBtn')?.classList.toggle('hidden', !['card', 'cash', 'bank'].includes(source));
   syncLedgerWriteControls();
   document.getElementById('ledgerAllViewBtn')?.classList.toggle('active', ledgerState.period !== 'monthly');
   document.getElementById('ledgerMonthlyViewBtn')?.classList.toggle('active', ledgerState.period === 'monthly');

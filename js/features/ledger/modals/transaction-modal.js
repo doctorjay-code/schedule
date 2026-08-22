@@ -66,7 +66,7 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
       fixedCost: ''
     };
     const value = { ...defaults, ...(record || {}) };
-    const isReadOnly = Boolean(record && !ledgerState.records.some(item => item.id === record.id));
+    const isReadOnly = Boolean(record && (record.sheetName === '잔액전망' || record.source === 'forecast'));
     document.getElementById('ledgerTransactionModalTitle').textContent = record
       ? formatLedgerScheduleDate(value.date) + ' ' + modalText(0xAC70, 0xB798, 0x20, 0xC0C1, 0xC138)
       : modalText(0xC0C8, 0x20, 0xAC70, 0xB798);

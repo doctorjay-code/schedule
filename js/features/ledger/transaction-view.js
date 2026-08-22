@@ -40,7 +40,7 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
   detailRow.dataset.ledgerId = item.id;
   const tagRow = document.createElement('tr');
   tagRow.dataset.ledgerId = item.id;
-  const isReadOnlySource = ['bank', 'forecast'].includes(source);
+  const isReadOnlySource = source === 'forecast';
   if (isReadOnlySource) {
     detailRow.dataset.ledgerReadOnly = 'true';
     tagRow.dataset.ledgerReadOnly = 'true';
