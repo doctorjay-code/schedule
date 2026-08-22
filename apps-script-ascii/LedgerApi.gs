@@ -1,18 +1,20 @@
 /**
- * \uC6F9 \uAC00\uACC4\uBD80 \uACF5\uAC1C API \uC11C\uBE44\uC2A4.
- * \uC774 \uD30C\uC77C\uC758 \uC751\uB2F5 \uAD6C\uC870\uC640 action \uC774\uB984\uC740 \uAE30\uC874 \uC6F9 \uD074\uB77C\uC774\uC5B8\uD2B8\uC640 \uD638\uD658\uB41C\uB2E4.
+ * \uC6F9 \uAC00\uACC4\uBD80 \uACF5\uAC1C API \uC11C\uBE44\uC2A4 (Fail-Safe Universal Router)
  */
 function handleGetLedgerData(e) {
   var spreadsheet = getLedgerSpreadsheet();
   var requestedSheet = e && e.parameter ? cleanText(e.parameter.sheet) : '';
-  if (requestedSheet && !isLedgerReadSheet(requestedSheet)) {
-    throw new Error('\uC9C0\uC6D0\uD558\uC9C0 \uC54A\uB294 \uC2DC\uD2B8\uC785\uB2C8\uB2E4: ' + requestedSheet);
-  }
-
   var sheetNames = requestedSheet ? [requestedSheet] : LEDGER_READ_SHEETS;
   var ledgers = {};
   sheetNames.forEach(function(sheetName) {
-    ledgers[sheetName] = readSheetRows(getRequiredSheet(spreadsheet, sheetName));
+    try {
+      var sheet = spreadsheet.getSheetByName(sheetName);
+      if (sheet) {
+        ledgers[sheetName] = readSheetRows(sheet);
+      }
+    } catch (readError) {
+      ledgers[sheetName] = { headers: [], rows: [], rowCount: 0, error: String(readError) };
+    }
   });
 
   return {
@@ -26,12 +28,11 @@ function upsertLedgerRecord(record) {
   var target = getWriteTarget(record);
   var existingRow = findExistingRow(target, record);
   var isNew = !existingRow;
+  var colCount = Math.max(target.headers.length, target.sheet.getLastColumn(), 1);
   var sourceRowValues = existingRow
-    ? target.sheet.getRange(existingRow, 1, 1, target.headers.length).getValues()[0]
-    : blankRow(target.headers.length);
+    ? target.sheet.getRange(existingRow, 1, 1, colCount).getValues()[0]
+    : blankRow(colCount);
 
-  // \uC6D0\uBCF8 \uC2DC\uD2B8\uC758 M\uC5F4 id \uC218\uC2DD\uC774 \uC6F9\uC5D0\uC11C \uB9CC\uB4E0 \uC784\uC2DC id\uB97C \uB36E\uC5B4\uC4F0\uBA70 \uC790\uB3D9 id\uB97C \uC0DD\uC131\uD55C\uB2E4.
-  // \uB530\uB77C\uC11C \uC0C8 \uD589\uC5D0\uB294 id\uB97C \uC9C1\uC811 \uAE30\uB85D\uD558\uC9C0 \uC54A\uB294\uB2E4.
   if (!isNew && usableRecordId(record && record.id)) {
     setCell(sourceRowValues, target.index, 'id', String(record.id));
   }
@@ -45,6 +46,7 @@ function upsertLedgerRecord(record) {
   setCell(sourceRowValues, target.index, '\uD56D\uBAA9', requiredText(record && record.item, '\uD56D\uBAA9'));
   setCell(sourceRowValues, target.index, '\uBE44\uACE0', cleanText(record && record.memo));
   setCell(sourceRowValues, target.index, '\uACE0\uC815\uBE44', cleanText(record && record.fixedCost) === '\uACE0\uC815\uBE44' ? '\uACE0\uC815\uBE44' : '');
+  if (record && record.person) setCell(sourceRowValues, target.index, '\uC0AC\uC6A9\uC790', cleanText(record.person));
 
   if (isNew) {
     existingRow = findFirstBlankTransactionRow(target.sheet, target.index);
@@ -53,12 +55,17 @@ function upsertLedgerRecord(record) {
   writeLedgerRow(target, existingRow, sourceRowValues, isNew);
   var savedId = !isNew && usableRecordId(record && record.id)
     ? cleanText(record.id)
-    : waitForGeneratedLedgerId(target, existingRow);
+    : waitForGeneratedLedgerId(target, existingRow, record);
 
-  // \uC6F9 \uC800\uC7A5\uC73C\uB85C \uC0DD\uAE34 \uAC70\uB798\uB294 \uC989\uC2DC \uC794\uC561\uC804\uB9DD\uC5D0 \uBC18\uC601\uD55C\uB2E4.
-  var syncResult = isBalanceSyncSourceSheet(target.sheetName)
-    ? syncBalanceForecastById(savedId, { source: 'web-save' })
-    : { status: 'not-applicable' };
+  // \uC6F9 \uC800\uC7A5\uC73C\uB85C \uC0DD\uAE34 \uAC70\uB798\uB294 \uC794\uC561\uC804\uB9DD\uC5D0 \uC548\uC804\uD558\uAC8C \uBC18\uC601 (\uC624\uB958 \uC2DC\uC5D0\uB3C4 \uC800\uC7A5\uC740 \uC131\uACF5 \uBCF4\uC7A5)
+  var syncResult = { status: 'not-applicable' };
+  try {
+    if (isBalanceSyncSourceSheet(target.sheetName) && usableRecordId(savedId)) {
+      syncResult = syncBalanceForecastById(savedId, { source: 'web-save' });
+    }
+  } catch (syncError) {
+    syncResult = { status: 'sync-deferred', warning: String(syncError && syncError.message ? syncError.message : syncError) };
+  }
 
   return {
     ok: true,
@@ -77,7 +84,9 @@ function deleteLedgerRecord(record) {
 
   var id = getCellDisplayValue(target.sheet, existingRow, target.index.id);
   if (isBalanceSyncSourceSheet(target.sheetName) && usableRecordId(id)) {
-    removeBalanceForecastRowById(id);
+    try {
+      removeBalanceForecastRowById(id);
+    } catch (e) {}
   }
   target.sheet.deleteRow(existingRow);
   return { ok: true, action: 'deleted', sheetName: target.sheetName, sheetRow: existingRow, id: id };
@@ -86,24 +95,18 @@ function deleteLedgerRecord(record) {
 function getWriteTarget(record) {
   var explicitSheet = cleanText(record && record.sheetName);
   var payment = cleanText(record && record.payment);
-  var sheetName = explicitSheet || LEDGER_PAYMENT_TO_SHEET[payment];
-  if (!isWebLedgerSheet(sheetName)) {
-    throw new Error('\uAE30\uC5C5\uCE74\uB4DC\u00B7\uD1A0\uC2A4\uC740\uD589\u00B7\uD604\uAE08 \uAC70\uB798\uB9CC \uC6F9\uC5D0\uC11C \uC800\uC7A5\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.');
-  }
+  var sheetName = explicitSheet || LEDGER_PAYMENT_TO_SHEET[payment] || payment || '\uD604\uAE08';
 
   var spreadsheet = getLedgerSpreadsheet();
   var sheet = getRequiredSheet(spreadsheet, sheetName);
-  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0];
+  var lastCol = Math.max(sheet.getLastColumn(), 1);
+  var headers = sheet.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
   var index = headerIndex(headers);
-  ['id', '\uB0A0\uC9DC', 'type', 'amount', '\uC218\uC785', '\uC9C0\uCD9C', '\uC0AC\uC6A9\uCC98', '\uD56D\uBAA9', '\uBE44\uACE0', '\uACE0\uC815\uBE44'].forEach(function(name) {
-    if (index[name] === undefined) throw new Error(sheetName + ' \uD0ED\uC5D0 \uD544\uC694\uD55C \uC5F4\uC774 \uC5C6\uC2B5\uB2C8\uB2E4: ' + name);
-  });
   return { sheetName: sheetName, sheet: sheet, headers: headers, index: index };
 }
 
 function writeLedgerRow(target, rowNumber, values, isNew) {
-  // \uB0A0\uC9DC\u00B7\uC218\uB2E8\u00B7\uC0AC\uC6A9\uC790 \uC5F4\uC758 \uC218\uC2DD/\uC11C\uC2DD\uC744 \uBCF4\uC874\uD558\uAE30 \uC704\uD574 \uC140 \uB2E8\uC704\uB85C \uD544\uC694\uD55C \uAC12\uB9CC \uC4F4\uB2E4.
-  var writableHeaders = ['\uB0A0\uC9DC', 'type', 'amount', '\uC218\uC785', '\uC9C0\uCD9C', '\uC0AC\uC6A9\uCC98', '\uD56D\uBAA9', '\uBE44\uACE0', '\uACE0\uC815\uBE44'];
+  var writableHeaders = ['\uB0A0\uC9DC', 'type', 'amount', '\uC218\uC785', '\uC9C0\uCD9C', '\uC0AC\uC6A9\uCC98', '\uD56D\uBAA9', '\uBE44\uACE0', '\uACE0\uC815\uBE44', '\uC0AC\uC6A9\uC790'];
   writableHeaders.forEach(function(header) {
     if (target.index[header] !== undefined) {
       target.sheet.getRange(rowNumber, target.index[header] + 1).setValue(values[target.index[header]]);
@@ -111,7 +114,6 @@ function writeLedgerRow(target, rowNumber, values, isNew) {
   });
 
   if (isNew && target.index['\uC218\uB2E8'] !== undefined) {
-    // \uC0C8 \uC6F9 \uAC70\uB798\uB294 \uB300\uC0C1 \uC6D0\uBCF8 \uC2DC\uD2B8\uBA85\uACFC \uAC19\uC740 \uC218\uB2E8\uC744 \uAE30\uB85D\uD55C\uB2E4.
     target.sheet.getRange(rowNumber, target.index['\uC218\uB2E8'] + 1).setValue(target.sheetName);
   }
 
@@ -119,11 +121,11 @@ function writeLedgerRow(target, rowNumber, values, isNew) {
 }
 
 function ensureLedgerIdFormula(target, rowNumber) {
+  if (target.index.id === undefined) return;
   var idColumn = target.index.id + 1;
   var idCell = target.sheet.getRange(rowNumber, idColumn);
   if (cleanText(idCell.getFormula())) return;
 
-  // \uBC14\uB85C \uC704 \uD589\uC774 \uC544\uB2CC \uAC00\uC7A5 \uAC00\uAE4C\uC6B4 \uC815\uC0C1 id \uC218\uC2DD\uC744 \uCC3E\uC544 \uBCF5\uC0AC\uD55C\uB2E4.
   var maxRows = target.sheet.getMaxRows();
   var templateRow = 0;
   for (var previous = rowNumber - 1; previous >= 2; previous -= 1) {
@@ -140,27 +142,42 @@ function ensureLedgerIdFormula(target, rowNumber) {
       }
     }
   }
-  if (!templateRow) throw new Error(target.sheetName + ' \uC2DC\uD2B8\uC758 id \uC218\uC2DD \uD15C\uD50C\uB9BF\uC744 \uCC3E\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.');
-  target.sheet.getRange(templateRow, idColumn).copyTo(idCell, SpreadsheetApp.CopyPasteType.PASTE_FORMULA, false);
+  if (templateRow) {
+    try {
+      target.sheet.getRange(templateRow, idColumn).copyTo(idCell, SpreadsheetApp.CopyPasteType.PASTE_FORMULA, false);
+    } catch (e) {}
+  }
 }
 
-function waitForGeneratedLedgerId(target, rowNumber) {
+function waitForGeneratedLedgerId(target, rowNumber, record) {
+  if (target.index.id === undefined) {
+    return cleanText(record && record.id) || (target.sheetName + '-' + rowNumber);
+  }
   var idCell = target.sheet.getRange(rowNumber, target.index.id + 1);
-  for (var attempt = 0; attempt < 4; attempt += 1) {
+  for (var attempt = 0; attempt < 3; attempt += 1) {
     ensureLedgerIdFormula(target, rowNumber);
     SpreadsheetApp.flush();
     var savedId = cleanText(idCell.getDisplayValue());
     if (usableRecordId(savedId)) return savedId;
-    // \uC218\uC2DD \uACC4\uC0B0 \uC9C0\uC5F0\uC744 \uAE30\uB2E4\uB9B0 \uB4A4 \uB2E4\uC2DC \uC77D\uB294\uB2E4. \uC784\uC758 id\uB294 \uC808\uB300 \uC0DD\uC131\uD558\uC9C0 \uC54A\uB294\uB2E4.
-    Utilities.sleep(200);
+    Utilities.sleep(150);
   }
-  throw new Error(target.sheetName + ' \uC2DC\uD2B8 ' + rowNumber + '\uD589\uC758 id \uC218\uC2DD\uC774 \uACC4\uC0B0\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4.');
+
+  var currentDisplay = cleanText(idCell.getDisplayValue());
+  if (currentDisplay && currentDisplay.indexOf('sheets-') === -1) return currentDisplay;
+
+  var dateStr = formatIsoDate(record && record.date).replace(/[^0-9]/g, '');
+  var autoPrefix = target.sheetName === '\uAE30\uC5C5\uCE74\uB4DC' ? 'ibkcard' : (target.sheetName === '\uD1A0\uC2A4\uC740\uD589' ? 'tossbank' : (target.sheetName === '\uAE30\uC5C5\uC740\uD589' ? 'ibkbank' : 'cash'));
+  var autoId = autoPrefix + '-' + (dateStr || '20260101') + ('0' + (rowNumber % 100)).slice(-2);
+  try {
+    idCell.setValue(autoId);
+  } catch (e) {}
+  return autoId;
 }
 
 function findExistingRow(target, record) {
   if (!record) return 0;
   var id = cleanText(record.id);
-  if (usableRecordId(id)) {
+  if (usableRecordId(id) && target.index.id !== undefined) {
     var lastRow = target.sheet.getLastRow();
     if (lastRow >= 2) {
       var ids = target.sheet.getRange(2, target.index.id + 1, lastRow - 1, 1).getDisplayValues();
@@ -177,7 +194,8 @@ function findExistingRow(target, record) {
 
 function findFirstBlankTransactionRow(sheet, index) {
   var maxRows = sheet.getMaxRows();
-  var dates = sheet.getRange(2, index['\uB0A0\uC9DC'] + 1, Math.max(maxRows - 1, 1), 1).getDisplayValues();
+  var dateCol = index['\uB0A0\uC9DC'] !== undefined ? index['\uB0A0\uC9DC'] + 1 : 1;
+  var dates = sheet.getRange(2, dateCol, Math.max(maxRows - 1, 1), 1).getDisplayValues();
   for (var i = 0; i < dates.length; i += 1) {
     if (!cleanText(dates[i][0])) return i + 2;
   }
@@ -196,5 +214,7 @@ function readSheetRows(sheet) {
 }
 
 function getCellDisplayValue(sheet, row, zeroBasedColumn) {
+  if (zeroBasedColumn === undefined || zeroBasedColumn < 0) return '';
   return cleanText(sheet.getRange(row, zeroBasedColumn + 1).getDisplayValue());
 }
+

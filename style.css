@@ -186,6 +186,7 @@ body {
   background-color: var(--bg-table);
   padding: 12px 12px 8px;
   border-bottom: 1px solid var(--border-grid);
+  flex-shrink: 0;
 }
 
 /* View Mode Switcher Header Bar */
@@ -735,6 +736,7 @@ body {
   border-bottom: 1px solid var(--border-grid);
   overflow-x: auto;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .filter-chip {
@@ -1700,11 +1702,22 @@ td.cell-date {
 .ledger-source-tag { display: inline-block; padding: 3px 6px; border-radius: 999px; background: #E0E7FF; color: #3730A3; font-size: 9px; font-weight: 700; }
 
 /* Ledger records-first layout */
-.ledger-period-wrapper { display: flex; flex-direction: column; }
+.ledger-period-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.ledger-period-wrapper .table-wrapper {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
 .ledger-period-wrapper > .ledger-period-title { order: 0; }
 .ledger-period-wrapper > .ledger-list-panel { order: 1; }
 .ledger-period-wrapper > .ledger-summary-grid { order: 2; }
-.ledger-period-wrapper > .ledger-toggle-entry-btn { order: 3; }
+.ledger-period-wrapper > .ledger-toggle-entry-btn { order: 3; flex-shrink: 0; }
 .ledger-period-wrapper > .ledger-entry-panel { order: 4; }
 .ledger-period-wrapper > .ledger-monthly-stats { display: grid; order: 4; }
 .ledger-monthly-list { margin-top: 0; }
@@ -1971,11 +1984,10 @@ td.cell-date {
 .schedule-table .ledger-cell-actions button { border: none; border-radius: 4px; padding: 2px 4px; background: #E2E8F0; color: #475569; font-size: 9px; cursor: pointer; }
 /* COMMON_FIXED_APP_FRAME: keep schedule and ledger in one identical viewport-sized frame. */
 body { margin: 0; height: 100dvh; min-height: 0; padding: 16px 0; box-sizing: border-box; overflow: hidden; }
-.app-container { height: 100%; min-height: 0; margin: 0 auto; overflow: hidden; }
+.app-container { height: 100%; min-height: 0; margin: 0 auto; overflow: hidden; display: flex; flex-direction: column; }
 #weeklyViewWrapper,
-#monthlyViewWrapper,
-#ledgerViewWrapper { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-#ledgerViewWrapper { display: flex; flex-direction: column; }
+#monthlyViewWrapper { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+#ledgerViewWrapper { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; }
 
 .schedule-period-picker { cursor: pointer; }
 .schedule-period-picker:focus-visible { outline: 2px solid #2F5597; outline-offset: 4px; border-radius: 6px; }
@@ -2111,6 +2123,7 @@ body { margin: 0; height: 100dvh; min-height: 0; padding: 16px 0; box-sizing: bo
   display: block;
   min-height: 0;
   overflow: visible;
+  flex-shrink: 0;
 }
 #ledgerPersonSwitch .ledger-filter-primary {
   display: grid;

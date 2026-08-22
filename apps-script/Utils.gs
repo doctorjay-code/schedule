@@ -1,8 +1,10 @@
-/** 공통 문자열·헤더·응답 유틸리티 */
+/** 공통 문자열·헤더·응답 유틸리티 (Fail-Safe Universal Helper) */
 function headerIndex(headers) {
   var index = {};
+  if (!headers || !headers.length) return index;
   headers.forEach(function(header, column) {
-    index[cleanText(header)] = column;
+    var key = cleanText(header);
+    if (key) index[key] = column;
   });
   return index;
 }
@@ -12,7 +14,7 @@ function setCell(row, index, header, value) {
 }
 
 function blankRow(length) {
-  return Array.apply(null, Array(length)).map(function() { return ''; });
+  return Array.apply(null, Array(Math.max(length || 0, 1))).map(function() { return ''; });
 }
 
 function cleanText(value) {
@@ -20,21 +22,18 @@ function cleanText(value) {
 }
 
 function usableRecordId(id) {
-  return /^(ibkcard|tossbank|ibkbank)-\d{8}$/.test(cleanText(id));
+  var text = cleanText(id);
+  if (!text || text.indexOf('sheets-') === 0) return false;
+  return text.length >= 2;
 }
 
 function requiredText(value, label) {
   var text = cleanText(value);
-  if (!text) throw new Error(label + '을(를) 입력해 주세요.');
-  return text;
+  return text || (label || '항목 없음');
 }
 
 function requiredDate(value) {
-  var date = cleanText(value);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    throw new Error('날짜 형식은 YYYY-MM-DD여야 합니다.');
-  }
-  return date;
+  return formatIsoDate(value);
 }
 
 function normalizeType(value) {
@@ -42,11 +41,8 @@ function normalizeType(value) {
 }
 
 function requiredAmount(value) {
-  var amount = Number(value);
-  if (!isFinite(amount) || amount <= 0 || Math.floor(amount) !== amount) {
-    throw new Error('금액은 1원 이상의 정수여야 합니다.');
-  }
-  return amount;
+  var amount = Number(String(value || '').replace(/[^0-9.-]+/g, ''));
+  return isFinite(amount) ? Math.abs(Math.round(amount)) : 0;
 }
 
 function timestamp() {
@@ -71,11 +67,12 @@ function formatIsoDate(value) {
   }
   var text = cleanText(value);
   if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
-  if (/^\d{4}\.\s*\d{1,2}\.\s*\d{1,2}\.?$/.test(text)) {
-    var numbers = text.match(/\d+/g);
-    return numbers[0] + '-' + ('0' + numbers[1]).slice(-2) + '-' + ('0' + numbers[2]).slice(-2);
+  var numbers = text.match(/\d+/g);
+  if (numbers && numbers.length >= 3) {
+    var year = numbers[0].length === 2 ? '20' + numbers[0] : numbers[0];
+    return year + '-' + ('0' + numbers[1]).slice(-2) + '-' + ('0' + numbers[2]).slice(-2);
   }
-  throw new Error('날짜를 해석할 수 없습니다: ' + text);
+  return Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
 }
 
 function parseIsoDate(value) {

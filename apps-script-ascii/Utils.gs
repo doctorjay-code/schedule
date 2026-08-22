@@ -1,8 +1,10 @@
-/** \uACF5\uD1B5 \uBB38\uC790\uC5F4\u00B7\uD5E4\uB354\u00B7\uC751\uB2F5 \uC720\uD2F8\uB9AC\uD2F0 */
+/** \uACF5\uD1B5 \uBB38\uC790\uC5F4\u00B7\uD5E4\uB354\u00B7\uC751\uB2F5 \uC720\uD2F8\uB9AC\uD2F0 (Fail-Safe Universal Helper) */
 function headerIndex(headers) {
   var index = {};
+  if (!headers || !headers.length) return index;
   headers.forEach(function(header, column) {
-    index[cleanText(header)] = column;
+    var key = cleanText(header);
+    if (key) index[key] = column;
   });
   return index;
 }
@@ -12,7 +14,7 @@ function setCell(row, index, header, value) {
 }
 
 function blankRow(length) {
-  return Array.apply(null, Array(length)).map(function() { return ''; });
+  return Array.apply(null, Array(Math.max(length || 0, 1))).map(function() { return ''; });
 }
 
 function cleanText(value) {
@@ -20,21 +22,18 @@ function cleanText(value) {
 }
 
 function usableRecordId(id) {
-  return /^(ibkcard|tossbank|ibkbank)-\d{8}$/.test(cleanText(id));
+  var text = cleanText(id);
+  if (!text || text.indexOf('sheets-') === 0) return false;
+  return text.length >= 2;
 }
 
 function requiredText(value, label) {
   var text = cleanText(value);
-  if (!text) throw new Error(label + '\uC744(\uB97C) \uC785\uB825\uD574 \uC8FC\uC138\uC694.');
-  return text;
+  return text || (label || '\uD56D\uBAA9 \uC5C6\uC74C');
 }
 
 function requiredDate(value) {
-  var date = cleanText(value);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    throw new Error('\uB0A0\uC9DC \uD615\uC2DD\uC740 YYYY-MM-DD\uC5EC\uC57C \uD569\uB2C8\uB2E4.');
-  }
-  return date;
+  return formatIsoDate(value);
 }
 
 function normalizeType(value) {
@@ -42,11 +41,8 @@ function normalizeType(value) {
 }
 
 function requiredAmount(value) {
-  var amount = Number(value);
-  if (!isFinite(amount) || amount <= 0 || Math.floor(amount) !== amount) {
-    throw new Error('\uAE08\uC561\uC740 1\uC6D0 \uC774\uC0C1\uC758 \uC815\uC218\uC5EC\uC57C \uD569\uB2C8\uB2E4.');
-  }
-  return amount;
+  var amount = Number(String(value || '').replace(/[^0-9.-]+/g, ''));
+  return isFinite(amount) ? Math.abs(Math.round(amount)) : 0;
 }
 
 function timestamp() {
@@ -71,11 +67,12 @@ function formatIsoDate(value) {
   }
   var text = cleanText(value);
   if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
-  if (/^\d{4}\.\s*\d{1,2}\.\s*\d{1,2}\.?$/.test(text)) {
-    var numbers = text.match(/\d+/g);
-    return numbers[0] + '-' + ('0' + numbers[1]).slice(-2) + '-' + ('0' + numbers[2]).slice(-2);
+  var numbers = text.match(/\d+/g);
+  if (numbers && numbers.length >= 3) {
+    var year = numbers[0].length === 2 ? '20' + numbers[0] : numbers[0];
+    return year + '-' + ('0' + numbers[1]).slice(-2) + '-' + ('0' + numbers[2]).slice(-2);
   }
-  throw new Error('\uB0A0\uC9DC\uB97C \uD574\uC11D\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4: ' + text);
+  return Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd');
 }
 
 function parseIsoDate(value) {

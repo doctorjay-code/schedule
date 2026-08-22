@@ -3,9 +3,9 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $strictUtf8 = New-Object System.Text.UTF8Encoding($false, $true)
 $extensions = @('.html', '.js', '.css', '.json', '.md', '.ps1')
-$files = Get-ChildItem -Path $projectRoot -Recurse -File | Where-Object {
+$files = Get-ChildItem -Path $projectRoot -Recurse -File -ErrorAction SilentlyContinue | Where-Object {
   $extensions -contains $_.Extension.ToLowerInvariant() -and
-  $_.FullName -notmatch '\\.git\\|\\node_modules\\|\\backups\\|\\.baseline|\\.backup'
+  $_.FullName -notmatch '\\\.git\\|\\node_modules\\|\\backups?\\|\\\.baseline|\\\.backup'
 }
 $problems = New-Object System.Collections.Generic.List[string]
 # Authentication files are protected modules. Validate their UTF-8 bytes, but do not block on legacy display text.
