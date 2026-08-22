@@ -1,4 +1,4 @@
-﻿# Temporary test data & logs
+# Temporary test data & logs
 *.json
 *.log
 *.tmp
@@ -21,3 +21,20 @@ ledger-seed.local.js
 edge-*.txt
 
 
+
+# Local-only bank and cash records
+fundplan-seed.local.js
+
+# Local cleanup archives, baselines, and verification artifacts
+*.bak
+__*
+*_audit.txt
+archive/
+.baseline-*/
+.agents/
+
+backup/
+backups/
+.tmp-*
+trigger-test-*
+*.tsv

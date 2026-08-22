@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Schedule Smoke Test Probe</title>
+  <style>
+    body { margin: 0; font: 13px/1.45 system-ui, sans-serif; background: #0f172a; color: #e2e8f0; }
+    #smoke-test-result { white-space: pre-wrap; margin: 0; padding: 12px; }
+    #app-frame { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; border: 0; }
+  </style>
+</head>
+<body>
+  <pre id="smoke-test-result">{"passed":false,"state":"running"}</pre>
+  <iframe id="app-frame" title="Schedule application smoke-test frame"></iframe>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const APP_PATH = '/';
+      const LEDGER_STORAGE_KEY = 'schedule_ledger_transactions_v1';
+      const resultNode = document.getElementById('smoke-test-result');
+      const frame = document.getElementById('app-frame');
+      const result = {
+        passed: false,
+        state: 'running',
+        startedAt: new Date().toISOString(),
+        steps: {},
+        errors: []
+      };
+
+      let appWindow = null;
+      let originalLedgerStorage = null;
+      let ledgerStorageCaptured = false;
+      const originalAuthState = sessionStorage.getItem('security_authenticated');
+
+      function publish() {
+        resultNode.textContent = JSON.stringify(result);
+        document.title = result.passed ? 'SMOKE_TEST_PASS' : (result.state === 'running' ? 'SMOKE_TEST_RUNNING' : 'SMOKE_TEST_FAIL');
+      }
+
+      function fail(message) {
+        throw new Error(message);
+      }
+
+      function assert(condition, message) {
+        if (!condition) fail(message);
+      }
+
+      function delay(milliseconds) {
+        return new Promise(resolve => setTimeout(resolve, milliseconds));
+      }
+
+      async function waitFor(predicate, description, timeout = 5000) {
+        const started = Date.now();
+        while (Date.now() - started < timeout) {
+          try {
+            if (predicate()) return;
+          } catch (_) {
+            // Wait for the next render when DOM is still being rebuilt.
+          }
+          await delay(50);
+        }
+        fail(`${description} (${timeout}ms 이내)`);
+      }
+
+      function hasHiddenClass(doc, id) {
+        return doc.getElementById(id)?.classList.contains('hidden') ?? true;
+      }
+
+      function click(doc, id) {
+        const element = doc.getElementById(id);
+        assert(element, `필수 요소를 찾지 못했습니다: #${id}`);
+        element.click();
+      }
+
+      async function runStep(name, callback) {
+        try {
+          await callback();
+          result.steps[name] = { passed: true };
+        } catch (error) {
+          result.steps[name] = { passed: false, error: error.message };
+          throw error;
+        } finally {
+          publish();
+        }
+      }
+
+      function getCurrentLedgerDate(doc) {
+        const title = doc.getElementById('ledgerPeriodTitle')?.textContent || '';
+        const match = title.match(/(\d{4})\.(\d{1,2})\.(\d{1,2})/);
+        if (match) return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
+        return new Date().toISOString().slice(0, 10);
+      }
+
+      function findTransactionRow(doc, label) {
+        return Array.from(doc.querySelectorAll('tr[data-ledger-id]')).find(row => row.textContent.includes(label));
+      }
+
+      async function submitLedgerForm(doc) {
+        const form = doc.getElementById('ledgerTransactionForm');
+        assert(form, '거래 입력 폼을 찾지 못했습니다.');
+        form.dispatchEvent(new appWindow.Event('submit', { bubbles: true, cancelable: true }));
+        await delay(120);
+      }
+
+      async function loadApplication() {
+        sessionStorage.setItem('security_authenticated', 'true');
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('프로브 앱 문서 로드 (5000ms 이내)')), 5000);
+          frame.addEventListener('load', () => {
+            clearTimeout(timeout);
+            resolve();
+          }, { once: true });
+          frame.src = `${APP_PATH}?smoke=${Date.now()}`;
+        });
+        appWindow = frame.contentWindow;
+        appWindow.confirm = () => true;
+        appWindow.__smokeErrors = [];
+        appWindow.addEventListener('error', event => {
+          if (event.error) appWindow.__smokeErrors.push(String(event.error.message || event.error));
+        });
+        appWindow.addEventListener('unhandledrejection', event => {
+          appWindow.__smokeErrors.push(String(event.reason && (event.reason.message || event.reason)));
+        });
+
+        const doc = frame.contentDocument;
+        const bootstrapScript = Array.from(doc.querySelectorAll('script[type="module"]'))
+          .find(script => script.getAttribute('src') === 'js/bootstrap.js');
+        assert(bootstrapScript, '앱 부트스트랩 모듈을 찾지 못했습니다.');
+        await waitFor(() => doc.getElementById('scheduleBody')?.children.length > 0 || doc.getElementById('appLoadErrorNotice'), '인증 후 일정 앱 초기화');
+        assert(!doc.getElementById('appLoadErrorNotice'), '인증 후 앱 지연 로드에 실패했습니다.');
+        assert(doc.getElementById('scheduleBody')?.children.length > 0, '주간 일정 표가 렌더링되지 않았습니다.');
+        assert((appWindow.__smokeErrors || []).length === 0, `초기화 중 브라우저 오류가 발생했습니다: ${(appWindow.__smokeErrors || []).join(' | ')}`);
+        return doc;
+      }
+
+      async function run() {
+        publish();
+        let doc;
+        try {
+          await runStep('authenticatedAppStart', async () => {
+            doc = await loadApplication();
+          });
+
+          await runStep('weeklyMonthlyWeekly', async () => {
+            click(doc, 'monthlyViewBtn');
+            await waitFor(() => !hasHiddenClass(doc, 'monthlyViewWrapper'), '월간 화면 전환');
+            assert(hasHiddenClass(doc, 'weeklyViewWrapper'), '월간 전환 후 주간 표가 숨겨지지 않았습니다.');
+            assert(doc.getElementById('monthlyDaysGrid')?.children.length > 0, '월간 달력이 렌더링되지 않았습니다.');
+
+            click(doc, 'weeklyViewBtn');
+            await waitFor(() => !hasHiddenClass(doc, 'weeklyViewWrapper'), '주간 화면 복귀');
+            assert(hasHiddenClass(doc, 'monthlyViewWrapper'), '주간 복귀 후 월간 화면이 숨겨지지 않았습니다.');
+          });
+
+          await runStep('statsModal', async () => {
+            click(doc, 'openStatsModalBtn');
+            await waitFor(() => doc.getElementById('statsModalOverlay')?.classList.contains('active'), '통계 모달 열기');
+            assert((doc.getElementById('statsRegionContent')?.textContent || '').trim().length > 0, '통계 모달의 지역 통계가 렌더링되지 않았습니다.');
+            click(doc, 'closeStatsModalBtn');
+            await waitFor(() => !doc.getElementById('statsModalOverlay')?.classList.contains('active'), '통계 모달 닫기');
+          });
+
+          await runStep('ledgerEnterAndReturn', async () => {
+            click(doc, 'ledgerMenuBtn');
+            await waitFor(() => !hasHiddenClass(doc, 'ledgerViewWrapper'), '가계부 지연 로드 및 진입');
+            assert(doc.getElementById('ledgerMenuBtn')?.classList.contains('active'), '가계부 메뉴 활성 상태가 적용되지 않았습니다.');
+
+            click(doc, 'scheduleMenuBtn');
+            await waitFor(() => hasHiddenClass(doc, 'ledgerViewWrapper') && !hasHiddenClass(doc, 'weeklyViewWrapper'), '일정 화면 복귀');
+            assert(doc.getElementById('scheduleMenuBtn')?.classList.contains('active'), '일정 메뉴 활성 상태가 복구되지 않았습니다.');
+          });
+
+          await runStep('ledgerTransactionCrud', async () => {
+            click(doc, 'ledgerMenuBtn');
+            await waitFor(() => !hasHiddenClass(doc, 'ledgerViewWrapper'), '거래 테스트용 가계부 진입');
+
+            originalLedgerStorage = appWindow.localStorage.getItem(LEDGER_STORAGE_KEY);
+            ledgerStorageCaptured = true;
+            const token = `스모크테스트-${Date.now()}`;
+            const editedToken = `${token}-수정`;
+
+            click(doc, 'ledgerToggleEntryBtn');
+            await waitFor(() => doc.getElementById('ledgerTransactionModalOverlay')?.classList.contains('active'), '거래 입력 모달 열기');
+            doc.getElementById('ledgerModalDate').value = getCurrentLedgerDate(doc);
+            doc.getElementById('ledgerModalItem').value = token;
+            doc.getElementById('ledgerModalAmount').value = '12345';
+            doc.getElementById('ledgerModalMemo').value = '스모크 테스트 거래';
+            await submitLedgerForm(doc);
+            await waitFor(() => !doc.getElementById('ledgerTransactionModalOverlay')?.classList.contains('active'), '거래 저장 후 모달 닫기');
+
+            const createdRow = findTransactionRow(doc, token);
+            assert(createdRow, '새 거래가 목록에 표시되지 않았습니다.');
+            const transactionId = createdRow.dataset.ledgerId;
+            assert(transactionId, '새 거래의 식별자를 찾지 못했습니다.');
+
+            const editButton = Array.from(doc.querySelectorAll('button[data-ledger-action="edit"]')).find(button => button.dataset.ledgerId === transactionId);
+            assert(editButton, '새 거래의 수정 버튼을 찾지 못했습니다.');
+            editButton.click();
+            await waitFor(() => doc.getElementById('ledgerTransactionModalOverlay')?.classList.contains('active'), '거래 수정 모달 열기');
+            assert(doc.getElementById('ledgerModalEditId')?.value === transactionId, '수정 모달에 올바른 거래가 연결되지 않았습니다.');
+            doc.getElementById('ledgerModalItem').value = editedToken;
+            await submitLedgerForm(doc);
+            await waitFor(() => Boolean(findTransactionRow(doc, editedToken)), '수정된 거래 목록 반영');
+
+            const deleteButton = Array.from(doc.querySelectorAll('button[data-ledger-action="delete"]')).find(button => button.dataset.ledgerId === transactionId);
+            assert(deleteButton, '수정된 거래의 삭제 버튼을 찾지 못했습니다.');
+            deleteButton.click();
+            await waitFor(() => !Array.from(doc.querySelectorAll('tr[data-ledger-id]')).some(row => row.dataset.ledgerId === transactionId), '거래 삭제 후 목록 갱신');
+          });
+
+          assert((appWindow.__smokeErrors || []).length === 0, `브라우저 실행 중 오류가 발생했습니다: ${(appWindow.__smokeErrors || []).join(' | ')}`);
+          result.passed = true;
+          result.state = 'passed';
+        } catch (error) {
+          result.state = 'failed';
+          result.errors.push(error.message || String(error));
+        } finally {
+          if (ledgerStorageCaptured && appWindow) {
+            if (originalLedgerStorage === null) appWindow.localStorage.removeItem(LEDGER_STORAGE_KEY);
+            else appWindow.localStorage.setItem(LEDGER_STORAGE_KEY, originalLedgerStorage);
+          }
+          if (originalAuthState === null) sessionStorage.removeItem('security_authenticated');
+          else sessionStorage.setItem('security_authenticated', originalAuthState);
+          result.finishedAt = new Date().toISOString();
+          publish();
+        }
+      }
+
+      run();
+    })();
+  </script>
+</body>
+</html>

@@ -51,7 +51,9 @@ function upsertLedgerRecord(record) {
   }
 
   writeLedgerRow(target, existingRow, sourceRowValues, isNew);
-  var savedId = waitForGeneratedLedgerId(target, existingRow);
+  var savedId = !isNew && usableRecordId(record && record.id)
+    ? cleanText(record.id)
+    : waitForGeneratedLedgerId(target, existingRow);
 
   // \uC6F9 \uC800\uC7A5\uC73C\uB85C \uC0DD\uAE34 \uAC70\uB798\uB294 \uC989\uC2DC \uC794\uC561\uC804\uB9DD\uC5D0 \uBC18\uC601\uD55C\uB2E4.
   var syncResult = isBalanceSyncSourceSheet(target.sheetName)

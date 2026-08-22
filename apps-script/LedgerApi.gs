@@ -51,7 +51,11 @@ function upsertLedgerRecord(record) {
   }
 
   writeLedgerRow(target, existingRow, sourceRowValues, isNew);
-  var savedId = waitForGeneratedLedgerId(target, existingRow);
+  // 수정은 이미 화면에서 받은 기존 id를 그대로 사용한다.
+  // 새 행에서만 수식 계산을 기다리므로, 수정 직후의 재계산 지연이 저장 오류로 보이지 않는다.
+  var savedId = !isNew && usableRecordId(record && record.id)
+    ? cleanText(record.id)
+    : waitForGeneratedLedgerId(target, existingRow);
 
   // 웹 저장으로 생긴 거래는 즉시 잔액전망에 반영한다.
   var syncResult = isBalanceSyncSourceSheet(target.sheetName)
