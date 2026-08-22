@@ -29,14 +29,6 @@ function doPost(e) {
   try {
     var request = parsePostRequest(e);
 
-    // 0. 스크린샷 이미지 직접 전송 (Gemini Vision AI 자동 분석 및 시트 저장)
-    if (request.action === 'PARSE_SCREENSHOT' || request.base64Image || request.image) {
-      var base64 = request.base64Image || request.image;
-      var mimeType = request.mimeType || 'image/jpeg';
-      var geminiKey = getGeminiApiKey(request, e);
-      return jsonResponse(parseScreenshotWithGemini(base64, mimeType, geminiKey));
-    }
-
     // 1. 다중 일괄 등록 요청 (BATCH_UPSERT_LEDGER_RECORDS or records 배열)
     if (request.action === 'BATCH_UPSERT_LEDGER_RECORDS' || Array.isArray(request.records)) {
       var records = request.records || (Array.isArray(request) ? request : []);
@@ -73,14 +65,6 @@ function normalizeShortcutRecord(req) {
     fixedCost: req.fixedCost || '',
     person: req.person || ''
   };
-}
-
-function testGeminiApi() {
-  var key = getGeminiApiKey();
-  var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + key;
-  var payload = { contents: [{ parts: [{ text: 'Hello' }] }] };
-  var res = UrlFetchApp.fetch(url, { method: 'post', contentType: 'application/json', payload: JSON.stringify(payload), muteHttpExceptions: true });
-  Logger.log('Gemini Test Response: ' + res.getResponseCode() + ' Body: ' + res.getContentText().slice(0, 100));
 }
 
 function getRequestAction(e) {

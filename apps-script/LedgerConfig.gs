@@ -22,16 +22,6 @@ var BALANCE_SYNC_CONFIG = {
   futureCardPaymentItem: '기업카드 결제예정'
 };
 
-function getGeminiApiKey(request, e) {
-  if (request && request.geminiKey) return cleanText(request.geminiKey);
-  if (e && e.parameter && e.parameter.geminiKey) return cleanText(e.parameter.geminiKey);
-  try {
-    var prop = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
-    if (prop) return cleanText(prop);
-  } catch (err) {}
-  return '';
-}
-
 function getLedgerSpreadsheet() {
   return SpreadsheetApp.openById(LEDGER_SPREADSHEET_ID);
 }
