@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
   <!-- GitHub Pages Trigger -->
@@ -40,7 +40,7 @@
       <!-- Primary Menu: Schedule vs Ledger -->
       <div class="primary-switch-container">
         <button class="primary-switch-btn active" id="scheduleMenuBtn">📅 일정</button>
-        <button class="primary-switch-btn is-development" id="ledgerMenuBtn" type="button" disabled aria-disabled="true" title="가계부 기능 개발 중">💳 가계부 <span>개발 중</span></button>
+        <button class='primary-switch-btn' id='ledgerMenuBtn' type='button'>가계부</button>
       </div>
 
       <!-- Schedule Submenu: Weekly vs Monthly -->
@@ -50,16 +50,16 @@
       </div>
 
       <!-- Ledger Submenu: Weekly vs Monthly -->
-      <div class="view-switch-container ledger-subnav hidden" id="ledgerSubnav">
-        <button class="view-switch-btn active" id="ledgerWeeklyViewBtn">주간</button>
-        <button class="view-switch-btn" id="ledgerMonthlyViewBtn">월간</button>
+      <div class="view-switch-container hidden" id="ledgerSubnav">
+        <button class="view-switch-btn active" id="ledgerAllViewBtn" type="button">&#xC804;&#xCCB4;</button>
+        <button class="view-switch-btn" id="ledgerMonthlyViewBtn" type="button">&#xC6D4;&#xAC04;</button>
       </div>
 
 
       <!-- 1st Row: Centered Week/Month Navigator -->
       <div class="week-navigator centered schedule-only">
         <button class="nav-btn" id="prevWeekBtn">◀</button>
-        <h1 class="week-title" id="weekTitle" title="주차 직접 선택">2026년 8월 2주차 <span class="dropdown-arrow">▾</span></h1>
+        <button type="button" class="week-title schedule-period-picker" id="weekTitle" title="월·주차 선택" aria-label="월·주차 선택"><span class="period-title-text">2026.08.17–08.23</span><span class="dropdown-arrow" aria-hidden="true">▾</span></button>
         <button class="nav-btn" id="nextWeekBtn">▶</button>
         <button class="today-btn" id="todayBtn">오늘</button>
         <button class="nav-btn" id="manualSyncBtn" title="구글 시트 최신 일정 동기화"><span class="sync-icon">🔄</span></button>
@@ -75,7 +75,23 @@
         <button class="alert-chip alert-unapplied" id="unappliedSummaryBtn">전체 미신청 <span id="unappliedCount">0</span>건 📋</button>
         <button class="alert-chip alert-unapproved" id="unapprovedSummaryBtn">전체 미승인 <span id="unapprovedCount">1</span>건 ⏳</button>
       </div>
-    </header>
+    <div class="week-navigator centered hidden" id="ledgerCardNavigator">
+        <button class="nav-btn" id="ledgerPrevPeriodBtn" type="button" aria-label="&#xC774;&#xC804; &#xAE30;&#xAC04;">&#x25C0;</button>
+        <h1 class="week-title" id="ledgerPeriodTitle">&#xC774;&#xBC88; &#xC8FC;<span class="dropdown-arrow">&#x25BE;</span></h1>
+        <button class="nav-btn" id="ledgerNextPeriodBtn" type="button" aria-label="&#xB2E4;&#xC74C; &#xAE30;&#xAC04;">&#x25B6;</button>
+        <button class="today-btn" id="ledgerLatestBtn" type="button">&#xC624;&#xB298;</button>
+        <button class="nav-btn hidden" id="ledgerRefreshBtn" type="button" title="&#xAD6C;&#xAE00; &#xC2DC;&#xD2B8; &#xCD5C;&#xC2E0; &#xAC00;&#xACC4;&#xBD80; &#xB3D9;&#xAE30;&#xD654;"><span class="sync-icon">&#x1F504;</span></button>
+        <button class="nav-btn" id="ledgerReportBtn" type="button" title="&#xC9C0;&#xCD9C; &#xB9AC;&#xD3EC;&#xD2B8;">&#x1F4CA;</button>
+        <button class="nav-btn" id="ledgerColorSettingsBtn" type="button" title="&#xAC70;&#xB798; &#xD0DC;&#xADF8; &#xC0C9;&#xC0C1;">&#x1F3A8;</button>
+      </div><div id="ledgerSyncBtn" class="sync-status hidden" role="button" tabindex="0" data-state="saved">&#xCD5C;&#xC2E0; &#xB0B4;&#xC5ED; &#xBC18;&#xC601;</div><div class="alert-row hidden" id="ledgerSourceSwitch" role="group" aria-label="&#xAC00;&#xACC4;&#xBD80; &#xC2DC;&#xD2B8; &#xC804;&#xD658;">
+        <button class="alert-chip alert-unpaid" id="ledgerCashSourceBtn" data-ledger-source="cash" type="button">&#xD604;&#xAE08;</button>
+        <button class="alert-chip alert-unapplied" id="ledgerCompanyCardBtn" data-ledger-source="card" data-ledger-payment="&#xAE30;&#xC5C5;&#xCE74;&#xB4DC;" type="button">&#xAE30;&#xC5C5;&#xCE74;&#xB4DC;</button>
+        <button class="alert-chip alert-unapplied active" id="ledgerTossBankBtn" data-ledger-source="card" data-ledger-payment="&#xD1A0;&#xC2A4;&#xC740;&#xD589;" type="button">&#xD1A0;&#xC2A4;&#xC740;&#xD589;</button>
+        <button class="alert-chip alert-unapproved" id="ledgerBankSourceBtn" data-ledger-source="bank" type="button">&#xAE30;&#xC5C5;&#xC740;&#xD589;</button>
+        <button class="alert-chip alert-unapproved" id="ledgerForecastSourceBtn" data-ledger-source="forecast" type="button">&#xC794;&#xC561;&#xC804;&#xB9DD;</button>
+      </div>
+<span class="ledger-stage-badge hidden" id="ledgerDataBadge">0건</span><input type="hidden" id="ledgerPayment" value="">
+</header>
 
     <!-- 3rd Row: Quick Filter Chips & Multi-Edit Mode Switch -->
     <div class="filter-bar schedule-only">
@@ -89,7 +105,33 @@
       <button class="filter-chip multi-edit-chip" id="toggleMultiEditBtn" title="다중 편집 모드">✏️</button>
     </div>
 
-    <!-- Main Schedule Table (Weekly Grid) -->
+    <div class="filter-bar hidden" id="ledgerPersonSwitch" role="group" aria-label="&#xAC70;&#xB798; &#xD544;&#xD130;">
+      <div class="ledger-filter-primary" role="group" aria-label="빠른 거래 필터">
+        <button class="filter-chip active" id="ledgerFilterAllBtn" type="button">전체</button>
+        <button class="filter-chip" id="ledgerPersonFilterToggle" type="button" aria-expanded="false">사용자</button>
+        <button class="filter-chip" id="ledgerCategoryFilterToggle" type="button" aria-expanded="false">사용처</button>
+        <button class="filter-chip" id="ledgerFixedFilterBtn" type="button">고정비</button>
+      </div>
+      <div class="ledger-filter-options hidden" id="ledgerPersonFilterOptions" role="group" aria-label="사용자 선택">
+        <button class="filter-chip" data-ledger-filter-type="person" data-ledger-filter-value="쥬쥬" type="button">쥬쥬</button>
+        <button class="filter-chip" data-ledger-filter-type="person" data-ledger-filter-value="지니" type="button">지니</button>
+        <button class="filter-chip" data-ledger-filter-type="person" data-ledger-filter-value="콩콩" type="button">콩콩</button>
+        <button class="filter-chip" data-ledger-filter-type="person" data-ledger-filter-value="기타" type="button">기타</button>
+      </div>
+      <div class="ledger-filter-options hidden" id="ledgerCategoryFilterOptions" role="group" aria-label="사용처 선택">
+        <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="식비" type="button">식비</button>
+        <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="교통" type="button">교통</button>
+        <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="문화" type="button">문화</button>
+        <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="생활" type="button">생활</button>
+        <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="보험" type="button">보험</button>
+        <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="이자" type="button">이자</button>
+        <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="상환" type="button">상환</button>
+        <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="저축" type="button">저축</button>
+        <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="입금" type="button">입금</button>
+        <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="기타" type="button">기타</button>
+      </div>
+    </div>
+<!-- Main Schedule Table (Weekly Grid) -->
     <main class="table-wrapper" id="weeklyViewWrapper">
       <table class="schedule-table">
         <thead>
@@ -133,68 +175,86 @@
     </main>
 
 <main class="ledger-wrapper hidden" id="ledgerViewWrapper">
-
-
-<div class="week-navigator centered ledger-main-navigator">
-<button class="nav-btn" id="ledgerPrevPeriodBtn" type="button" aria-label="이전 기간"></button>
-<h1 class="week-title" id="ledgerPeriodTitle">이번 주</h1>
-<button class="nav-btn" id="ledgerNextPeriodBtn" type="button" aria-label="다음 기간"></button>
-<button class="today-btn" id="ledgerLatestBtn" type="button">오늘</button>
-<button class="nav-btn" id="ledgerSyncBtn" type="button" title="선택 카드 최신 거래로 이동">🔄</button>
-<button class="nav-btn" id="ledgerColorSettingsBtn" type="button" title="거래 태그 색상">⚙️</button>
-<button class="nav-btn" id="ledgerReportBtn" type="button" title="지출 리포트">📊</button>
-</div>
-<div class="ledger-card-switch" role="group" aria-label="결제 카드 선택">
-<button class="ledger-card-btn active" id="ledgerTossCardBtn" type="button">토스카드</button>
-<button class="ledger-card-btn" id="ledgerCompanyCardBtn" type="button">기업카드</button>
-</div>
 <section id="ledgerWeeklyWrapper" class="ledger-period-wrapper">
 
-<section class="ledger-summary-grid">
-<article class="ledger-summary-card income"><span>이번 주 수입</span><strong id="ledgerWeeklyIncome">₩0</strong></article>
-<article class="ledger-summary-card expense"><span>이번 주 지출</span><strong id="ledgerWeeklyExpense">₩0</strong></article>
-<article class="ledger-summary-card balance"><span>이번 주 잔액</span><strong id="ledgerWeeklyBalance">₩0</strong></article>
-</section>
-<button class="ledger-toggle-entry-btn" id="ledgerToggleEntryBtn" type="button">＋ 직접 거래 입력</button>
-<section class="ledger-entry-panel hidden" id="ledgerEntryPanel">
-<div class="ledger-section-title"><h3>거래 기록</h3><span id="ledgerFormState">새 거래</span></div>
-<form id="ledgerEntryForm" class="ledger-entry-form">
-<input type="hidden" id="ledgerEditId" name="ledgerEditId">
-<label>날짜<input id="ledgerDate" name="date" type="date" required></label>
-<label>구분<select id="ledgerType" name="type"><option value="expense">지출</option><option value="income">수입</option></select></label>
-<label>금액<input id="ledgerAmount" name="amount" type="number" min="1" step="1" placeholder="0" required></label>
-<label>수단<select id="ledgerPayment" name="payment"><option>토스카드</option><option>기업카드</option><option>현금</option><option>기타</option></select></label>
-<label class="ledger-full">항목<input id="ledgerItem" name="item" maxlength="60" placeholder="예: 점심 식사" required></label>
-<label>분류<select id="ledgerPerson" name="person"><option>쥬쥬</option><option>지니</option><option>콩콩</option><option>공동</option><option>기타</option></select></label>
-<label>분야<select id="ledgerCategory" name="category"><option>식비</option><option>교통</option><option>생활</option><option>문화</option><option>기타</option></select></label>
-<label class="ledger-full">메모<input id="ledgerMemo" name="memo" maxlength="100" placeholder="선택 입력"></label>
-<div class="ledger-form-actions ledger-full"><button class="ledger-save-btn" type="submit" id="ledgerSaveBtn">거래 저장</button><button class="ledger-cancel-btn hidden" type="button" id="ledgerCancelEditBtn">수정 취소</button></div>
-</form>
-</section>
-<section class="ledger-list-panel">
-<div class="ledger-section-title"><h3>이번 주 내역</h3><span id="ledgerTransactionCount">0건</span></div>
-<div id="ledgerTransactionList" class="ledger-transaction-list"></div>
-</section>
+<button class="ledger-toggle-entry-btn" id="ledgerToggleEntryBtn" type="button">&#xFF0B; &#xAC70;&#xB798; &#xC785;&#xB825;</button>
+<main class="table-wrapper" style="min-height: 554px; box-sizing: border-box;" aria-label="Ledger weekly transactions">
+  <table class="schedule-table">
+    <thead><tr><th class="col-date">&#xB0A0;&#xC9DC;/&#xC694;&#xC77C;</th><th class="col-time">&#xC218;&#xB2E8;</th><th class="col-region">&#xC0AC;&#xC6A9;&#xC790;</th><th class="col-clinic">&#xC0AC;&#xC6A9;&#xCC98;</th><th class="col-trans">&#xC218;&#xC785;</th><th class="col-hr">&#xC9C0;&#xCD9C;</th><th class="col-ot">&#xC0AC;&#xC6A9;&#xC561;</th></tr></thead>
+    <tbody id="ledgerTransactionList"></tbody>
+  </table>
+</main>
+
 </section>
 <section id="ledgerMonthlyWrapper" class="ledger-period-wrapper hidden">
 
-<section class="ledger-list-panel ledger-monthly-list">
-<div class="ledger-section-title"><h3>이번 달 내역</h3><span id="ledgerMonthlyTransactionCount">0건</span></div>
-<div id="ledgerMonthlyTransactionList" class="ledger-transaction-list"></div>
+<main class="table-wrapper ledger-monthly-list" style="min-height: 554px; box-sizing: border-box;" aria-label="Ledger monthly transactions">
+  <table class="schedule-table">
+    <thead><tr><th class="col-date">&#xB0A0;&#xC9DC;/&#xC694;&#xC77C;</th><th class="col-time">&#xC218;&#xB2E8;</th><th class="col-region">&#xC0AC;&#xC6A9;&#xC790;</th><th class="col-clinic">&#xC0AC;&#xC6A9;&#xCC98;</th><th class="col-trans">&#xC218;&#xC785;</th><th class="col-hr">&#xC9C0;&#xCD9C;</th><th class="col-ot">&#xC0AC;&#xC6A9;&#xC561;</th></tr></thead>
+    <tbody id="ledgerMonthlyTransactionList"></tbody>
+  </table>
+</main>
+
+
 </section>
-<section class="ledger-summary-grid">
-<article class="ledger-summary-card income"><span>이번 달 수입</span><strong id="ledgerMonthlyIncome">₩0</strong></article>
-<article class="ledger-summary-card expense"><span>이번 달 지출</span><strong id="ledgerMonthlyExpense">₩0</strong></article>
-<article class="ledger-summary-card balance"><span>이번 달 잔액</span><strong id="ledgerMonthlyBalance">₩0</strong></article>
-</section>
-<section class="ledger-monthly-stats">
-<article class="ledger-stat-card"><div class="ledger-section-title"><h3>분야별 지출</h3><span>이번 달</span></div><div id="ledgerCategoryStats" class="ledger-stat-list"></div></article>
-<article class="ledger-stat-card"><div class="ledger-section-title"><h3>분류별 지출</h3><span>이번 달</span></div><div id="ledgerPersonStats" class="ledger-stat-list"></div></article>
-<article class="ledger-stat-card"><div class="ledger-section-title"><h3>수단별 지출</h3><span>이번 달</span></div><div id="ledgerPaymentStats" class="ledger-stat-list"></div></article>
-</section>
-</section>
+    <section id="fundplanAllTimeWrapper" class="ledger-alltime-wrapper hidden">
+      <section class="ledger-list-panel">
+        <div class="ledger-section-title fundplan-list-header"><h3 id="fundplanAllTimeTitle">&#xD1B5;&#xC7A5; &#xB0B4;&#xC5ED;</h3><span id="fundplanAllTimeCount">0&#xAC74;</span><div class="fundplan-fold-actions"><button id="fundplanExpandAllBtn" type="button">&#xC804;&#xCCB4; &#xD3BC;&#xCE58;&#xAE30;</button><button id="fundplanCollapseAllBtn" type="button">&#xC804;&#xCCB4; &#xC811;&#xAE30;</button></div></div>
+        <div id="fundplanAllTimeList" class="ledger-transaction-list fundplan-transaction-list"></div>
+      </section>
+    </section>
 <!-- LEDGER_MONTHLY_INSERT -->
 </main>
+<div class="modal-overlay" id="ledgerReportOverlay">
+  <div class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="ledgerReportTitle">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h3 id="ledgerReportTitle">&#xAC00;&#xACC4;&#xBD80; &#xB9AC;&#xD3EC;&#xD2B8;</h3>
+      <button class="close-btn" id="ledgerReportCloseBtn" type="button" aria-label="&#xB2EB;&#xAE30;">&#x2715;</button>
+    </div>
+    <div class="sheet-body ledger-report-body">
+      <div class="form-group"><label id="ledgerReportPeriod">&#xC120;&#xD0DD; &#xAE30;&#xAC04;</label></div>
+      <section class="ledger-report-summary">
+        <article><span>&#xC218;&#xC785;</span><strong id="ledgerReportIncome">0</strong></article>
+        <article><span>&#xC9C0;&#xCD9C;</span><strong id="ledgerReportExpense">0</strong></article>
+        <article><span>&#xC794;&#xC561;</span><strong id="ledgerReportBalance">0</strong></article>
+      </section>
+      <section class="ledger-report-groups">
+        <article><h4>&#xBD84;&#xB958;&#xBCC4; &#xC9C0;&#xCD9C;</h4><div id="ledgerReportCategoryStats" class="ledger-stat-list"></div></article>
+        <article><h4>&#xAD6C;&#xBD84;&#xBCC4; &#xC9C0;&#xCD9C;</h4><div id="ledgerReportPersonStats" class="ledger-stat-list"></div></article>
+        <article><h4>&#xACB0;&#xC81C;&#xC218;&#xB2E8;&#xBCC4; &#xC9C0;&#xCD9C;</h4><div id="ledgerReportPaymentStats" class="ledger-stat-list"></div></article>
+      </section>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="ledgerColorOverlay">
+  <div class="bottom-sheet color-settings-sheet" role="dialog" aria-modal="true" aria-labelledby="ledgerColorTitle">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h3 id="ledgerColorTitle">&#x1F3A8; &#xCEE4;&#xC2A4;&#xD140; &#xC0C9;&#xC0C1; &#xC124;&#xC815;</h3>
+      <button class="close-btn" id="ledgerColorCloseBtn" type="button" aria-label="&#xB2EB;&#xAE30;">&#x2715;</button>
+    </div>
+    <div class="sheet-body color-settings-body">
+      <p class="settings-desc">10&#xAC00;&#xC9C0; &#xD30C;&#xC2A4;&#xD154; &#xD314;&#xB808;&#xD2B8; &#xC911; &#xC6D0;&#xD558;&#xB294; &#xC0C9;&#xC0C1;&#xC744; &#xD074;&#xB9AD;&#xD558;&#xC5EC; &#xC9C0;&#xC815;&#xD558;&#xC138;&#xC694;.</p>
+      <div id="ledgerColorSettingsContent"></div>
+      <div class="color-section-box">
+        <h4 class="section-title">&#x1F3A8; &#xAE30;&#xD0C0; / &#xD2B9;&#xC815; &#xB2E8;&#xC5B4; &#xC0C9;&#xC0C1; &#xADDC;&#xCE59;</h4>
+        <p class="sub-desc">&#xAC70;&#xB798; &#xD56D;&#xBAA9;&#xC5D0; &#xC9C0;&#xC815;&#xD55C; &#xB2E8;&#xC5B4;&#xAC00; &#xD3EC;&#xD568;&#xB418;&#xBA74; &#xD574;&#xB2F9; &#xC0C9;&#xC0C1;&#xC744; &#xC801;&#xC6A9;&#xD569;&#xB2C8;&#xB2E4;.</p>
+        <div class="word-rule-input-group">
+          <input type="text" class="input-text word-rule-input" id="ledgerNewRuleWordInput" placeholder="&#xB2E8;&#xC5B4; &#xC785;&#xB825; (&#xC608;: &#xAC74;&#xAC15; &#xAC80;&#xC9C4; &#xD480;&#xC774;&#xC804;&#xC6A9;)">
+          <div class="palette-chips-row compact" id="ledgerNewRuleColorRow"></div>
+          <button type="button" class="add-rule-btn" id="ledgerAddWordRuleBtn">+ &#xADDC;&#xCE59; &#xCD94;&#xAC00;</button>
+        </div>
+        <div class="word-rules-list" id="ledgerWordRulesListContainer"></div>
+      </div>
+      <div class="settings-action-footer">
+        <button type="button" class="reset-settings-btn" id="ledgerColorResetBtn">&#xAE30;&#xBCF8;&#xAC12; &#xCD08;&#xAE30;&#xD654;</button>
+        <button type="button" class="save-btn" id="ledgerColorSaveBtn">&#xC800;&#xC7A5; &#xBC0F; &#xC801;&#xC6A9;</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="ledger-report-overlay hidden" id="ledgerReportOverlay">
 <section class="ledger-report-sheet" role="dialog" aria-modal="true" aria-labelledby="ledgerReportTitle">
 <div class="ledger-report-header"><div><p>SPENDING REPORT</p><h3 id="ledgerReportTitle">가계부 리포트</h3><span id="ledgerReportPeriod">선택 기간</span></div><button id="ledgerReportCloseBtn" type="button">✕</button></div>
@@ -360,7 +420,7 @@
                 <button type="button" class="reset-category-btn" id="resetOtCategoryBtn" title="목록으로 복구">↺</button>
               </div>
 
-              <input type="text" class="input-text inline-input" id="otDetailInput" placeholder="상세 (예: 2시간)">
+              <input type="text" class="input-text inline-input" id="otDetailInput" placeholder="상세 (예: 2시간, 1시간 30분)">
             </div>
           </div>
 
@@ -521,6 +581,25 @@
       </div>
     </div>
 
+    <!-- Month Selector Modal Overlay -->
+    <div class="modal-overlay" id="monthSelectModalOverlay">
+      <section class="bottom-sheet" id="monthSelectBottomSheet" role="dialog" aria-modal="true" aria-labelledby="monthSelectModalTitle">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h3 id="monthSelectModalTitle">&#xC6D4; &#xC120;&#xD0DD;</h3>
+          <button class="close-btn" id="closeMonthSelectModalBtn" type="button" aria-label="&#xB2EB;&#xAE30;">&#x2715;</button>
+        </div>
+        <div class="month-select-year-nav">
+          <button id="monthSelectPrevYearBtn" type="button" aria-label="&#xC774;&#xC804; &#xD574;">&#x25C0;</button>
+          <strong id="monthSelectYearLabel"></strong>
+          <button id="monthSelectNextYearBtn" type="button" aria-label="&#xB2E4;&#xC74C; &#xD574;">&#x25B6;</button>
+        </div>
+        <div class="sheet-body month-select-body">
+          <div class="month-select-grid" id="monthSelectGrid"></div>
+        </div>
+      </section>
+    </div>
+
     <!-- Statistics Report Modal Overlay -->
     <div class="modal-overlay" id="statsModalOverlay">
       <div class="bottom-sheet stats-sheet" id="statsBottomSheet">
@@ -583,7 +662,102 @@
 
   </div>
 
-  <script type="module" src="app.js"></script>
+  <script type="module" src="js/bootstrap.js"></script>
+<div class="modal-overlay" id="ledgerAverageBalanceOverlay">
+  <section class="bottom-sheet ledger-average-sheet" role="dialog" aria-modal="true" aria-labelledby="ledgerAverageBalanceTitle">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header"><h3 id="ledgerAverageBalanceTitle">&#xD3C9;&#xADE0; &#xC794;&#xC561; &#xACC4;&#xC0B0;&#xAE30;</h3><button id="ledgerAverageBalanceCloseBtn" type="button" class="close-btn" aria-label="&#xB2EB;&#xAE30;">&#x2715;</button></div>
+    <div class="sheet-body ledger-average-body">
+      <div class="ledger-average-section"><div class="ledger-average-section-title"><span>01</span><strong>&#xAE30;&#xBCF8; &#xC815;&#xBCF4;</strong></div><div class="ledger-average-grid"><label><span>&#xC2DC;&#xC791; &#xC794;&#xC561;</span><input id="ledgerAverageOpeningBalanceInput" inputmode="numeric" placeholder="0"></label><label><span>&#xC2DC;&#xC791;&#xC77C;</span><input id="ledgerAverageStartDateInput" type="date"></label><label><span>&#xC885;&#xB8CC;&#xC77C;</span><input id="ledgerAverageEndDateInput" type="date"></label></div></div>
+    <div class="ledger-average-section"><div class="ledger-average-transaction-head"><span>&#xC77C;&#xC790;&#xBCC4; &#xC785;&#xCD9C;&#xAE08;</span><button id="ledgerAverageAddTransactionBtn" type="button">&#xAC70;&#xB798; &#xCD94;&#xAC00;</button></div><div id="ledgerAverageTransactionRows"></div></div>
+    <div class="ledger-average-result"><p>&#xD3C9;&#xADE0; &#xC794;&#xC561;</p><strong id="ledgerAverageResultValue">0</strong><span id="ledgerAverageResultPeriod"></span><dl><div><dt>&#xC2DC;&#xC791; &#xC794;&#xC561;</dt><dd id="ledgerAverageOpeningResult">0</dd></div><div><dt>&#xC885;&#xB8CC; &#xC794;&#xC561;</dt><dd id="ledgerAverageEndingResult">0</dd></div><div><dt>&#xAC70;&#xB798; &#xAC74;&#xC218;</dt><dd id="ledgerAverageTransactionCount">0</dd></div></dl></div>
+    </div>
+  </section>
+</div>
+<div class="modal-overlay" id="ledgerTransactionModalOverlay">
+      <div class="bottom-sheet" id="ledgerTransactionBottomSheet" role="dialog" aria-modal="true" aria-labelledby="ledgerTransactionModalTitle">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h3 id="ledgerTransactionModalTitle">&#xAC70;&#xB798; &#xC0C1;&#xC138;</h3>
+          <button class="close-btn" id="ledgerTransactionModalCloseBtn" type="button" aria-label="&#xB2EB;&#xAE30;">&#x2715;</button>
+        </div>
+        <form class="sheet-body" id="ledgerTransactionForm">
+          <input id="ledgerModalEditId" name="ledgerEditId" type="hidden">
+
+          <div class="ledger-modal-top-row">
+            <div class="form-group ledger-modal-date-field">
+              <label for="ledgerModalDate">날짜</label>
+              <input class="input-text" id="ledgerModalDate" name="date" type="date" required>
+            </div>
+            <div class="form-group ledger-modal-fixed-field">
+              <label>고정비</label>
+              <div class="btn-group" id="ledgerModalFixedCostGroup" data-allow-empty="true">
+                <button class="option-btn" data-val="고정비" type="button">고정비</button>
+              </div>
+              <input id="ledgerModalFixedCost" name="fixedCost" type="hidden">
+            </div>
+          </div>
+
+          <div class="section-card trans-card">
+            <div class="card-header"><span>금액</span></div>
+            <div class="input-row-split">
+              <select class="select-btn" id="ledgerModalType" name="type" aria-label="수입 또는 지출">
+                <option value="expense">지출</option>
+                <option value="income">수입</option>
+              </select>
+              <input class="input-text inline-input" id="ledgerModalAmount" name="amount" type="number" min="1" step="1" inputmode="numeric" placeholder="금액" required>
+            </div>
+          </div>
+
+          <div class="form-group ledger-modal-category-field">
+            <label>사용처</label>
+            <div class="btn-group five-option-grid" id="ledgerModalCategoryGroup">
+              <button class="option-btn" data-val="식비" type="button">식비</button>
+              <button class="option-btn" data-val="교통" type="button">교통</button>
+              <button class="option-btn" data-val="문화" type="button">문화</button>
+              <button class="option-btn" data-val="생활" type="button">생활</button>
+              <button class="option-btn" data-val="보험" type="button">보험</button>
+              <button class="option-btn" data-val="이자" type="button">이자</button>
+              <button class="option-btn" data-val="상환" type="button">상환</button>
+              <button class="option-btn" data-val="저축" type="button">저축</button>
+              <button class="option-btn" data-val="입금" type="button">입금</button>
+              <button class="option-btn" data-val="기타" type="button">기타</button>
+            </div>
+            <input id="ledgerModalCategory" name="category" type="hidden">
+          </div>
+
+          <div class="section-card hr-card">
+            <div class="card-header"><span>결제수단 · 항목</span></div>
+            <div class="input-row-split">
+              <select class="select-btn" id="ledgerModalPayment" name="payment" aria-label="결제수단">
+                <option value="토스카드">토스</option>
+                <option value="기업카드">기업</option>
+                <option value="현금">현금</option>
+              </select>
+              <input class="input-text inline-input" id="ledgerModalItem" name="item" maxlength="60" placeholder="항목" required>
+            </div>
+          </div>
+
+          <div class="section-card ot-card">
+            <div class="card-header"><span>비고</span></div>
+            <div class="input-row-split">
+              <select class="select-btn" id="ledgerModalPerson" aria-label="사용자">
+                <option value="">- 사용자 -</option>
+                <option value="콩콩">콩콩</option>
+                <option value="쥬쥬">쥬쥬</option>
+                <option value="지니">지니</option>
+              </select>
+              <input class="input-text inline-input" id="ledgerModalMemo" name="memo" maxlength="100" placeholder="나머지 비고">
+            </div>
+          </div>
+
+          <div class="modal-tools" id="ledgerModalTools">
+            <button class="tool-btn copy-tool-btn hidden" id="ledgerModalDeleteBtn" type="button">삭제</button>
+          </div>
+          <button class="save-btn" id="ledgerModalSaveBtn" type="submit">저장</button>
+        </form>
+      </div>
+    </div>
 </body>
 </html>
 
