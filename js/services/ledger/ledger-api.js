@@ -1,4 +1,4 @@
-const LEDGER_API_URL = 'https://script.google.com/macros/s/AKfycbxmzhBlvRkWKCZEbv_a3sAQeb-0v9X1pZcPlszLB_CVQ94PGW6DuU39mSVv4AOqZvma/exec';
+const LEDGER_API_URL = 'https://script.google.com/macros/s/AKfycby_qNxIchPbWpgU7wyx3rrHgeekBKPPfbUw9yd46BUKXyl-c8g0wdEM5sgl74dNeYTK/exec';
 
 const SHEET_PAYMENT = {
   기업카드: '기업카드',
