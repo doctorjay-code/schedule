@@ -75,6 +75,14 @@ function normalizeShortcutRecord(req) {
   };
 }
 
+function testGeminiApi() {
+  var key = getGeminiApiKey();
+  var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + key;
+  var payload = { contents: [{ parts: [{ text: 'Hello' }] }] };
+  var res = UrlFetchApp.fetch(url, { method: 'post', contentType: 'application/json', payload: JSON.stringify(payload), muteHttpExceptions: true });
+  Logger.log('Gemini Test Response: ' + res.getResponseCode() + ' Body: ' + res.getContentText().slice(0, 100));
+}
+
 function getRequestAction(e) {
   return e && e.parameter ? cleanText(e.parameter.action) : '';
 }

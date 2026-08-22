@@ -187,7 +187,7 @@ function parseScreenshotWithGemini(base64Image, mimeType, optionalKey) {
     }
   };
 
-  var models = ['gemini-1.5-flash', 'gemini-2.5-flash', 'gemini-1.5-pro'];
+  var models = ['gemini-2.5-flash', 'gemini-3.6-flash', 'gemini-2.5-pro', 'gemini-flash-latest'];
   var lastError = null;
 
   for (var m = 0; m < models.length; m++) {
