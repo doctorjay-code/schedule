@@ -29,6 +29,14 @@ function doPost(e) {
   try {
     var request = parsePostRequest(e);
 
+    // 0. 스크린샷 이미지 직접 전송 (Gemini Vision AI 자동 분석 및 시트 저장)
+    if (request.action === 'PARSE_SCREENSHOT' || request.base64Image || request.image) {
+      var base64 = request.base64Image || request.image;
+      var mimeType = request.mimeType || 'image/jpeg';
+      var geminiKey = getGeminiApiKey(request, e);
+      return jsonResponse(parseScreenshotWithGemini(base64, mimeType, geminiKey));
+    }
+
     // 1. 다중 일괄 등록 요청 (BATCH_UPSERT_LEDGER_RECORDS or records 배열)
     if (request.action === 'BATCH_UPSERT_LEDGER_RECORDS' || Array.isArray(request.records)) {
       var records = request.records || (Array.isArray(request) ? request : []);

@@ -29,6 +29,14 @@ function doPost(e) {
   try {
     var request = parsePostRequest(e);
 
+    // 0. \uC2A4\uD06C\uB9B0\uC0F7 \uC774\uBBF8\uC9C0 \uC9C1\uC811 \uC804\uC1A1 (Gemini Vision AI \uC790\uB3D9 \uBD84\uC11D \uBC0F \uC2DC\uD2B8 \uC800\uC7A5)
+    if (request.action === 'PARSE_SCREENSHOT' || request.base64Image || request.image) {
+      var base64 = request.base64Image || request.image;
+      var mimeType = request.mimeType || 'image/jpeg';
+      var geminiKey = getGeminiApiKey(request, e);
+      return jsonResponse(parseScreenshotWithGemini(base64, mimeType, geminiKey));
+    }
+
     // 1. \uB2E4\uC911 \uC77C\uAD04 \uB4F1\uB85D \uC694\uCCAD (BATCH_UPSERT_LEDGER_RECORDS or records \uBC30\uC5F4)
     if (request.action === 'BATCH_UPSERT_LEDGER_RECORDS' || Array.isArray(request.records)) {
       var records = request.records || (Array.isArray(request) ? request : []);

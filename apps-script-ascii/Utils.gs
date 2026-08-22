@@ -86,15 +86,37 @@ function valuesEqual(left, right) {
 }
 
 function parsePostRequest(e) {
-  var raw = e && e.postData ? cleanText(e.postData.contents) : '';
-  if (!raw) throw new Error('POST \uBCF8\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.');
+  if (!e || !e.postData) throw new Error('POST \uBCF8\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.');
 
+  var postType = e.postData.type ? cleanText(e.postData.type).toLowerCase() : '';
+
+  // 1. \uBC14\uC774\uB108\uB9AC \uC774\uBBF8\uC9C0 \uD30C\uC77C \uC9C1\uC811 \uC804\uC1A1\uC778 \uACBD\uC6B0 (Content-Type: image/...)
+  if (postType.indexOf('image/') !== -1) {
+    var bytes = e.postData.getBytes ? e.postData.getBytes() : Utilities.newBlob(e.postData.contents).getBytes();
+    return {
+      action: 'PARSE_SCREENSHOT',
+      base64Image: Utilities.base64Encode(bytes),
+      mimeType: postType || 'image/jpeg'
+    };
+  }
+
+  var raw = cleanText(e.postData.contents);
+  if (!raw) throw new Error('POST \uBCF8\uBB38\uC774 \uBE44\uC5B4\uC788\uC2B5\uB2C8\uB2E4.');
+
+  // 2. JSON \uD30C\uC2F1 \uC2DC\uB3C4
   try {
     var request = JSON.parse(raw);
-    if (!request || typeof request !== 'object') throw new Error('\uC694\uCCAD \uD615\uC2DD\uC774 \uC62C\uBC14\uB974\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.');
-    return request;
-  } catch (error) {
-    if (error && error.message === '\uC694\uCCAD \uD615\uC2DD\uC774 \uC62C\uBC14\uB974\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.') throw error;
-    throw new Error('POST \uBCF8\uBB38\uC744 JSON\uC73C\uB85C \uD574\uC11D\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.');
+    if (request && typeof request === 'object') return request;
+  } catch (jsonErr) {
+    // 3. \uB9CC\uC57D Base64 \uD14D\uC2A4\uD2B8 \uC790\uCCB4\uAC00 \uBC14\uB85C \uC804\uC1A1\uB41C \uACBD\uC6B0 (\uB610\uB294 data:image/... URL)
+    if (raw.length > 200 && !raw.match(/[<>{}\[\]]/)) {
+      return {
+        action: 'PARSE_SCREENSHOT',
+        base64Image: raw.replace(/^data:image\/[a-z]+;base64,/, ''),
+        mimeType: 'image/jpeg'
+      };
+    }
   }
+
+  throw new Error('\uC694\uCCAD \uD615\uC2DD\uC774 \uC62C\uBC14\uB974\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.');
 }

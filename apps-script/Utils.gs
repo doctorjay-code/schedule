@@ -86,15 +86,37 @@ function valuesEqual(left, right) {
 }
 
 function parsePostRequest(e) {
-  var raw = e && e.postData ? cleanText(e.postData.contents) : '';
-  if (!raw) throw new Error('POST 본문이 없습니다.');
+  if (!e || !e.postData) throw new Error('POST 본문이 없습니다.');
 
+  var postType = e.postData.type ? cleanText(e.postData.type).toLowerCase() : '';
+
+  // 1. 바이너리 이미지 파일 직접 전송인 경우 (Content-Type: image/...)
+  if (postType.indexOf('image/') !== -1) {
+    var bytes = e.postData.getBytes ? e.postData.getBytes() : Utilities.newBlob(e.postData.contents).getBytes();
+    return {
+      action: 'PARSE_SCREENSHOT',
+      base64Image: Utilities.base64Encode(bytes),
+      mimeType: postType || 'image/jpeg'
+    };
+  }
+
+  var raw = cleanText(e.postData.contents);
+  if (!raw) throw new Error('POST 본문이 비어있습니다.');
+
+  // 2. JSON 파싱 시도
   try {
     var request = JSON.parse(raw);
-    if (!request || typeof request !== 'object') throw new Error('요청 형식이 올바르지 않습니다.');
-    return request;
-  } catch (error) {
-    if (error && error.message === '요청 형식이 올바르지 않습니다.') throw error;
-    throw new Error('POST 본문을 JSON으로 해석하지 못했습니다.');
+    if (request && typeof request === 'object') return request;
+  } catch (jsonErr) {
+    // 3. 만약 Base64 텍스트 자체가 바로 전송된 경우 (또는 data:image/... URL)
+    if (raw.length > 200 && !raw.match(/[<>{}\[\]]/)) {
+      return {
+        action: 'PARSE_SCREENSHOT',
+        base64Image: raw.replace(/^data:image\/[a-z]+;base64,/, ''),
+        mimeType: 'image/jpeg'
+      };
+    }
   }
+
+  throw new Error('요청 형식이 올바르지 않습니다.');
 }
