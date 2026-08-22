@@ -77,6 +77,74 @@ function upsertLedgerRecord(record) {
   };
 }
 
+function batchUpsertLedgerRecords(records, options) {
+  if (!Array.isArray(records) || !records.length) {
+    throw new Error('\uC800\uC7A5\uD560 \uAC70\uB798 \uBAA9\uB85D\uC774 \uBE44\uC5B4\uC788\uC2B5\uB2C8\uB2E4.');
+  }
+
+  var allowDuplicates = Boolean(options && options.allowDuplicates);
+  var results = [];
+  var savedCount = 0;
+  var skippedCount = 0;
+
+  for (var i = 0; i < records.length; i++) {
+    var item = records[i];
+    if (!item || typeof item !== 'object') continue;
+
+    // \uC911\uBCF5 \uAC80\uC0AC: allowDuplicates\uAC00 false\uC778 \uACBD\uC6B0 \uAC19\uC740 \uB0A0\uC9DC/\uD56D\uBAA9/\uAE08\uC561\uC774 \uCD5C\uADFC \uD589\uC5D0 \uC774\uBBF8 \uC874\uC7AC\uD558\uB294\uC9C0 \uAC80\uC0AC
+    if (!allowDuplicates && !item.id && isDuplicateRecord(item)) {
+      results.push({ ok: true, action: 'skipped-duplicate', item: item.item, amount: item.amount, date: item.date });
+      skippedCount++;
+      continue;
+    }
+
+    try {
+      var res = upsertLedgerRecord(item);
+      results.push(res);
+      savedCount++;
+    } catch (saveError) {
+      results.push({ ok: false, error: String(saveError && saveError.message ? saveError.message : saveError), item: item.item });
+    }
+  }
+
+  return {
+    ok: true,
+    action: 'batch_upserted',
+    total: records.length,
+    savedCount: savedCount,
+    skippedCount: skippedCount,
+    results: results
+  };
+}
+
+function isDuplicateRecord(record) {
+  try {
+    var target = getWriteTarget(record);
+    var lastRow = target.sheet.getLastRow();
+    if (lastRow < 2) return false;
+
+    var checkRows = Math.min(lastRow - 1, 80);
+    var startRow = Math.max(2, lastRow - checkRows + 1);
+    var values = target.sheet.getRange(startRow, 1, checkRows, target.headers.length).getDisplayValues();
+
+    var targetDate = formatIsoDate(record.date);
+    var targetAmount = String(requiredAmount(record.amount));
+    var targetItem = cleanText(record.item);
+
+    for (var r = 0; r < values.length; r++) {
+      var row = values[r];
+      var rDate = target.index['\uB0A0\uC9DC'] !== undefined ? formatIsoDate(row[target.index['\uB0A0\uC9DC']]) : '';
+      var rAmount = target.index['amount'] !== undefined ? String(requiredAmount(row[target.index['amount']])) : '';
+      var rItem = target.index['\uD56D\uBAA9'] !== undefined ? cleanText(row[target.index['\uD56D\uBAA9']]) : '';
+
+      if (rDate === targetDate && rAmount === targetAmount && rItem === targetItem) {
+        return true;
+      }
+    }
+  } catch (e) {}
+  return false;
+}
+
 function deleteLedgerRecord(record) {
   var target = getWriteTarget(record);
   var existingRow = findExistingRow(target, record);

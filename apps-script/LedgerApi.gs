@@ -77,6 +77,74 @@ function upsertLedgerRecord(record) {
   };
 }
 
+function batchUpsertLedgerRecords(records, options) {
+  if (!Array.isArray(records) || !records.length) {
+    throw new Error('저장할 거래 목록이 비어있습니다.');
+  }
+
+  var allowDuplicates = Boolean(options && options.allowDuplicates);
+  var results = [];
+  var savedCount = 0;
+  var skippedCount = 0;
+
+  for (var i = 0; i < records.length; i++) {
+    var item = records[i];
+    if (!item || typeof item !== 'object') continue;
+
+    // 중복 검사: allowDuplicates가 false인 경우 같은 날짜/항목/금액이 최근 행에 이미 존재하는지 검사
+    if (!allowDuplicates && !item.id && isDuplicateRecord(item)) {
+      results.push({ ok: true, action: 'skipped-duplicate', item: item.item, amount: item.amount, date: item.date });
+      skippedCount++;
+      continue;
+    }
+
+    try {
+      var res = upsertLedgerRecord(item);
+      results.push(res);
+      savedCount++;
+    } catch (saveError) {
+      results.push({ ok: false, error: String(saveError && saveError.message ? saveError.message : saveError), item: item.item });
+    }
+  }
+
+  return {
+    ok: true,
+    action: 'batch_upserted',
+    total: records.length,
+    savedCount: savedCount,
+    skippedCount: skippedCount,
+    results: results
+  };
+}
+
+function isDuplicateRecord(record) {
+  try {
+    var target = getWriteTarget(record);
+    var lastRow = target.sheet.getLastRow();
+    if (lastRow < 2) return false;
+
+    var checkRows = Math.min(lastRow - 1, 80);
+    var startRow = Math.max(2, lastRow - checkRows + 1);
+    var values = target.sheet.getRange(startRow, 1, checkRows, target.headers.length).getDisplayValues();
+
+    var targetDate = formatIsoDate(record.date);
+    var targetAmount = String(requiredAmount(record.amount));
+    var targetItem = cleanText(record.item);
+
+    for (var r = 0; r < values.length; r++) {
+      var row = values[r];
+      var rDate = target.index['날짜'] !== undefined ? formatIsoDate(row[target.index['날짜']]) : '';
+      var rAmount = target.index['amount'] !== undefined ? String(requiredAmount(row[target.index['amount']])) : '';
+      var rItem = target.index['항목'] !== undefined ? cleanText(row[target.index['항목']]) : '';
+
+      if (rDate === targetDate && rAmount === targetAmount && rItem === targetItem) {
+        return true;
+      }
+    }
+  } catch (e) {}
+  return false;
+}
+
 function deleteLedgerRecord(record) {
   var target = getWriteTarget(record);
   var existingRow = findExistingRow(target, record);

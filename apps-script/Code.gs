@@ -28,16 +28,43 @@ function doGet(e) {
 function doPost(e) {
   try {
     var request = parsePostRequest(e);
-    if (request.action === 'UPSERT_LEDGER_RECORD') {
-      return jsonResponse(upsertLedgerRecord(request.record));
+
+    // 1. 다중 일괄 등록 요청 (BATCH_UPSERT_LEDGER_RECORDS or records 배열)
+    if (request.action === 'BATCH_UPSERT_LEDGER_RECORDS' || Array.isArray(request.records)) {
+      var records = request.records || (Array.isArray(request) ? request : []);
+      return jsonResponse(batchUpsertLedgerRecords(records, request.options));
     }
+
+    // 2. 단일 거래 저장 요청 (웹 표준 or 단축어 직접 전송)
+    if (request.action === 'UPSERT_LEDGER_RECORD' || request.record || request.amount || request.item) {
+      var singleRecord = request.record || normalizeShortcutRecord(request);
+      return jsonResponse(upsertLedgerRecord(singleRecord));
+    }
+
+    // 3. 삭제 요청
     if (request.action === 'DELETE_LEDGER_RECORD') {
       return jsonResponse(deleteLedgerRecord(request.record));
     }
+
     return jsonResponse({ ok: false, error: '지원하지 않는 쓰기 요청입니다.' });
   } catch (error) {
     return errorResponse(error);
   }
+}
+
+function normalizeShortcutRecord(req) {
+  return {
+    id: req.id || '',
+    date: req.date || '',
+    type: req.type || 'expense',
+    amount: req.amount || 0,
+    payment: req.payment || req.cardType || '현금',
+    category: req.category || req.section || '',
+    item: req.item || '',
+    memo: req.memo || '',
+    fixedCost: req.fixedCost || '',
+    person: req.person || ''
+  };
 }
 
 function getRequestAction(e) {
