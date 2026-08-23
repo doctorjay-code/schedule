@@ -10,8 +10,8 @@ import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, 
 import { createLedgerTransactionModal } from './modals/transaction-modal.js';
 import { createLedgerColorSettings } from './modals/color-settings.js';
 import { bindLedgerListActions } from './ledger-events.js';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_12';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_12';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_13';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_13';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -540,59 +540,6 @@ function getLedgerColorSettings() {
   }
   return ledgerColorSettings;
 }
-function bindLedgerEvents() {
-  getLedgerTransactionModal().bind();
-  document.getElementById('ledgerToggleEntryBtn')?.addEventListener('click', () => toggleLedgerEntry());
-  document.getElementById('ledgerFilterAllBtn')?.addEventListener('click', () => setLedgerFilter('all', 'all'));
-  document.getElementById('ledgerPersonFilterToggle')?.addEventListener('click', () => toggleLedgerFilterOptions('person'));
-  document.getElementById('ledgerCategoryFilterToggle')?.addEventListener('click', () => toggleLedgerFilterOptions('category'));
-  document.getElementById('ledgerFixedFilterBtn')?.addEventListener('click', () => {
-    setLedgerFilter(ledgerState.filterType === 'fixed' ? 'all' : 'fixed', ledgerState.filterType === 'fixed' ? 'all' : '고정비');
-  });
-  document.querySelectorAll('[data-ledger-filter-type]').forEach(button => {
-    button.addEventListener('click', () => {
-      const type = button.dataset.ledgerFilterType;
-      const value = button.dataset.ledgerFilterValue;
-      const isSelected = ledgerState.filterType === type && ledgerState.filterValue === value;
-      setLedgerFilter(isSelected ? 'all' : type, isSelected ? 'all' : value);
-    });
-  });
-  document.getElementById('ledgerCompanyCardBtn')?.addEventListener('click', () => setLedgerPayment('\uAE30\uC5C5\uCE74\uB4DC', true));
-  document.getElementById('ledgerTossBankBtn')?.addEventListener('click', () => setLedgerPayment('\uD1A0\uC2A4\uC740\uD589', true));
-  document.getElementById('ledgerBankSourceBtn')?.addEventListener('click', () => setLedgerSource('bank'));
-  document.getElementById('ledgerCashSourceBtn')?.addEventListener('click', () => setLedgerSource('cash'));
-  document.getElementById('ledgerForecastSourceBtn')?.addEventListener('click', () => setLedgerSource('forecast'));
-  document.getElementById('ledgerMonthlyToggleEntryBtn')?.addEventListener('click', () => toggleLedgerEntry());
-  getLedgerColorSettings().bind();
-  document.getElementById('ledgerReportBtn')?.addEventListener('click', () => {
-    renderLedgerReport();
-    document.getElementById('ledgerReportOverlay')?.classList.add('active');
-  });
-  document.getElementById('ledgerReportCloseBtn')?.addEventListener('click', () => document.getElementById('ledgerReportOverlay')?.classList.remove('active'));
-  document.getElementById('ledgerReportOverlay')?.addEventListener('click', event => {
-    if (event.target.id === 'ledgerReportOverlay') event.currentTarget.classList.remove('active');
-  });
-  const ledgerPeriodTitle = document.getElementById('ledgerPeriodTitle');
-  if (ledgerPeriodTitle) {
-    ledgerPeriodTitle.addEventListener('pointerup', openLedgerPeriodPicker);
-    ledgerPeriodTitle.addEventListener('click', openLedgerPeriodPicker);
-    ledgerPeriodTitle.addEventListener('keydown', event => {
-      if (event.key === 'Enter' || event.key === ' ') openLedgerPeriodPicker(event);
-    });
-  }
-  document.getElementById('ledgerPrevPeriodBtn')?.addEventListener('click', () => moveLedgerPeriod(-1));
-  document.getElementById('ledgerNextPeriodBtn')?.addEventListener('click', () => moveLedgerPeriod(1));
-  document.getElementById('ledgerLatestBtn')?.addEventListener('click', focusLedgerLatest);
-  const refreshLedgerFromSheet = async button => {
-    button?.classList.add('is-syncing');
-    try {
-      await refreshLedgerSheetData(getCurrentLedgerSheetName());
-    } finally {
-      button?.classList.remove('is-syncing');
-    }
-  };
-  document.getElementById('ledgerRefreshBtn')?.addEventListener('click', event => refreshLedgerFromSheet(event.currentTarget));
-  document.getElementById('ledgerSyncBtn')?.addEventListener('click', event => refreshLedgerFromSheet(event.currentTarget));
 let isLedgerMultiEdit = false;
 let selectedLedgerIds = new Set();
 let copiedLedgerRecords = [];
