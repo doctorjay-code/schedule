@@ -20,7 +20,7 @@ let colorLoadPromise = null;
 
 function loadLedgerFeature() {
   if (!ledgerLoadPromise) {
-    ledgerLoadPromise = import('../ledger/index.js?v=20260823_13')
+    ledgerLoadPromise = import('../ledger/index.js?v=20260823_14')
       .then(module => {
         ledgerLifecycle = module.initLedgerView();
         return ledgerLifecycle;
@@ -38,9 +38,12 @@ function preloadLedgerFeature() {
 async function enterLedgerFeature() {
   try {
     const lifecycle = await loadLedgerFeature();
-    lifecycle?.enter?.();
+    if (lifecycle && typeof lifecycle.enter === 'function') {
+      lifecycle.enter();
+    }
   } catch (error) {
     console.error('Ledger feature load failed:', error);
+    alert('가계부 화면을 불러오지 못했습니다: ' + (error?.message || error));
   }
 }
 function leaveLedgerFeature() {

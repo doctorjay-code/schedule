@@ -10,8 +10,8 @@ import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, 
 import { createLedgerTransactionModal } from './modals/transaction-modal.js';
 import { createLedgerColorSettings } from './modals/color-settings.js';
 import { bindLedgerListActions } from './ledger-events.js';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_13';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_13';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_14';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_14';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -819,14 +819,25 @@ function showSchedule() {
   switchViewModeUI(state.currentView);
 }
 export function initLedgerView() {
-  loadLedgerSheetSnapshot();
-  loadOptionalFundplanRecords();
-  refreshLedgerSheetData();
-  bindLedgerEvents();
+  try {
+    loadLedgerSheetSnapshot();
+    loadOptionalFundplanRecords();
+    refreshLedgerSheetData().catch(e => console.warn('refreshLedgerSheetData warn:', e));
+  } catch (e) {
+    console.warn('initLedgerView data load warn:', e);
+  }
+
+  try {
+    bindLedgerEvents();
+  } catch (e) {
+    console.error('bindLedgerEvents err:', e);
+  }
+
   document.getElementById('scheduleMenuBtn')?.addEventListener('click', showSchedule);
   document.getElementById('ledgerMenuBtn')?.addEventListener('click', showLedger);
   document.getElementById('ledgerAllViewBtn')?.addEventListener('click', () => setLedgerPeriod(ledgerState.source === 'card' ? 'weekly' : 'all')); 
   document.getElementById('ledgerMonthlyViewBtn')?.addEventListener('click', () => setLedgerPeriod('monthly'));
+
   return { enter: showLedger, leave: showSchedule };
 }
 

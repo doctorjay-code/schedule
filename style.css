@@ -2257,6 +2257,8 @@ body {
   overflow: visible;
   flex-shrink: 0;
 }
+.app-container:not(.ledger-active) .ledger-only { display: none !important; }
+.app-container.ledger-active .ledger-only { display: block !important; }
 #ledgerPersonSwitch .ledger-filter-primary {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
