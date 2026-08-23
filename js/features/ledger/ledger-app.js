@@ -179,7 +179,7 @@ function loadRecords() {
   const snapshotLabel = ledgerSnapshotFetchedAt ? ` · 마지막 동기화 ${new Date(ledgerSnapshotFetchedAt).toLocaleString('ko-KR')}` : '';
   setText('ledgerDataBadge', ledgerSheetCounts ? `시트 ${sheetTotal}건${snapshotLabel}` : '시트 불러오는 중');
   if (ledgerState.source === 'card') {
-    setLedgerPayment(ledgerState.payment, true);
+    setLedgerPayment(ledgerState.payment, false);
   } else {
     syncLedgerCardButtons();
     renderActiveLedgerPeriod();
@@ -586,7 +586,6 @@ function bindLedgerEvents() {
     button?.classList.add('is-syncing');
     try {
       await refreshLedgerSheetData(getCurrentLedgerSheetName());
-      focusLedgerLatest();
     } finally {
       button?.classList.remove('is-syncing');
     }
