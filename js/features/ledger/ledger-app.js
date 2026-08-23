@@ -10,8 +10,8 @@ import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, 
 import { createLedgerTransactionModal } from './modals/transaction-modal.js';
 import { createLedgerColorSettings } from './modals/color-settings.js';
 import { bindLedgerListActions } from './ledger-events.js';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_9';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_9';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_10';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_10';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -710,8 +710,23 @@ function getMonthlyRecords() {
   const year = ledgerState.monthCursor.getFullYear();
   const month = ledgerState.monthCursor.getMonth();
   const isCompanyCard = ledgerState.source === 'card' && ledgerState.payment === '\uAE30\uC5C5\uCE74\uB4DC';
-  const start = isCompanyCard ? new Date(year, month - 1, 13) : new Date(year, month, 1);
-  const end = isCompanyCard ? new Date(year, month, 12) : new Date(year, month + 1, 0);
+  let start;
+  let end;
+  if (isCompanyCard) {
+    if (month === 0) {
+      start = new Date(year, 0, 1);
+      end = new Date(year, 0, 12);
+    } else if (month === 1) {
+      start = new Date(year, 0, 1);
+      end = new Date(year, 1, 12);
+    } else {
+      start = new Date(year, month - 1, 13);
+      end = new Date(year, month, 12);
+    }
+  } else {
+    start = new Date(year, month, 1);
+    end = new Date(year, month + 1, 0);
+  }
   const startDate = toIso(start);
   const endDate = toIso(end);
   return getActiveSourceRecords().filter(record => record.date >= startDate && record.date <= endDate);

@@ -17,6 +17,10 @@ export function getRecordMonthGroup(record, isCompanyCard) {
       year += 1;
     }
   }
+  // 기업카드 1월은 2월행에 합침
+  if (month === 1) {
+    month = 2;
+  }
   return `${year}-${String(month).padStart(2, '0')}`;
 }
 
@@ -26,6 +30,9 @@ export function formatMonthTitle(monthKey, isCompanyCard) {
   const month = parseInt(monthStr, 10);
   if (!isCompanyCard) {
     return `${year}년 ${month}월`;
+  }
+  if (month === 2) {
+    return `${year}년 2월 (01.01~02.12)`;
   }
   const prevMonth = month === 1 ? 12 : month - 1;
   return `${year}년 ${month}월 (${String(prevMonth).padStart(2, '0')}.13~${String(month).padStart(2, '0')}.12)`;
