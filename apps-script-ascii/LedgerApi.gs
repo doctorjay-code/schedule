@@ -146,6 +146,14 @@ function batchUpsertLedgerRecords(records, options) {
     throw new Error('\uC800\uC7A5\uD560 \uAC70\uB798 \uBAA9\uB85D\uC774 \uBE44\uC5B4\uC788\uC2B5\uB2C8\uB2E4.');
   }
 
+  // \uCEA1\uCC98 \uBAA9\uB85D(\uCD5C\uC2E0\uC21C)\uC744 \uAC00\uACC4\uBD80 \uC21C\uC11C(\uACFC\uAC70\uC21C -> \uCD5C\uC2E0\uC21C)\uB85C \uC815\uB82C
+  // 1) \uCEA1\uCC98 \uC704(\uCD5C\uC2E0)->\uC544\uB798(\uACFC\uAC70) \uC21C\uC11C\uB97C \uB4A4\uC9D1\uACE0, 2) \uB0A0\uC9DC\uC21C \uC624\uB984\uCC28\uC21C \uC548\uC815 \uC815\uB82C
+  records = records.slice().reverse().sort(function(a, b) {
+    var dateA = formatIsoDate(a && a.date);
+    var dateB = formatIsoDate(b && b.date);
+    return dateA.localeCompare(dateB);
+  });
+
   var allowDuplicates = Boolean(options && options.allowDuplicates);
   var results = [];
   var savedCount = 0;

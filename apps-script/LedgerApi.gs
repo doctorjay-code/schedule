@@ -146,6 +146,14 @@ function batchUpsertLedgerRecords(records, options) {
     throw new Error('저장할 거래 목록이 비어있습니다.');
   }
 
+  // 캡처 목록(최신순)을 가계부 순서(과거순 -> 최신순)로 정렬
+  // 1) 캡처 위(최신)->아래(과거) 순서를 뒤집고, 2) 날짜순 오름차순 안정 정렬
+  records = records.slice().reverse().sort(function(a, b) {
+    var dateA = formatIsoDate(a && a.date);
+    var dateB = formatIsoDate(b && b.date);
+    return dateA.localeCompare(dateB);
+  });
+
   var allowDuplicates = Boolean(options && options.allowDuplicates);
   var results = [];
   var savedCount = 0;
