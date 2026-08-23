@@ -6,12 +6,12 @@ import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor } from '
 import { filterLedgerRecords } from './card.js';
 import { normalizeFundplanRows } from './fundplan.js';
 import { groupExpenses, renderStatList } from './stats.js';
-import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260823_20';
-import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260823_20';
-import { createLedgerColorSettings } from './modals/color-settings.js?v=20260823_20';
-import { bindLedgerListActions } from './ledger-events.js?v=20260823_20';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_20';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_20';
+import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260823_21';
+import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260823_21';
+import { createLedgerColorSettings } from './modals/color-settings.js?v=20260823_21';
+import { bindLedgerListActions } from './ledger-events.js?v=20260823_21';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_21';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_21';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -646,6 +646,51 @@ function copySelectedLedgerRecords() {
   setLedgerMultiEditMode(false);
 }
 
+function deleteSelectedLedgerRecords() {
+  if (selectedLedgerIds.size === 0) {
+    showLedgerToast('⚠️ 삭제할 거래를 선택해주세요.');
+    return;
+  }
+
+  const count = selectedLedgerIds.size;
+  if (!confirm(`선택한 ${count}건의 거래를 모두 삭제할까요?`)) return;
+
+  const recordsToDelete = Array.from(selectedLedgerIds)
+    .map(id => findLedgerRecordById(id))
+    .filter(Boolean);
+
+  if (recordsToDelete.length === 0) {
+    showLedgerToast('⚠️ 삭제할 거래 정보를 찾을 수 없습니다.');
+    return;
+  }
+
+  for (const record of recordsToDelete) {
+    applyOptimisticDelete(record);
+  }
+
+  setLedgerMultiEditMode(false);
+  showLedgerToast(`🗑️ ${recordsToDelete.length}건의 거래가 삭제되었습니다.`);
+
+  (async () => {
+    try {
+      for (const record of recordsToDelete) {
+        const deletePayload = {
+          ...record,
+          sheetName: ledgerSheetNameForRecord(record)
+        };
+        if (deletePayload.sheetRow || !String(deletePayload.id || '').startsWith('cp_')) {
+          await deleteLedgerSheetRecord(deletePayload);
+        }
+      }
+      if (recordsToDelete.length > 0) {
+        refreshLedgerInBackground(recordsToDelete[0]);
+      }
+    } catch (error) {
+      console.error('Background multi-delete error:', error);
+    }
+  })();
+}
+
 let toastTimer = null;
 function showLedgerToast(message) {
   const toast = document.getElementById('ledgerToast');
@@ -736,6 +781,7 @@ function bindLedgerEvents() {
   });
   document.getElementById('ledgerToggleMultiEditBtn')?.addEventListener('click', toggleLedgerMultiEdit);
   document.getElementById('ledgerBulkCopyBtn')?.addEventListener('click', copySelectedLedgerRecords);
+  document.getElementById('ledgerBulkDeleteBtn')?.addEventListener('click', deleteSelectedLedgerRecords);
   document.getElementById('ledgerCancelMultiEditBtn')?.addEventListener('click', () => setLedgerMultiEditMode(false));
   document.getElementById('ledgerBulkPasteBtn')?.addEventListener('click', pasteCopiedLedgerRecords);
   document.getElementById('ledgerClearCopyBtn')?.addEventListener('click', clearLedgerCopyBuffer);
