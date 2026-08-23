@@ -10,8 +10,8 @@ import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, 
 import { createLedgerTransactionModal } from './modals/transaction-modal.js';
 import { createLedgerColorSettings } from './modals/color-settings.js';
 import { bindLedgerListActions } from './ledger-events.js';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_17';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_17';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_18';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_18';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -461,21 +461,18 @@ function applyOptimisticDelete(record) {
 function refreshLedgerInBackground(record) {
   refreshLedgerSheetData(ledgerSheetNameForRecord(record)).catch(() => {});
 }
-async function saveLedgerRecord(form, overrides = {}) {
+function saveLedgerRecord(form, overrides = {}) {
   const values = { ...Object.fromEntries(new FormData(form).entries()), ...overrides };
   const amount = Number(values.amount);
   if (!values.date || !values.item?.trim() || !Number.isFinite(amount) || amount <= 0) return;
-  if (!ledgerLiveConnected) {
-    alert('시트 연결이 확인된 뒤에 거래를 저장할 수 있습니다.');
-    return;
-  }
 
+  const isEdit = Boolean(values.ledgerEditId);
   const existing = ledgerState.records.find(record => record.id === values.ledgerEditId);
   const memo = (values.memo || '').trim();
   const personMatch = memo.match(/콩콩|쥬쥬|지니/);
   const record = {
     ...(existing || {}),
-    id: values.ledgerEditId || (Date.now().toString(36) + Math.random().toString(36).slice(2, 7)),
+    id: values.ledgerEditId || ('tx_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7)),
     date: values.date,
     type: values.type,
     amount,
@@ -491,33 +488,42 @@ async function saveLedgerRecord(form, overrides = {}) {
 
   applyOptimisticSave(record);
   getLedgerTransactionModal().close();
-  try {
-    await upsertLedgerSheetRecord(record);
-    refreshLedgerInBackground(record);
-  } catch (error) {
-    restoreLedgerSheetState(snapshot);
-    alert(error?.message || '거래를 시트에 저장하지 못했습니다.');
-  }
+  showLedgerToast(isEdit ? '✏️ 거래가 수정되었습니다.' : '＋ 거래가 등록되었습니다.');
+
+  (async () => {
+    try {
+      await upsertLedgerSheetRecord(record);
+      refreshLedgerInBackground(record);
+    } catch (error) {
+      console.error('Background ledger save error:', error);
+      restoreLedgerSheetState(snapshot);
+      showLedgerToast('⚠️ 시트 저장 중 지연이 발생했습니다.');
+    }
+  })();
 }
 
-async function deleteRecord(id) {
+function deleteRecord(id) {
   const record = ledgerState.records.find(item => item.id === id);
-  if (!record || !confirm('\uC774 \uAC70\uB798\uB97C \uC0AD\uC81C\uD560\uAE4C\uC694?')) return;
-  if (!ledgerLiveConnected) {
-    alert('시트 연결이 확인된 뒤에 거래를 삭제할 수 있습니다.');
-    return;
-  }
+  if (!record || !confirm('이 거래를 삭제할까요?')) return;
+
   const snapshot = captureLedgerSheetState();
 
   applyOptimisticDelete(record);
   getLedgerTransactionModal().close();
-  try {
-    await deleteLedgerSheetRecord(record);
-    refreshLedgerInBackground(record);
-  } catch (error) {
-    restoreLedgerSheetState(snapshot);
-    alert(error?.message || '거래를 시트에서 삭제하지 못했습니다.');
-  }
+  showLedgerToast('🗑️ 거래가 삭제되었습니다.');
+
+  (async () => {
+    try {
+      if (!String(record.id || '').startsWith('cp_')) {
+        await deleteLedgerSheetRecord(record);
+      }
+      refreshLedgerInBackground(record);
+    } catch (error) {
+      console.error('Background ledger delete error:', error);
+      restoreLedgerSheetState(snapshot);
+      showLedgerToast('⚠️ 시트 삭제 중 지연이 발생했습니다.');
+    }
+  })();
 }
 
 function toggleLedgerEntry() {
