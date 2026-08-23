@@ -1711,10 +1711,12 @@ td.cell-date {
   min-height: 0;
   overflow: hidden;
 }
-.ledger-period-wrapper .table-wrapper {
+.ledger-period-wrapper .table-wrapper,
+.ledger-period-wrapper .ledger-monthly-list {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .ledger-period-wrapper > .ledger-period-title { order: 0; }
 .ledger-period-wrapper > .ledger-list-panel { order: 1; }
@@ -1870,7 +1872,15 @@ td.cell-date {
 /* Bank and cash ledger modes */
 .ledger-source-switch { margin-top: -2px; }
 .ledger-source-switch .view-switch-btn { max-width: 140px; }
-.ledger-alltime-wrapper { padding: 0 0 18px; }
+.ledger-alltime-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 0 18px;
+}
 .fundplan-transaction-list { max-height: none; }
 .fundplan-transaction-list .ledger-table-row { border-left-color: #475569; }
 .fundplan-transaction-list .ledger-table-row.income { border-left-color: #15803D; }
