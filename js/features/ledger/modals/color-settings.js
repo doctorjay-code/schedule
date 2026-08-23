@@ -2,21 +2,8 @@ import { getLedgerTagColor } from '../ledger-utils.js';
 
 // Ledger tag-color settings and word-rule UI responsibility.
 export function createLedgerColorSettings({ state, pastelPalette, defaultColorSettings, saveColorSettings, renderLedgerViews }) {
-  const colorListNames = {
-    person: [
-      String.fromCharCode(0xC96C, 0xC96C),
-      String.fromCharCode(0xC9C0, 0xB2C8),
-      String.fromCharCode(0xCF69, 0xCF69),
-      String.fromCharCode(0xAE30, 0xD0C0)
-    ],
-    category: [
-      String.fromCharCode(0xC2DD, 0xBE44),
-      String.fromCharCode(0xAD50, 0xD1B5),
-      String.fromCharCode(0xBB38, 0xD654),
-      String.fromCharCode(0xC0DD, 0xD65C),
-      String.fromCharCode(0xAE30, 0xD0C0)
-    ]
-  };
+  const defaultPersonList = ['쥬쥬', '지니', '콩콩', '기타'];
+  const defaultCategoryList = ['식비', '교통', '문화', '생활', '보험', '이자', '상환', '저축', '입금', '기타'];
   let ruleColor = pastelPalette[0];
   let bound = false;
 
@@ -25,7 +12,10 @@ export function createLedgerColorSettings({ state, pastelPalette, defaultColorSe
   }
 
   function getColorNames(field) {
-    return colorListNames[field] || [];
+    const defaults = field === 'person' ? defaultPersonList : defaultCategoryList;
+    const settingsKey = field === 'person' ? 'ledgerPersonColors' : 'ledgerCategoryColors';
+    const savedKeys = Object.keys(state.colorSettings?.[settingsKey] || {});
+    return Array.from(new Set([...defaults, ...savedKeys])).filter(Boolean);
   }
 
   function getWordRules() {

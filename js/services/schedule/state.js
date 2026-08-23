@@ -39,7 +39,26 @@ export const defaultColorSettings = {
     '당직OFF': '#F3E8FF',
     '기타': '#F1F5F9'
   },
-  wordRules: []
+  wordRules: [],
+  ledgerPersonColors: {
+    '쥬쥬': '#FCE7F3',
+    '지니': '#E0E7FF',
+    '콩콩': '#FEF3C7',
+    '기타': '#F1F5F9'
+  },
+  ledgerCategoryColors: {
+    '식비': '#FEF3C7',
+    '교통': '#D1FAE5',
+    '문화': '#E0E7FF',
+    '생활': '#FCE7F3',
+    '보험': '#E0F2FE',
+    '이자': '#FFEDD5',
+    '상환': '#F3E8FF',
+    '저축': '#D9E1F2',
+    '입금': '#D1FAE5',
+    '기타': '#F1F5F9'
+  },
+  ledgerWordRules: []
 };
 
 const initialDate = new Date();
@@ -73,7 +92,10 @@ export function loadColorSettings() {
       state.colorSettings = {
         regionColors: { ...defaultColorSettings.regionColors, ...(parsed.regionColors || {}) },
         clinicColors: { ...defaultColorSettings.clinicColors, ...(parsed.clinicColors || {}) },
-        wordRules: Array.isArray(parsed.wordRules) ? parsed.wordRules : []
+        wordRules: Array.isArray(parsed.wordRules) ? parsed.wordRules : [],
+        ledgerPersonColors: { ...defaultColorSettings.ledgerPersonColors, ...(parsed.ledgerPersonColors || {}) },
+        ledgerCategoryColors: { ...defaultColorSettings.ledgerCategoryColors, ...(parsed.ledgerCategoryColors || {}) },
+        ledgerWordRules: Array.isArray(parsed.ledgerWordRules) ? parsed.ledgerWordRules : []
       };
     } catch (e) {
       console.error('Error loading color settings:', e);
