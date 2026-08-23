@@ -16,7 +16,7 @@ function showAppLoadError() {
 
 async function loadAuthenticatedApp() {
   if (appLoadPromise) return appLoadPromise;
-  appLoadPromise = import('./app.js?v=20260822_3')
+  appLoadPromise = import('./app.js?v=20260823_8')
     .then(module => module.initializeAppLogic())
     .catch(error => {
       console.error('Authenticated application module failed:', error);
