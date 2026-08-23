@@ -24,6 +24,6 @@ export function formatMoney(value) {
 export function getLedgerTagColor(colorSettings, field, value) {
   const key = field === 'person' ? 'ledgerPersonColors' : 'ledgerCategoryColors';
   const colors = colorSettings?.[key] || {};
-  return colors[value] || colors['\uAE30\uD0C0'] || '#F1F5F9';
+  return colors[value] || '#F1F5F9';
 }
 
