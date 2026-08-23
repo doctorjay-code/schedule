@@ -820,22 +820,22 @@ body {
   cursor: pointer;
 }
 
-/* Column Width Ratios (Total 100%) - 입금/출금/잔액 컬럼 확장 */
-.col-date   { width: 16%; }
-.col-time   { width: 9%; }
-.col-region { width: 12.5%; }
-.col-clinic { width: 13.5%; }
-.col-trans  { width: 16%; }
-.col-hr     { width: 16%; }
-.col-ot     { width: 17%; }
+/* Column Width Ratios (Total 100%) - 입금/출금/잔액 컬럼 대폭 확장 */
+.col-date   { width: 14.5%; }
+.col-time   { width: 8.5%; }
+.col-region { width: 11%; }
+.col-clinic { width: 11%; }
+.col-trans  { width: 18%; }
+.col-hr     { width: 18%; }
+.col-ot     { width: 19%; }
 
-/* Ledger Money Cells (8자리 숫자 잘림 방지) */
+/* Ledger Money Cells (큰 숫자 잘림 완벽 방지) */
 .ledger-cell-money {
-  font-size: 10.5px !important;
+  font-size: 9.5px !important;
   font-weight: 700 !important;
-  letter-spacing: -0.4px !important;
+  letter-spacing: -0.5px !important;
   font-variant-numeric: tabular-nums !important;
-  padding: 3px 2px !important;
+  padding: 2px 1px !important;
   text-align: right !important;
   white-space: nowrap !important;
   overflow: hidden !important;
@@ -844,9 +844,9 @@ body {
 
 @media (max-width: 400px) {
   .ledger-cell-money {
-    font-size: 9.5px !important;
-    letter-spacing: -0.6px !important;
-    padding: 3px 1px !important;
+    font-size: 8.5px !important;
+    letter-spacing: -0.7px !important;
+    padding: 2px 0px !important;
   }
 }
 
@@ -1938,18 +1938,18 @@ td.cell-date {
 .ledger-month-divider-num-cell {
   text-align: right !important;
   font-weight: 700 !important;
-  font-size: 10.5px !important;
-  letter-spacing: -0.4px !important;
+  font-size: 9.5px !important;
+  letter-spacing: -0.5px !important;
   font-variant-numeric: tabular-nums !important;
-  padding: 3px 2px !important;
+  padding: 2px 1px !important;
   white-space: nowrap !important;
   overflow: hidden !important;
 }
 @media (max-width: 400px) {
   .ledger-month-divider-num-cell {
-    font-size: 9.5px !important;
-    letter-spacing: -0.6px !important;
-    padding: 3px 1px !important;
+    font-size: 8.5px !important;
+    letter-spacing: -0.7px !important;
+    padding: 2px 0px !important;
   }
 }
 .ledger-month-income-cell {
@@ -1964,16 +1964,16 @@ td.cell-date {
 .ledger-month-divider-content {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
 }
 .ledger-month-toggle-icon {
-  font-size: 11px;
+  font-size: 10px;
   color: #4F46E5;
   font-weight: 800;
 }
 .ledger-month-title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   color: #1E1B4B;
   white-space: nowrap;
