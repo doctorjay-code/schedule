@@ -175,35 +175,51 @@
     </main>
 
 <main class="ledger-wrapper hidden" id="ledgerViewWrapper">
-<section id="ledgerWeeklyWrapper" class="ledger-period-wrapper">
-
-<button class="ledger-toggle-entry-btn" id="ledgerToggleEntryBtn" type="button">&#xFF0B; &#xAC70;&#xB798; &#xC785;&#xB825;</button>
-<div class="table-wrapper" aria-label="Ledger weekly transactions">
-  <table class="schedule-table">
-    <thead><tr><th class="col-date">&#xB0A0;&#xC9DC;/&#xC694;&#xC77C;</th><th class="col-time">&#xC218;&#xB2E8;</th><th class="col-region">&#xC0AC;&#xC6A9;&#xC790;</th><th class="col-clinic">&#xC0AC;&#xC6A9;&#xCC98;</th><th class="col-trans">&#xC218;&#xC785;</th><th class="col-hr">&#xC9C0;&#xCD9C;</th><th class="col-ot">&#xC0AC;&#xC6A9;&#xC561;</th></tr></thead>
-    <tbody id="ledgerTransactionList"></tbody>
-  </table>
-</div>
-
-</section>
-<section id="ledgerMonthlyWrapper" class="ledger-period-wrapper hidden">
-
-<div class="table-wrapper ledger-monthly-list" aria-label="Ledger monthly transactions">
-  <table class="schedule-table">
-    <thead><tr><th class="col-date">&#xB0A0;&#xC9DC;/&#xC694;&#xC77C;</th><th class="col-time">&#xC218;&#xB2E8;</th><th class="col-region">&#xC0AC;&#xC6A9;&#xC790;</th><th class="col-clinic">&#xC0AC;&#xC6A9;&#xCC98;</th><th class="col-trans">&#xC218;&#xC785;</th><th class="col-hr">&#xC9C0;&#xCD9C;</th><th class="col-ot">&#xC0AC;&#xC6A9;&#xC561;</th></tr></thead>
-    <tbody id="ledgerMonthlyTransactionList"></tbody>
-  </table>
-</div>
-
-
-</section>
-    <section id="fundplanAllTimeWrapper" class="ledger-alltime-wrapper hidden">
-      <section class="ledger-list-panel">
-        <div class="ledger-section-title fundplan-list-header"><h3 id="fundplanAllTimeTitle">&#xD1B5;&#xC7A5; &#xB0B4;&#xC5ED;</h3><span id="fundplanAllTimeCount">0&#xAC74;</span><div class="fundplan-fold-actions"><button id="fundplanExpandAllBtn" type="button">&#xC804;&#xCCB4; &#xD3BC;&#xCE58;&#xAE30;</button><button id="fundplanCollapseAllBtn" type="button">&#xC804;&#xCCB4; &#xC811;&#xAE30;</button></div></div>
-        <div id="fundplanAllTimeList" class="ledger-transaction-list fundplan-transaction-list"></div>
-      </section>
+    <section id="fundplanAllTimeWrapper" class="ledger-period-wrapper">
+      <div class="fundplan-header-toolbar">
+        <button class="ledger-toggle-entry-btn" id="ledgerToggleEntryBtn" type="button">＋ 거래 입력</button>
+        <div class="fundplan-fold-actions">
+          <button id="fundplanExpandAllBtn" type="button">전체 펼치기</button>
+          <button id="fundplanCollapseAllBtn" type="button">전체 접기</button>
+        </div>
+      </div>
+      <div class="table-wrapper" aria-label="Ledger all-time transactions">
+        <table class="schedule-table" id="ledgerAllTable">
+          <thead id="ledgerAllTableHead">
+            <tr>
+              <th class="col-date">날짜/요일</th>
+              <th class="col-time">수단</th>
+              <th class="col-region">사용자</th>
+              <th class="col-clinic">사용처</th>
+              <th class="col-trans">수입</th>
+              <th class="col-hr">지출</th>
+              <th class="col-ot">사용액</th>
+            </tr>
+          </thead>
+          <tbody id="fundplanAllTimeList"></tbody>
+        </table>
+      </div>
     </section>
-<!-- LEDGER_MONTHLY_INSERT -->
+
+    <section id="ledgerMonthlyWrapper" class="ledger-period-wrapper hidden">
+      <button class="ledger-toggle-entry-btn" id="ledgerMonthlyToggleEntryBtn" type="button">＋ 거래 입력</button>
+      <div class="table-wrapper ledger-monthly-list" aria-label="Ledger monthly transactions">
+        <table class="schedule-table" id="ledgerMonthlyTable">
+          <thead id="ledgerMonthlyTableHead">
+            <tr>
+              <th class="col-date">날짜/요일</th>
+              <th class="col-time">수단</th>
+              <th class="col-region">사용자</th>
+              <th class="col-clinic">사용처</th>
+              <th class="col-trans">수입</th>
+              <th class="col-hr">지출</th>
+              <th class="col-ot">사용액</th>
+            </tr>
+          </thead>
+          <tbody id="ledgerMonthlyTransactionList"></tbody>
+        </table>
+      </div>
+    </section>
 </main>
 <div class="modal-overlay" id="ledgerReportOverlay">
   <div class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="ledgerReportTitle">

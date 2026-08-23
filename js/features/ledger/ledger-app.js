@@ -561,8 +561,10 @@ function bindLedgerEvents() {
   document.getElementById('ledgerTossBankBtn')?.addEventListener('click', () => setLedgerPayment('\uD1A0\uC2A4\uC740\uD589', true));
   document.getElementById('ledgerBankSourceBtn')?.addEventListener('click', () => setLedgerSource('bank'));
   document.getElementById('ledgerCashSourceBtn')?.addEventListener('click', () => setLedgerSource('cash'));
-  document.getElementById('ledgerForecastSourceBtn')?.addEventListener('click', () => setLedgerSource('forecast'));  document.getElementById('fundplanExpandAllBtn')?.addEventListener('click', () => getFundplanView().setAllExpanded(true));
-  document.getElementById('fundplanCollapseAllBtn')?.addEventListener('click', () => setAllFundplanMonthsExpanded(false));
+  document.getElementById('ledgerForecastSourceBtn')?.addEventListener('click', () => setLedgerSource('forecast'));
+  document.getElementById('fundplanExpandAllBtn')?.addEventListener('click', () => getFundplanView().setAllExpanded(true));
+  document.getElementById('fundplanCollapseAllBtn')?.addEventListener('click', () => getFundplanView().setAllExpanded(false));
+  document.getElementById('ledgerMonthlyToggleEntryBtn')?.addEventListener('click', () => toggleLedgerEntry());
   getLedgerColorSettings().bind();
   document.getElementById('ledgerReportBtn')?.addEventListener('click', () => {
     renderLedgerReport();
@@ -581,7 +583,8 @@ function bindLedgerEvents() {
     });
   }
   document.getElementById('ledgerPrevPeriodBtn')?.addEventListener('click', () => moveLedgerPeriod(-1));
-  document.getElementById('ledgerNextPeriodBtn')?.addEventListener('click', () => moveLedgerPeriod(1));  document.getElementById('ledgerLatestBtn')?.addEventListener('click', focusLedgerLatest);
+  document.getElementById('ledgerNextPeriodBtn')?.addEventListener('click', () => moveLedgerPeriod(1));
+  document.getElementById('ledgerLatestBtn')?.addEventListener('click', focusLedgerLatest);
   const refreshLedgerFromSheet = async button => {
     button?.classList.add('is-syncing');
     try {
@@ -611,44 +614,47 @@ function getFundplanView() {
   }
   return fundplanView;
 }
+
 function renderActiveLedgerPeriod() {
-  if (ledgerState.period === 'monthly') { renderMonthly(); return; }
-  if (ledgerState.source === 'card') { renderWeekly(); return; }
+  if (ledgerState.period === 'monthly') {
+    renderMonthly();
+    return;
+  }
   getFundplanView().render();
 }
+
 function setLedgerSource(source) {
   ledgerState.source = source;
-  if (source === 'cash') ledgerState.payment = '현금';
-  if (source === 'bank') ledgerState.payment = '기업은행';
-  if (source === 'forecast') ledgerState.payment = '잔액전망';
-  if (source === 'card' && ledgerState.period === 'all') ledgerState.period = 'weekly';
-  if (source !== 'card' && ledgerState.period === 'weekly') ledgerState.period = 'all';
-  setText('ledgerAllViewBtn', source === 'card' ? '\uC8FC\uAC04' : '\uC804\uCCB4');
+  if (source === 'cash') ledgerState.payment = '\uD604\uAE08';
+  if (source === 'bank') ledgerState.payment = '\uAE30\uC5C5\uC740\uD589';
+  if (source === 'forecast') ledgerState.payment = '\uC794\uC561\uC804\uB9DD';
+  if (ledgerState.period !== 'monthly') ledgerState.period = 'all';
+
+  setText('ledgerAllViewBtn', '\uC804\uCCB4');
   document.getElementById('ledgerSubnav')?.classList.remove('hidden');
   document.getElementById('ledgerCardNavigator')?.classList.remove('hidden');
   document.getElementById('ledgerPersonSwitch')?.classList.remove('hidden');
   document.getElementById('ledgerSyncBtn')?.classList.remove('hidden');
   document.getElementById('ledgerRefreshBtn')?.classList.remove('hidden');
-  document.getElementById('ledgerWeeklyWrapper')?.classList.toggle('hidden', !(source === 'card' && ledgerState.period === 'weekly'));
   document.getElementById('ledgerMonthlyWrapper')?.classList.toggle('hidden', ledgerState.period !== 'monthly');
-  document.getElementById('fundplanAllTimeWrapper')?.classList.toggle('hidden', source === 'card' || ledgerState.period !== 'all');
+  document.getElementById('fundplanAllTimeWrapper')?.classList.toggle('hidden', ledgerState.period === 'monthly');
   document.getElementById('ledgerCompanyCardBtn')?.classList.toggle('active', source === 'card' && ledgerState.payment === '\uAE30\uC5C5\uCE74\uB4DC');
   document.getElementById('ledgerTossBankBtn')?.classList.toggle('active', source === 'card' && ledgerState.payment === '\uD1A0\uC2A4\uC740\uD589');
   document.getElementById('ledgerBankSourceBtn')?.classList.toggle('active', source === 'bank');
   document.getElementById('ledgerCashSourceBtn')?.classList.toggle('active', source === 'cash');
   document.getElementById('ledgerForecastSourceBtn')?.classList.toggle('active', source === 'forecast');
   document.getElementById('ledgerToggleEntryBtn')?.classList.toggle('hidden', !['card', 'cash', 'bank'].includes(source));
+  document.getElementById('ledgerMonthlyToggleEntryBtn')?.classList.toggle('hidden', !['card', 'cash', 'bank'].includes(source));
   syncLedgerWriteControls();
   document.getElementById('ledgerAllViewBtn')?.classList.toggle('active', ledgerState.period !== 'monthly');
   document.getElementById('ledgerMonthlyViewBtn')?.classList.toggle('active', ledgerState.period === 'monthly');
   renderActiveLedgerPeriod();
 }
+
 function setLedgerPeriod(period) {
-  const primaryPeriod = ledgerState.source === 'card' ? 'weekly' : 'all';
-  ledgerState.period = period === 'monthly' ? 'monthly' : primaryPeriod;
-  document.getElementById('ledgerWeeklyWrapper')?.classList.toggle('hidden', !(ledgerState.source === 'card' && ledgerState.period === 'weekly'));
+  ledgerState.period = period === 'monthly' ? 'monthly' : 'all';
   document.getElementById('ledgerMonthlyWrapper')?.classList.toggle('hidden', ledgerState.period !== 'monthly');
-  document.getElementById('fundplanAllTimeWrapper')?.classList.toggle('hidden', ledgerState.source === 'card' || ledgerState.period !== 'all');
+  document.getElementById('fundplanAllTimeWrapper')?.classList.toggle('hidden', ledgerState.period === 'monthly');
   document.getElementById('ledgerAllViewBtn')?.classList.toggle('active', ledgerState.period !== 'monthly');
   document.getElementById('ledgerMonthlyViewBtn')?.classList.toggle('active', ledgerState.period === 'monthly');
   renderActiveLedgerPeriod();

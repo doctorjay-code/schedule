@@ -1886,21 +1886,77 @@ td.cell-date {
 .fundplan-transaction-list .ledger-table-row.income { border-left-color: #15803D; }
 .fundplan-transaction-list .ledger-table-row.expense { border-left-color: #DC2626; }
 
-/* Collapsible monthly bank and cash ledgers */
-.fundplan-list-header { align-items: center; }
-.fundplan-fold-actions { display: flex; gap: 5px; margin-left: auto; }
-.fundplan-fold-actions button { border: 1px solid #CBD5E1; border-radius: 6px; padding: 4px 7px; background: #FFF; color: #475569; font-size: 10px; font-weight: 800; cursor: pointer; }
-.fundplan-fold-actions button:hover { border-color: #2F5597; color: #2F5597; }
-.fundplan-month-group { overflow: hidden; border: 1px solid #DCE3EE; border-radius: 9px; background: #FFF; }
-.fundplan-month-group + .fundplan-month-group { margin-top: 8px; }
-.fundplan-month-group summary { display: flex; align-items: center; gap: 8px; padding: 9px 10px; background: #F8FAFC; color: #334155; cursor: pointer; list-style: none; }
-.fundplan-month-group summary::-webkit-details-marker { display: none; }
-.fundplan-month-group summary::before { content: '›'; color: #64748B; font-size: 17px; font-weight: 800; transform: rotate(0deg); transition: transform .16s ease; }
-.fundplan-month-group[open] summary::before { transform: rotate(90deg); }
-.fundplan-month-group summary strong { font-size: 12px; }
-.fundplan-month-group summary span { margin-left: auto; color: #64748B; font-size: 10px; font-weight: 700; }
-.fundplan-month-list { gap: 5px; padding: 6px; background: #F8FAFC; }
-@media (max-width: 420px) { .fundplan-fold-actions button { padding: 3px 5px; font-size: 9px; } .fundplan-month-group summary { padding: 8px; } }
+/* Collapsible monthly unified ledger table dividers */
+.fundplan-header-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.fundplan-header-toolbar .ledger-toggle-entry-btn {
+  flex: 1;
+  margin-top: 0;
+}
+.fundplan-header-toolbar .fundplan-fold-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.fundplan-fold-actions button {
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  padding: 4px 7px;
+  background: #FFF;
+  color: #475569;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.fundplan-fold-actions button:hover {
+  border-color: #2F5597;
+  color: #2F5597;
+}
+
+.ledger-month-divider-row {
+  cursor: pointer;
+  user-select: none;
+}
+.ledger-month-divider-row td {
+  background: #EEF2FF !important;
+  border-top: 2px solid #C7D2FE !important;
+  border-bottom: 2px solid #C7D2FE !important;
+  padding: 7px 10px !important;
+  text-align: left !important;
+  height: 36px !important;
+}
+.ledger-month-divider-row:hover td {
+  background: #E0E7FF !important;
+}
+.ledger-month-divider-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.ledger-month-toggle-icon {
+  font-size: 11px;
+  color: #4F46E5;
+  font-weight: 800;
+}
+.ledger-month-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #1E1B4B;
+}
+.ledger-month-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: #4338CA;
+  background: #E0E7FF;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
 
 /* Card ledger column headings: labels appear once above the list, not on each transaction. */
 .ledger-transaction-header { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.2fr) minmax(78px, 1fr); margin: 0 0 5px; padding: 0 7px; color: #94A3B8; font-size: 9px; font-weight: 800; line-height: 1.2; }
