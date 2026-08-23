@@ -119,7 +119,9 @@ function repairAllSheetColumns() {
     results[sheetName] = rows;
   });
 
-  return { ok: true, results: results };
+  var forecastReconcile = reconcileBalanceForecast();
+
+  return { ok: true, results: results, forecastReconcile: forecastReconcile };
 }
 
 function getCardCycleKey(isoDate) {
@@ -229,6 +231,14 @@ function upsertLedgerRecord(record) {
   writeLedgerRow(target, existingRow, sourceRowValues, isNew);
   sortSheetByDate(target.sheet, target.index);
   recalculateSheetBalances(target.sheet, target.sheetName, target.headers, target.index);
+
+  if (isBalanceSyncSourceSheet(target.sheetName) && usableRecordId(savedId)) {
+    try {
+      syncBalanceForecastById(savedId, { source: isNew ? 'api-create' : 'api-update' });
+    } catch (forecastErr) {
+      console.warn('잔액전망 실시간 반영 실패 (' + savedId + '):', forecastErr);
+    }
+  }
 
   return {
     ok: true,

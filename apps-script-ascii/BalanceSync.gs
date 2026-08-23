@@ -23,21 +23,27 @@ function onLedgerSourceEdit(e) {
     // \uB0A0\uC9DC\uAC00 \uC785\uB825\uB418\uC5B4 \uC788\uB294\uB370 ID\uAC00 \uC5C6\uAC70\uB098 2026 \uD615\uD0DC\uC778 \uACBD\uC6B0 \uC790\uB3D9 \uC0DD\uC131
     var dateVal = index['\uB0A0\uC9DC'] !== undefined ? getCellDisplayValue(sheet, row, index['\uB0A0\uC9DC']) : '';
     var curId = index['id'] !== undefined ? getCellDisplayValue(sheet, row, index['id']) : '';
+    var finalId = curId;
     if (dateVal && (!usableRecordId(curId) || curId.indexOf('-2026') !== -1)) {
       var target = { sheet: sheet, sheetName: sheetName, headers: headers, index: index };
-      var newId = generateLedgerId(target, { date: dateVal }, row);
+      finalId = generateLedgerId(target, { date: dateVal }, row);
       if (index['id'] !== undefined) {
-        sheet.getRange(row, index['id'] + 1).setValue(newId);
+        sheet.getRange(row, index['id'] + 1).setValue(finalId);
       }
     }
 
     // \uB0A0\uC9DC\uC21C \uC624\uB984\uCC28\uC21C \uC815\uB82C
     sortSheetByDate(sheet, index);
 
-    if (isBalanceSyncSourceSheet(sheetName)) {
-      var source = readSourceRow(sheet, row);
-      if (source && isSourceRowReady(source)) {
-        syncBalanceForecastById(source.id, { source: 'sheet-edit' });
+    // \uC0AC\uC6A9\uC561 / \uC794\uC561 \uC7AC\uACC4\uC0B0
+    recalculateSheetBalances(sheet, sheetName, headers, index);
+
+    // \uD589 \uBC88\uD638\uAC00 \uC544\uB2CC \uACE0\uC720 ID\uB85C \uC794\uC561\uC804\uB9DD \uC2E4\uC2DC\uAC04 \uB3D9\uAE30\uD654
+    if (isBalanceSyncSourceSheet(sheetName) && usableRecordId(finalId)) {
+      try {
+        syncBalanceForecastById(finalId, { source: 'sheet-edit' });
+      } catch (syncErr) {
+        console.warn('\uC2DC\uD2B8 \uD3B8\uC9D1 \uC794\uC561\uC804\uB9DD \uB3D9\uAE30\uD654 \uC2E4\uD328:', syncErr);
       }
     }
   } catch (error) {
@@ -114,15 +120,57 @@ function reconcileBalanceForecast() {
   var spreadsheet = getLedgerSpreadsheet();
   var forecastSheet = getRequiredSheet(spreadsheet, BALANCE_FORECAST_SHEET_NAME);
   var forecastIndex = getBalanceHeaderIndex(forecastSheet);
-  var existingIds = getForecastIdRows(forecastSheet, forecastIndex);
-  var missing = [];
 
+  // 1. \uBAA8\uB4E0 \uC6D0\uBCF8 \uC2DC\uD2B8\uC758 \uC720\uD6A8 \uAC70\uB798 \uBC0F ID \uC218\uC9D1
+  var sourceIdMap = {};
+  var allSources = [];
   BALANCE_SYNC_SOURCE_SHEETS.forEach(function(sheetName) {
     readAllSourceTransactions(getRequiredSheet(spreadsheet, sheetName)).forEach(function(source) {
-      if (isSourceRowReady(source) && !existingIds[source.id]) missing.push(source.id);
+      if (isSourceRowReady(source)) {
+        sourceIdMap[source.id] = source;
+        allSources.push(source);
+      }
     });
   });
-  return { ok: true, missingCount: missing.length, missingIds: missing };
+
+  // 2. \uC794\uC561\uC804\uB9DD\uC744 \uC544\uB798\uC5D0\uC11C \uC704\uB85C \uC2A4\uCE94\uD558\uBA70, \uC6D0\uBCF8 \uC2DC\uD2B8\uC5D0\uC11C \uC0AD\uC81C\uB41C \uACE0\uC544 \uD589(Orphan Row) \uC0AD\uC81C
+  var lastRow = forecastSheet.getLastRow();
+  var deletedOrphans = 0;
+  if (lastRow >= 2) {
+    var forecastIds = forecastSheet.getRange(2, forecastIndex['\uC6D0\uBCF8id'] + 1, lastRow - 1, 1).getDisplayValues();
+    for (var r = forecastIds.length - 1; r >= 0; r--) {
+      var rowNum = r + 2;
+      var origId = cleanText(forecastIds[r][0]);
+      if (usableRecordId(origId)) {
+        // \uC6D0\uBCF8 ID\uAC00 \uC788\uB294\uB370 \uC6D0\uBCF8 \uC2DC\uD2B8 \uBAA9\uB85D\uC5D0 \uC5C6\uB294 \uACBD\uC6B0 \uC0AD\uC81C
+        if (!sourceIdMap[origId]) {
+          forecastSheet.deleteRow(rowNum);
+          deletedOrphans++;
+        }
+      }
+    }
+  }
+
+  // 3. \uB204\uB77D\uB41C \uC6D0\uBCF8 \uAC70\uB798\uB97C \uC794\uC561\uC804\uB9DD\uC5D0 \uCD94\uAC00
+  var existingIds = getForecastIdRows(forecastSheet, forecastIndex);
+  var addedCount = 0;
+  allSources.forEach(function(source) {
+    if (!existingIds[source.id]) {
+      try {
+        if (source.sheetName === '\uAE30\uC5C5\uCE74\uB4DC') {
+          syncCompanyCardTransaction(spreadsheet, source);
+        } else {
+          syncStandardTransaction(spreadsheet, source);
+        }
+        addedCount++;
+      } catch (e) {
+        console.error('\uC794\uC561\uC804\uB9DD \uB3D9\uAE30\uD654 \uCD94\uAC00 \uC2E4\uD328 (' + source.id + '):', e);
+      }
+    }
+  });
+
+  SpreadsheetApp.flush();
+  return { ok: true, deletedOrphans: deletedOrphans, addedCount: addedCount };
 }
 
 function syncStandardTransaction(spreadsheet, source) {

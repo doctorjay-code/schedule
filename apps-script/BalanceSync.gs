@@ -23,21 +23,27 @@ function onLedgerSourceEdit(e) {
     // 날짜가 입력되어 있는데 ID가 없거나 2026 형태인 경우 자동 생성
     var dateVal = index['날짜'] !== undefined ? getCellDisplayValue(sheet, row, index['날짜']) : '';
     var curId = index['id'] !== undefined ? getCellDisplayValue(sheet, row, index['id']) : '';
+    var finalId = curId;
     if (dateVal && (!usableRecordId(curId) || curId.indexOf('-2026') !== -1)) {
       var target = { sheet: sheet, sheetName: sheetName, headers: headers, index: index };
-      var newId = generateLedgerId(target, { date: dateVal }, row);
+      finalId = generateLedgerId(target, { date: dateVal }, row);
       if (index['id'] !== undefined) {
-        sheet.getRange(row, index['id'] + 1).setValue(newId);
+        sheet.getRange(row, index['id'] + 1).setValue(finalId);
       }
     }
 
     // 날짜순 오름차순 정렬
     sortSheetByDate(sheet, index);
 
-    if (isBalanceSyncSourceSheet(sheetName)) {
-      var source = readSourceRow(sheet, row);
-      if (source && isSourceRowReady(source)) {
-        syncBalanceForecastById(source.id, { source: 'sheet-edit' });
+    // 사용액 / 잔액 재계산
+    recalculateSheetBalances(sheet, sheetName, headers, index);
+
+    // 행 번호가 아닌 고유 ID로 잔액전망 실시간 동기화
+    if (isBalanceSyncSourceSheet(sheetName) && usableRecordId(finalId)) {
+      try {
+        syncBalanceForecastById(finalId, { source: 'sheet-edit' });
+      } catch (syncErr) {
+        console.warn('시트 편집 잔액전망 동기화 실패:', syncErr);
       }
     }
   } catch (error) {
@@ -114,15 +120,57 @@ function reconcileBalanceForecast() {
   var spreadsheet = getLedgerSpreadsheet();
   var forecastSheet = getRequiredSheet(spreadsheet, BALANCE_FORECAST_SHEET_NAME);
   var forecastIndex = getBalanceHeaderIndex(forecastSheet);
-  var existingIds = getForecastIdRows(forecastSheet, forecastIndex);
-  var missing = [];
 
+  // 1. 모든 원본 시트의 유효 거래 및 ID 수집
+  var sourceIdMap = {};
+  var allSources = [];
   BALANCE_SYNC_SOURCE_SHEETS.forEach(function(sheetName) {
     readAllSourceTransactions(getRequiredSheet(spreadsheet, sheetName)).forEach(function(source) {
-      if (isSourceRowReady(source) && !existingIds[source.id]) missing.push(source.id);
+      if (isSourceRowReady(source)) {
+        sourceIdMap[source.id] = source;
+        allSources.push(source);
+      }
     });
   });
-  return { ok: true, missingCount: missing.length, missingIds: missing };
+
+  // 2. 잔액전망을 아래에서 위로 스캔하며, 원본 시트에서 삭제된 고아 행(Orphan Row) 삭제
+  var lastRow = forecastSheet.getLastRow();
+  var deletedOrphans = 0;
+  if (lastRow >= 2) {
+    var forecastIds = forecastSheet.getRange(2, forecastIndex['원본id'] + 1, lastRow - 1, 1).getDisplayValues();
+    for (var r = forecastIds.length - 1; r >= 0; r--) {
+      var rowNum = r + 2;
+      var origId = cleanText(forecastIds[r][0]);
+      if (usableRecordId(origId)) {
+        // 원본 ID가 있는데 원본 시트 목록에 없는 경우 삭제
+        if (!sourceIdMap[origId]) {
+          forecastSheet.deleteRow(rowNum);
+          deletedOrphans++;
+        }
+      }
+    }
+  }
+
+  // 3. 누락된 원본 거래를 잔액전망에 추가
+  var existingIds = getForecastIdRows(forecastSheet, forecastIndex);
+  var addedCount = 0;
+  allSources.forEach(function(source) {
+    if (!existingIds[source.id]) {
+      try {
+        if (source.sheetName === '기업카드') {
+          syncCompanyCardTransaction(spreadsheet, source);
+        } else {
+          syncStandardTransaction(spreadsheet, source);
+        }
+        addedCount++;
+      } catch (e) {
+        console.error('잔액전망 동기화 추가 실패 (' + source.id + '):', e);
+      }
+    }
+  });
+
+  SpreadsheetApp.flush();
+  return { ok: true, deletedOrphans: deletedOrphans, addedCount: addedCount };
 }
 
 function syncStandardTransaction(spreadsheet, source) {

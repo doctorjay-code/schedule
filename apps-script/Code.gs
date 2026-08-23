@@ -18,6 +18,9 @@ function doGet(e) {
     if (action === 'REPAIR_SHEETS') {
       return jsonResponse(repairAllSheetColumns());
     }
+    if (action === 'SYNC_BALANCE_FORECAST') {
+      return jsonResponse(reconcileBalanceForecast());
+    }
     return jsonResponse({
       ok: false,
       error: '지원하지 않는 요청입니다.',
