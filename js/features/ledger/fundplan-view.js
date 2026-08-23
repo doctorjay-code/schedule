@@ -77,18 +77,21 @@ export function createLedgerMonthDividerRow({
   expenseCell.textContent = monthExpense > 0 ? formatMoney(monthExpense) : '';
   dividerRow.appendChild(expenseCell);
 
-  // Column 7 (사용액 / 잔액)
+  // Column 7 (사용액 / 잔액 - 옵션 B: 월별 입출금 차액/순사용액)
   const balanceCell = document.createElement('td');
   balanceCell.className = 'ledger-month-divider-num-cell ledger-month-balance-cell';
   if (isCompanyCard) {
-    balanceCell.textContent = monthExpense > 0 ? formatMoney(monthExpense) : '';
+    const netUsage = monthExpense - monthIncome;
+    balanceCell.textContent = netUsage !== 0 ? `${netUsage < 0 ? '-' : ''}${formatMoney(netUsage)}` : '';
+    if (netUsage < 0) balanceCell.style.color = '#15803D';
   } else {
-    const lastRecord = monthRecords[monthRecords.length - 1];
-    const lastBalance = Number(lastRecord?.balance);
-    balanceCell.textContent = Number.isFinite(lastBalance)
-      ? `${lastBalance < 0 ? '-' : ''}${formatMoney(lastBalance)}`
-      : '';
-    if (lastBalance < 0) balanceCell.style.color = '#DC2626';
+    const netBalance = monthIncome - monthExpense;
+    balanceCell.textContent = netBalance !== 0 ? `${netBalance < 0 ? '-' : ''}${formatMoney(netBalance)}` : '';
+    if (netBalance < 0) {
+      balanceCell.style.color = '#DC2626';
+    } else if (netBalance > 0) {
+      balanceCell.style.color = '#15803D';
+    }
   }
   dividerRow.appendChild(balanceCell);
 
