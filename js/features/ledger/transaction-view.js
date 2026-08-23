@@ -127,14 +127,17 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
   categoryCell.appendChild(categoryTag);
   tagRow.appendChild(categoryCell);
   const incomeCell = makeDayEndCell();
+  incomeCell.className += ' ledger-cell-money ledger-cell-income';
   incomeCell.textContent = item.type === 'income' ? formatMoney(item.amount) : '';
   if (item.type === 'income') incomeCell.style.color = '#15803D';
   tagRow.appendChild(incomeCell);
   const expenseCell = makeDayEndCell();
+  expenseCell.className += ' ledger-cell-money ledger-cell-expense';
   expenseCell.textContent = item.type === 'expense' ? formatMoney(item.amount) : '';
   if (item.type === 'expense') expenseCell.style.color = '#DC2626';
   tagRow.appendChild(expenseCell);
   const balanceCell = makeDayEndCell();
+  balanceCell.className += ' ledger-cell-money ledger-cell-balance';
   const usageAmount = Number(item.balance);
   balanceCell.textContent = Number.isFinite(usageAmount)
     ? `${usageAmount < 0 ? '-' : ''}${formatMoney(usageAmount)}`

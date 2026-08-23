@@ -788,8 +788,17 @@ body {
   font-size: 12px;
 }
 
+.schedule-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
 .schedule-table th {
-  background-color: var(--color-blue-hdr);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background-color: var(--color-blue-hdr) !important;
   color: #1E3A8A;
   font-weight: 700;
   padding: 8px 2px;
@@ -811,14 +820,35 @@ body {
   cursor: pointer;
 }
 
-/* Column Width Ratios for iPhone (Total 100%) */
-.col-date   { width: 17%; }
-.col-time   { width: 10%; }
-.col-region { width: 13%; }
-.col-clinic { width: 14%; }
-.col-trans  { width: 15%; }
-.col-hr     { width: 15%; }
-.col-ot     { width: 16%; }
+/* Column Width Ratios (Total 100%) - 입금/출금/잔액 컬럼 확장 */
+.col-date   { width: 16%; }
+.col-time   { width: 9%; }
+.col-region { width: 12.5%; }
+.col-clinic { width: 13.5%; }
+.col-trans  { width: 16%; }
+.col-hr     { width: 16%; }
+.col-ot     { width: 17%; }
+
+/* Ledger Money Cells (8자리 숫자 잘림 방지) */
+.ledger-cell-money {
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.4px !important;
+  font-variant-numeric: tabular-nums !important;
+  padding: 3px 2px !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: clip !important;
+}
+
+@media (max-width: 400px) {
+  .ledger-cell-money {
+    font-size: 9.5px !important;
+    letter-spacing: -0.6px !important;
+    padding: 3px 1px !important;
+  }
+}
 
 /* Table Specific Cell Styles */
 .cell-date {
@@ -1908,8 +1938,19 @@ td.cell-date {
 .ledger-month-divider-num-cell {
   text-align: right !important;
   font-weight: 700 !important;
-  font-size: 12px !important;
-  padding-right: 6px !important;
+  font-size: 10.5px !important;
+  letter-spacing: -0.4px !important;
+  font-variant-numeric: tabular-nums !important;
+  padding: 3px 2px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+}
+@media (max-width: 400px) {
+  .ledger-month-divider-num-cell {
+    font-size: 9.5px !important;
+    letter-spacing: -0.6px !important;
+    padding: 3px 1px !important;
+  }
 }
 .ledger-month-income-cell {
   color: #15803D !important;
