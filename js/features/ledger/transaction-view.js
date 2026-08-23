@@ -87,9 +87,11 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
   memoCell.textContent = item.memo || '';
   detailRow.appendChild(memoCell);
   const makeTag = value => {
+    const text = String(value || '').trim();
+    if (!text) return null;
     const tag = document.createElement('span');
     tag.className = 'ledger-bottom-tag';
-    tag.textContent = value || '\u2014';
+    tag.textContent = text;
     return tag;
   };
   const regularityCell = document.createElement('td');
@@ -97,12 +99,10 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
   const isFixedCost = String(item.fixedCost || '').trim() === '\uACE0\uC815\uBE44';
   if (useMergedPaymentColumn && isFixedCost) {
     const fixedCostTag = makeTag('\uACE0\uC815\uBE44');
-    regularityCell.appendChild(fixedCostTag);
+    if (fixedCostTag) regularityCell.appendChild(fixedCostTag);
   } else if (!useMergedPaymentColumn) {
-    const paymentTag = document.createElement('span');
-    paymentTag.className = 'ledger-bottom-tag';
-    paymentTag.textContent = String(item.payment || '').trim();
-    regularityCell.appendChild(paymentTag);
+    const paymentTag = makeTag(item.payment);
+    if (paymentTag) regularityCell.appendChild(paymentTag);
   }
   detailRow.appendChild(regularityCell);
   const makeDayEndCell = () => {
@@ -118,13 +118,17 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
   }
   const personCell = makeDayEndCell();
   const personTag = makeTag(item.person);
-  personTag.style.backgroundColor = getLedgerTagColor(colorSettings, 'person', item.person);
-  personCell.appendChild(personTag);
+  if (personTag) {
+    personTag.style.backgroundColor = getLedgerTagColor(colorSettings, 'person', item.person);
+    personCell.appendChild(personTag);
+  }
   tagRow.appendChild(personCell);
   const categoryCell = makeDayEndCell();
   const categoryTag = makeTag(item.category);
-  categoryTag.style.backgroundColor = getLedgerTagColor(colorSettings, 'category', item.category);
-  categoryCell.appendChild(categoryTag);
+  if (categoryTag) {
+    categoryTag.style.backgroundColor = getLedgerTagColor(colorSettings, 'category', item.category);
+    categoryCell.appendChild(categoryTag);
+  }
   tagRow.appendChild(categoryCell);
   const incomeCell = makeDayEndCell();
   incomeCell.className += ' ledger-cell-money ledger-cell-income';
