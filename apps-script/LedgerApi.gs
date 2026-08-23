@@ -24,6 +24,81 @@ function handleGetLedgerData(e) {
   };
 }
 
+function repairAllSheetColumns() {
+  var spreadsheet = getLedgerSpreadsheet();
+  var sheets = ['기업카드', '토스은행', '현금', '기업은행'];
+  var results = {};
+
+  sheets.forEach(function(sheetName) {
+    var sheet = spreadsheet.getSheetByName(sheetName);
+    if (!sheet) return;
+    var lastRow = sheet.getLastRow();
+    var lastCol = sheet.getLastColumn();
+    if (lastRow < 2 || lastCol < 1) return;
+
+    var headers = sheet.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
+    var index = headerIndex(headers);
+    if (index['amount'] === undefined && index['지출'] === undefined) return;
+
+    var targetHeaders = ['type', 'amount', '수입', '지출'];
+    var colMap = {};
+    targetHeaders.forEach(function(h) {
+      if (index[h] !== undefined) colMap[h] = index[h] + 1;
+    });
+
+    var rows = lastRow - 1;
+    var dateVals = index['날짜'] !== undefined ? sheet.getRange(2, index['날짜'] + 1, rows, 1).getDisplayValues() : [];
+    var itemVals = index['항목'] !== undefined ? sheet.getRange(2, index['항목'] + 1, rows, 1).getDisplayValues() : [];
+    var typeVals = colMap['type'] ? sheet.getRange(2, colMap['type'], rows, 1).getDisplayValues() : [];
+    var amountVals = colMap['amount'] ? sheet.getRange(2, colMap['amount'], rows, 1).getValues() : [];
+    var incomeVals = colMap['수입'] ? sheet.getRange(2, colMap['수입'], rows, 1).getValues() : [];
+    var expenseVals = colMap['지출'] ? sheet.getRange(2, colMap['지출'], rows, 1).getValues() : [];
+
+    var newTypes = [];
+    var newAmounts = [];
+    var newIncomes = [];
+    var newExpenses = [];
+
+    for (var r = 0; r < rows; r++) {
+      var d = dateVals[r] ? cleanText(dateVals[r][0]) : '';
+      var it = itemVals[r] ? cleanText(itemVals[r][0]) : '';
+      var t = typeVals[r] ? cleanText(typeVals[r][0]).toLowerCase() : '';
+      var a = amountVals[r] ? amountVals[r][0] : 0;
+      var inc = incomeVals[r] ? incomeVals[r][0] : '';
+      var exp = expenseVals[r] ? expenseVals[r][0] : '';
+
+      var num = requiredAmount(a || inc || exp);
+      if (!d && !it && num === 0) {
+        newTypes.push(['']);
+        newAmounts.push(['']);
+        newIncomes.push(['']);
+        newExpenses.push(['']);
+        continue;
+      }
+
+      if (!t) {
+        if (cleanText(inc)) t = 'income';
+        else if (cleanText(exp)) t = 'expense';
+        else t = 'expense';
+      }
+
+      newTypes.push([t]);
+      newAmounts.push([num]);
+      newIncomes.push([t === 'income' ? num : '']);
+      newExpenses.push([t === 'expense' ? num : '']);
+    }
+
+    if (colMap['type']) sheet.getRange(2, colMap['type'], rows, 1).setValues(newTypes);
+    if (colMap['amount']) sheet.getRange(2, colMap['amount'], rows, 1).setValues(newAmounts);
+    if (colMap['수입']) sheet.getRange(2, colMap['수입'], rows, 1).setValues(newIncomes);
+    if (colMap['지출']) sheet.getRange(2, colMap['지출'], rows, 1).setValues(newExpenses);
+
+    results[sheetName] = rows;
+  });
+
+  return { ok: true, results: results };
+}
+
 function upsertLedgerRecord(record) {
   var target = getWriteTarget(record);
   var existingRow = findExistingRow(target, record);

@@ -15,6 +15,9 @@ function doGet(e) {
     if (action === 'GET_LEDGER_DATA') {
       return jsonResponse(handleGetLedgerData(e));
     }
+    if (action === 'REPAIR_SHEETS') {
+      return jsonResponse(repairAllSheetColumns());
+    }
     return jsonResponse({
       ok: false,
       error: '\uC9C0\uC6D0\uD558\uC9C0 \uC54A\uB294 \uC694\uCCAD\uC785\uB2C8\uB2E4.',

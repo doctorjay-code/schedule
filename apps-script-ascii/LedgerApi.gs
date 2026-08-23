@@ -24,6 +24,81 @@ function handleGetLedgerData(e) {
   };
 }
 
+function repairAllSheetColumns() {
+  var spreadsheet = getLedgerSpreadsheet();
+  var sheets = ['\uAE30\uC5C5\uCE74\uB4DC', '\uD1A0\uC2A4\uC740\uD589', '\uD604\uAE08', '\uAE30\uC5C5\uC740\uD589'];
+  var results = {};
+
+  sheets.forEach(function(sheetName) {
+    var sheet = spreadsheet.getSheetByName(sheetName);
+    if (!sheet) return;
+    var lastRow = sheet.getLastRow();
+    var lastCol = sheet.getLastColumn();
+    if (lastRow < 2 || lastCol < 1) return;
+
+    var headers = sheet.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
+    var index = headerIndex(headers);
+    if (index['amount'] === undefined && index['\uC9C0\uCD9C'] === undefined) return;
+
+    var targetHeaders = ['type', 'amount', '\uC218\uC785', '\uC9C0\uCD9C'];
+    var colMap = {};
+    targetHeaders.forEach(function(h) {
+      if (index[h] !== undefined) colMap[h] = index[h] + 1;
+    });
+
+    var rows = lastRow - 1;
+    var dateVals = index['\uB0A0\uC9DC'] !== undefined ? sheet.getRange(2, index['\uB0A0\uC9DC'] + 1, rows, 1).getDisplayValues() : [];
+    var itemVals = index['\uD56D\uBAA9'] !== undefined ? sheet.getRange(2, index['\uD56D\uBAA9'] + 1, rows, 1).getDisplayValues() : [];
+    var typeVals = colMap['type'] ? sheet.getRange(2, colMap['type'], rows, 1).getDisplayValues() : [];
+    var amountVals = colMap['amount'] ? sheet.getRange(2, colMap['amount'], rows, 1).getValues() : [];
+    var incomeVals = colMap['\uC218\uC785'] ? sheet.getRange(2, colMap['\uC218\uC785'], rows, 1).getValues() : [];
+    var expenseVals = colMap['\uC9C0\uCD9C'] ? sheet.getRange(2, colMap['\uC9C0\uCD9C'], rows, 1).getValues() : [];
+
+    var newTypes = [];
+    var newAmounts = [];
+    var newIncomes = [];
+    var newExpenses = [];
+
+    for (var r = 0; r < rows; r++) {
+      var d = dateVals[r] ? cleanText(dateVals[r][0]) : '';
+      var it = itemVals[r] ? cleanText(itemVals[r][0]) : '';
+      var t = typeVals[r] ? cleanText(typeVals[r][0]).toLowerCase() : '';
+      var a = amountVals[r] ? amountVals[r][0] : 0;
+      var inc = incomeVals[r] ? incomeVals[r][0] : '';
+      var exp = expenseVals[r] ? expenseVals[r][0] : '';
+
+      var num = requiredAmount(a || inc || exp);
+      if (!d && !it && num === 0) {
+        newTypes.push(['']);
+        newAmounts.push(['']);
+        newIncomes.push(['']);
+        newExpenses.push(['']);
+        continue;
+      }
+
+      if (!t) {
+        if (cleanText(inc)) t = 'income';
+        else if (cleanText(exp)) t = 'expense';
+        else t = 'expense';
+      }
+
+      newTypes.push([t]);
+      newAmounts.push([num]);
+      newIncomes.push([t === 'income' ? num : '']);
+      newExpenses.push([t === 'expense' ? num : '']);
+    }
+
+    if (colMap['type']) sheet.getRange(2, colMap['type'], rows, 1).setValues(newTypes);
+    if (colMap['amount']) sheet.getRange(2, colMap['amount'], rows, 1).setValues(newAmounts);
+    if (colMap['\uC218\uC785']) sheet.getRange(2, colMap['\uC218\uC785'], rows, 1).setValues(newIncomes);
+    if (colMap['\uC9C0\uCD9C']) sheet.getRange(2, colMap['\uC9C0\uCD9C'], rows, 1).setValues(newExpenses);
+
+    results[sheetName] = rows;
+  });
+
+  return { ok: true, results: results };
+}
+
 function upsertLedgerRecord(record) {
   var target = getWriteTarget(record);
   var existingRow = findExistingRow(target, record);

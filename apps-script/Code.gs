@@ -15,6 +15,9 @@ function doGet(e) {
     if (action === 'GET_LEDGER_DATA') {
       return jsonResponse(handleGetLedgerData(e));
     }
+    if (action === 'REPAIR_SHEETS') {
+      return jsonResponse(repairAllSheetColumns());
+    }
     return jsonResponse({
       ok: false,
       error: '지원하지 않는 요청입니다.',
