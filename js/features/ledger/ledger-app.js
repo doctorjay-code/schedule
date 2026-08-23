@@ -6,12 +6,12 @@ import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor } from '
 import { filterLedgerRecords } from './card.js';
 import { normalizeFundplanRows } from './fundplan.js';
 import { groupExpenses, renderStatList } from './stats.js';
-import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260823_19';
-import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260823_19';
-import { createLedgerColorSettings } from './modals/color-settings.js?v=20260823_19';
-import { bindLedgerListActions } from './ledger-events.js?v=20260823_19';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_19';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_19';
+import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260823_20';
+import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260823_20';
+import { createLedgerColorSettings } from './modals/color-settings.js?v=20260823_20';
+import { bindLedgerListActions } from './ledger-events.js?v=20260823_20';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_20';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_20';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -459,8 +459,10 @@ function applyOptimisticDelete(record) {
 }
 
 function refreshLedgerInBackground(record) {
-  refreshLedgerSheetData(ledgerSheetNameForRecord(record)).catch(() => {});
+  const sheetName = ledgerSheetNameForRecord(record);
+  if (sheetName) refreshLedgerSheetData(sheetName).catch(() => {});
 }
+
 function saveLedgerRecord(form, overrides = {}) {
   const values = { ...Object.fromEntries(new FormData(form).entries()), ...overrides };
   const amount = Number(values.amount);
@@ -470,13 +472,14 @@ function saveLedgerRecord(form, overrides = {}) {
   const existing = ledgerState.records.find(record => record.id === values.ledgerEditId);
   const memo = (values.memo || '').trim();
   const personMatch = memo.match(/콩콩|쥬쥬|지니/);
+  const payment = values.payment || ledgerState.payment || '토스은행';
   const record = {
     ...(existing || {}),
     id: values.ledgerEditId || ('tx_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7)),
     date: values.date,
     type: values.type,
     amount,
-    payment: values.payment,
+    payment,
     item: values.item.trim(),
     person: personMatch ? personMatch[0] : '기타',
     category: values.category,
@@ -484,7 +487,7 @@ function saveLedgerRecord(form, overrides = {}) {
     memo,
     createdAt: existing?.createdAt ?? Date.now()
   };
-  const snapshot = captureLedgerSheetState();
+  record.sheetName = ledgerSheetNameForRecord(record);
 
   applyOptimisticSave(record);
   getLedgerTransactionModal().close();
@@ -496,8 +499,7 @@ function saveLedgerRecord(form, overrides = {}) {
       refreshLedgerInBackground(record);
     } catch (error) {
       console.error('Background ledger save error:', error);
-      restoreLedgerSheetState(snapshot);
-      showLedgerToast('⚠️ 시트 저장 중 지연이 발생했습니다.');
+      showLedgerToast('⚠️ 시트 저장 동기화 지연 중 (로컬 반영 완료)');
     }
   })();
 }
@@ -510,7 +512,10 @@ function deleteRecord(id) {
   }
   if (!confirm('이 거래를 삭제할까요?')) return;
 
-  const snapshot = captureLedgerSheetState();
+  const deletePayload = {
+    ...record,
+    sheetName: ledgerSheetNameForRecord(record)
+  };
 
   applyOptimisticDelete(record);
   getLedgerTransactionModal().close();
@@ -518,14 +523,12 @@ function deleteRecord(id) {
 
   (async () => {
     try {
-      if (!String(record.id || '').startsWith('cp_')) {
-        await deleteLedgerSheetRecord(record);
+      if (deletePayload.sheetRow || !String(deletePayload.id || '').startsWith('cp_')) {
+        await deleteLedgerSheetRecord(deletePayload);
       }
-      refreshLedgerInBackground(record);
+      refreshLedgerInBackground(deletePayload);
     } catch (error) {
       console.error('Background ledger delete error:', error);
-      restoreLedgerSheetState(snapshot);
-      showLedgerToast('⚠️ 시트 삭제 중 지연이 발생했습니다.');
     }
   })();
 }
