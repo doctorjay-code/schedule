@@ -10,8 +10,8 @@ import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, 
 import { createLedgerTransactionModal } from './modals/transaction-modal.js';
 import { createLedgerColorSettings } from './modals/color-settings.js';
 import { bindLedgerListActions } from './ledger-events.js';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_16';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_16';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_17';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_17';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
