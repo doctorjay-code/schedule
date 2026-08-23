@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="스마트일정">
-  <link rel="stylesheet" href="style.css?v=20260823_4">
+  <link rel="stylesheet" href="style.css?v=20260823_5">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -648,7 +648,7 @@
 
   </div>
 
-  <script type="module" src="js/bootstrap.js?v=20260823_4"></script>
+  <script type="module" src="js/bootstrap.js?v=20260823_5"></script>
 <div class="modal-overlay" id="ledgerAverageBalanceOverlay">
   <section class="bottom-sheet ledger-average-sheet" role="dialog" aria-modal="true" aria-labelledby="ledgerAverageBalanceTitle">
     <div class="sheet-handle"></div>
@@ -670,14 +670,11 @@
         <form class="sheet-body" id="ledgerTransactionForm">
           <input id="ledgerModalEditId" name="ledgerEditId" type="hidden">
 
-          <div class="ledger-modal-top-row">
-            <div class="form-group ledger-modal-date-field">
-              <label for="ledgerModalDate">날짜</label>
-              <input class="input-text" id="ledgerModalDate" name="date" type="date" required>
-            </div>
-            <div class="form-group ledger-modal-fixed-field">
-              <label>고정비</label>
-              <div class="btn-group" id="ledgerModalFixedCostGroup" data-allow-empty="true">
+          <div class="section-card date-card">
+            <div class="card-header"><span>날짜 · 구분</span></div>
+            <div class="input-row-split">
+              <input class="input-text inline-input" id="ledgerModalDate" name="date" type="date" required>
+              <div class="btn-group ledger-modal-fixed-wrap" id="ledgerModalFixedCostGroup" data-allow-empty="true">
                 <button class="option-btn" data-val="고정비" type="button">고정비</button>
               </div>
               <input id="ledgerModalFixedCost" name="fixedCost" type="hidden">

@@ -2308,43 +2308,25 @@ body {
 #ledgerTransactionBottomSheet .sheet-handle { margin: 0 auto 12px; }
 #ledgerTransactionBottomSheet .sheet-header { margin-bottom: 16px; }
 #ledgerTransactionBottomSheet .sheet-body { padding: 0; }
-#ledgerTransactionBottomSheet .ledger-modal-top-row {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  margin-bottom: 12px;
+.date-card {
+  background-color: #EFF6FF;
 }
-#ledgerTransactionBottomSheet .ledger-modal-top-row .form-group {
-  margin-bottom: 0;
-}
-#ledgerTransactionBottomSheet .ledger-modal-date-field {
-  flex: 1 1 auto;
+#ledgerTransactionBottomSheet .date-card .ledger-modal-fixed-wrap {
+  flex: 0 0 76px;
   min-width: 0;
-}
-#ledgerTransactionBottomSheet .ledger-modal-date-field input[type="date"] {
-  width: 100%;
-  height: 42px;
-  box-sizing: border-box;
-  padding: 8px 10px;
-}
-#ledgerTransactionBottomSheet .ledger-modal-fixed-field {
-  flex: 0 0 84px;
-  width: 84px;
-}
-#ledgerTransactionBottomSheet .ledger-modal-fixed-field .btn-group {
   display: flex;
-  width: 100%;
 }
-#ledgerTransactionBottomSheet .ledger-modal-fixed-field .option-btn {
+#ledgerTransactionBottomSheet .date-card .ledger-modal-fixed-wrap .option-btn {
   width: 100%;
-  height: 42px;
+  height: 38px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
   box-sizing: border-box;
-  margin: 0;
 }
 #ledgerTransactionBottomSheet .ledger-modal-category-field { margin-bottom: 12px; }
 #ledgerTransactionBottomSheet .section-card { margin-bottom: 12px; }
