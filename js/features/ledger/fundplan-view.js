@@ -1,7 +1,7 @@
 import { toIso, formatMoney } from './ledger-utils.js';
 import { createLedgerTableHead, renderTransactionRow } from './transaction-view.js';
 
-function getRecordMonthGroup(record, isCompanyCard) {
+export function getRecordMonthGroup(record, isCompanyCard) {
   if (!isCompanyCard) {
     return record.date.slice(0, 7);
   }
@@ -20,7 +20,7 @@ function getRecordMonthGroup(record, isCompanyCard) {
   return `${year}-${String(month).padStart(2, '0')}`;
 }
 
-function formatMonthTitle(monthKey, isCompanyCard) {
+export function formatMonthTitle(monthKey, isCompanyCard) {
   const [yearStr, monthStr] = monthKey.split('-');
   const year = parseInt(yearStr, 10);
   const month = parseInt(monthStr, 10);
@@ -29,6 +29,76 @@ function formatMonthTitle(monthKey, isCompanyCard) {
   }
   const prevMonth = month === 1 ? 12 : month - 1;
   return `${year}년 ${month}월 (${String(prevMonth).padStart(2, '0')}.13~${String(month).padStart(2, '0')}.12)`;
+}
+
+export function createLedgerMonthDividerRow({
+  monthKey,
+  isCompanyCard = false,
+  isExpanded = true,
+  monthRecords = [],
+  onToggle = null
+}) {
+  const monthIncome = monthRecords.filter(x => x.type === 'income').reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
+  const monthExpense = monthRecords.filter(x => x.type === 'expense').reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
+
+  const dividerRow = document.createElement('tr');
+  dividerRow.className = 'ledger-month-divider-row';
+  dividerRow.dataset.month = monthKey;
+
+  // Column 1~4 (날짜, 수단, 사용자, 사용처)
+  const titleCell = document.createElement('td');
+  titleCell.colSpan = 4;
+  titleCell.className = 'ledger-month-divider-title-cell';
+
+  const content = document.createElement('div');
+  content.className = 'ledger-month-divider-content';
+
+  const toggleIcon = document.createElement('span');
+  toggleIcon.className = 'ledger-month-toggle-icon';
+  toggleIcon.textContent = isExpanded ? '\u25BC' : '\u25B6';
+
+  const titleEl = document.createElement('strong');
+  titleEl.className = 'ledger-month-title';
+  titleEl.textContent = formatMonthTitle(monthKey, isCompanyCard);
+
+  content.append(toggleIcon, titleEl);
+  titleCell.appendChild(content);
+  dividerRow.appendChild(titleCell);
+
+  // Column 5 (수입 / 입금)
+  const incomeCell = document.createElement('td');
+  incomeCell.className = 'ledger-month-divider-num-cell ledger-month-income-cell';
+  incomeCell.textContent = monthIncome > 0 ? formatMoney(monthIncome) : '';
+  dividerRow.appendChild(incomeCell);
+
+  // Column 6 (지출 / 출금)
+  const expenseCell = document.createElement('td');
+  expenseCell.className = 'ledger-month-divider-num-cell ledger-month-expense-cell';
+  expenseCell.textContent = monthExpense > 0 ? formatMoney(monthExpense) : '';
+  dividerRow.appendChild(expenseCell);
+
+  // Column 7 (사용액 / 잔액)
+  const balanceCell = document.createElement('td');
+  balanceCell.className = 'ledger-month-divider-num-cell ledger-month-balance-cell';
+  if (isCompanyCard) {
+    balanceCell.textContent = monthExpense > 0 ? formatMoney(monthExpense) : '';
+  } else {
+    const lastRecord = monthRecords[monthRecords.length - 1];
+    const lastBalance = Number(lastRecord?.balance);
+    balanceCell.textContent = Number.isFinite(lastBalance)
+      ? `${lastBalance < 0 ? '-' : ''}${formatMoney(lastBalance)}`
+      : '';
+    if (lastBalance < 0) balanceCell.style.color = '#DC2626';
+  }
+  dividerRow.appendChild(balanceCell);
+
+  if (onToggle) {
+    dividerRow.addEventListener('click', () => {
+      onToggle(toggleIcon);
+    });
+  }
+
+  return dividerRow;
 }
 
 // Bank, cash, and card all-time ledger rendering responsibility.
@@ -97,67 +167,26 @@ export function createFundplanView({ ledgerState, colorSettings, getActiveSource
     months.forEach(month => {
       const monthRecords = grouped[month];
       const isExpanded = monthExpandedState[month] !== false;
+      const monthRowElements = [];
 
-      // Calculate month totals
-      const monthIncome = monthRecords.filter(x => x.type === 'income').reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
-      const monthExpense = monthRecords.filter(x => x.type === 'expense').reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
-
-      // 1. Clean Month Header Row with matching columns
-      const dividerRow = document.createElement('tr');
-      dividerRow.className = 'ledger-month-divider-row';
-      dividerRow.dataset.month = month;
-
-      // Column 1~4 (날짜, 수단, 사용자, 사용처)
-      const titleCell = document.createElement('td');
-      titleCell.colSpan = 4;
-      titleCell.className = 'ledger-month-divider-title-cell';
-
-      const content = document.createElement('div');
-      content.className = 'ledger-month-divider-content';
-
-      const toggleIcon = document.createElement('span');
-      toggleIcon.className = 'ledger-month-toggle-icon';
-      toggleIcon.textContent = isExpanded ? '\u25BC' : '\u25B6';
-
-      const titleEl = document.createElement('strong');
-      titleEl.className = 'ledger-month-title';
-      titleEl.textContent = formatMonthTitle(month, isCompanyCard);
-
-      content.append(toggleIcon, titleEl);
-      titleCell.appendChild(content);
-      dividerRow.appendChild(titleCell);
-
-      // Column 5 (수입 / 입금)
-      const incomeCell = document.createElement('td');
-      incomeCell.className = 'ledger-month-divider-num-cell ledger-month-income-cell';
-      incomeCell.textContent = monthIncome > 0 ? formatMoney(monthIncome) : '';
-      dividerRow.appendChild(incomeCell);
-
-      // Column 6 (지출 / 출금)
-      const expenseCell = document.createElement('td');
-      expenseCell.className = 'ledger-month-divider-num-cell ledger-month-expense-cell';
-      expenseCell.textContent = monthExpense > 0 ? formatMoney(monthExpense) : '';
-      dividerRow.appendChild(expenseCell);
-
-      // Column 7 (사용액 / 잔액)
-      const balanceCell = document.createElement('td');
-      balanceCell.className = 'ledger-month-divider-num-cell ledger-month-balance-cell';
-      if (isCompanyCard) {
-        balanceCell.textContent = monthExpense > 0 ? formatMoney(monthExpense) : '';
-      } else {
-        const lastRecord = monthRecords[monthRecords.length - 1];
-        const lastBalance = Number(lastRecord?.balance);
-        balanceCell.textContent = Number.isFinite(lastBalance)
-          ? `${lastBalance < 0 ? '-' : ''}${formatMoney(lastBalance)}`
-          : '';
-        if (lastBalance < 0) balanceCell.style.color = '#DC2626';
-      }
-      dividerRow.appendChild(balanceCell);
-
+      const dividerRow = createLedgerMonthDividerRow({
+        monthKey: month,
+        isCompanyCard,
+        isExpanded,
+        monthRecords,
+        onToggle: toggleIcon => {
+          const currentlyExpanded = monthExpandedState[month] !== false;
+          const willExpand = !currentlyExpanded;
+          monthExpandedState[month] = willExpand;
+          toggleIcon.textContent = willExpand ? '\u25BC' : '\u25B6';
+          monthRowElements.forEach(r => {
+            r.style.display = willExpand ? '' : 'none';
+          });
+        }
+      });
       list.appendChild(dividerRow);
 
       // 2. Month Transaction Rows
-      const monthRowElements = [];
       monthRecords.forEach(record => {
         const prevCount = list.children.length;
         renderTransactionRow(record, 'fundplanAllTimeList', { source, colorSettings });
@@ -168,17 +197,6 @@ export function createFundplanView({ ledgerState, colorSettings, getActiveSource
           if (!isExpanded) rowEl.style.display = 'none';
           monthRowElements.push(rowEl);
         }
-      });
-
-      // Click to toggle month rows
-      dividerRow.addEventListener('click', () => {
-        const currentlyExpanded = monthExpandedState[month] !== false;
-        const willExpand = !currentlyExpanded;
-        monthExpandedState[month] = willExpand;
-        toggleIcon.textContent = willExpand ? '\u25BC' : '\u25B6';
-        monthRowElements.forEach(r => {
-          r.style.display = willExpand ? '' : 'none';
-        });
       });
     });
   }

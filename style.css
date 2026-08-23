@@ -829,13 +829,13 @@ body {
 .col-hr     { width: 18%; }
 .col-ot     { width: 19%; }
 
-/* Ledger Money Cells (큰 숫자 잘림 완벽 방지) */
+/* Ledger Money Cells (상세 거래행 글자 크기 - 원래 크기) */
 .ledger-cell-money {
-  font-size: 9.5px !important;
+  font-size: 11.5px !important;
   font-weight: 700 !important;
-  letter-spacing: -0.5px !important;
+  letter-spacing: -0.3px !important;
   font-variant-numeric: tabular-nums !important;
-  padding: 2px 1px !important;
+  padding: 3px 2px !important;
   text-align: right !important;
   white-space: nowrap !important;
   overflow: hidden !important;
@@ -844,9 +844,9 @@ body {
 
 @media (max-width: 400px) {
   .ledger-cell-money {
-    font-size: 8.5px !important;
-    letter-spacing: -0.7px !important;
-    padding: 2px 0px !important;
+    font-size: 10.5px !important;
+    letter-spacing: -0.4px !important;
+    padding: 3px 1px !important;
   }
 }
 

@@ -10,8 +10,8 @@ import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, 
 import { createLedgerTransactionModal } from './modals/transaction-modal.js';
 import { createLedgerColorSettings } from './modals/color-settings.js';
 import { bindLedgerListActions } from './ledger-events.js';
-import { createFundplanView } from './fundplan-view.js?v=20260823_5';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_5';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_6';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_6';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -737,9 +737,9 @@ function renderMonthlyList(items) {
   const sorted = [...items].sort((a,b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
   setText('ledgerMonthlyTransactionCount', sorted.length + '\uAC74');
 
+  const isCompanyCard = ledgerState.source === 'card' && ledgerState.payment === '\uAE30\uC5C5\uCE74\uB4DC';
   const thead = document.getElementById('ledgerMonthlyTableHead');
   if (thead) {
-    const isCompanyCard = ledgerState.source === 'card' && ledgerState.payment === '\uAE30\uC5C5\uCE74\uB4DC';
     const moneyInLabel = isCompanyCard ? '\uC218\uC785' : '\uC785\uAE08';
     const moneyOutLabel = isCompanyCard ? '\uC9C0\uCD9C' : '\uCD9C\uAE08';
     const balanceLabel = isCompanyCard ? '\uC0AC\uC6A9\uC561' : '\uC794\uC561';
@@ -756,7 +756,34 @@ function renderMonthlyList(items) {
     appendLedgerEmptyRow(list, ledgerState.payment + '\uC758 \uC774\uBC88 \uB2EC \uAC70\uB798\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.');
     return;
   }
-  sorted.forEach(item => renderTransactionRow(item, 'ledgerMonthlyTransactionList', { source: ledgerState.source, colorSettings: state.colorSettings }));
+
+  const monthKey = `${ledgerState.monthCursor.getFullYear()}-${String(ledgerState.monthCursor.getMonth() + 1).padStart(2, '0')}`;
+  let monthlyExpanded = true;
+  const monthRowElements = [];
+
+  const dividerRow = createLedgerMonthDividerRow({
+    monthKey,
+    isCompanyCard,
+    isExpanded: true,
+    monthRecords: sorted,
+    onToggle: toggleIcon => {
+      monthlyExpanded = !monthlyExpanded;
+      toggleIcon.textContent = monthlyExpanded ? '\u25BC' : '\u25B6';
+      monthRowElements.forEach(r => {
+        r.style.display = monthlyExpanded ? '' : 'none';
+      });
+    }
+  });
+  list.appendChild(dividerRow);
+
+  sorted.forEach(item => {
+    const prevCount = list.children.length;
+    renderTransactionRow(item, 'ledgerMonthlyTransactionList', { source: ledgerState.source, colorSettings: state.colorSettings });
+    const newCount = list.children.length;
+    for (let i = prevCount; i < newCount; i++) {
+      monthRowElements.push(list.children[i]);
+    }
+  });
 }
 
 function getReportRecords() {
