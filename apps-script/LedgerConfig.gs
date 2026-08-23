@@ -26,7 +26,7 @@ var LEDGER_PAYMENT_TO_SHEET = {
 var BALANCE_FORECAST_SHEET_NAME = '잔액전망';
 var BALANCE_SYNC_SOURCE_SHEETS = ['기업카드', '토스은행', '기업은행'];
 var BALANCE_SYNC_CONFIG = {
-  lockWaitMs: 20000,
+  lockWaitMs: 3000,
   currentCardPaymentDueDay: 27,
   cardCycleStartDay: 13,
   cardCycleEndDay: 12,

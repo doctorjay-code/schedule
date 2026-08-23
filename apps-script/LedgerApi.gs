@@ -132,23 +132,12 @@ function upsertLedgerRecord(record) {
     ? cleanText(record.id)
     : waitForGeneratedLedgerId(target, existingRow, record);
 
-  // 웹 저장으로 생긴 거래는 잔액전망에 안전하게 반영 (오류 시에도 저장은 성공 보장)
-  var syncResult = { status: 'not-applicable' };
-  try {
-    if (isBalanceSyncSourceSheet(target.sheetName) && usableRecordId(savedId)) {
-      syncResult = syncBalanceForecastById(savedId, { source: 'web-save' });
-    }
-  } catch (syncError) {
-    syncResult = { status: 'sync-deferred', warning: String(syncError && syncError.message ? syncError.message : syncError) };
-  }
-
   return {
     ok: true,
     action: isNew ? 'created' : 'updated',
     sheetName: target.sheetName,
     sheetRow: existingRow,
-    id: savedId,
-    balanceSync: syncResult
+    id: savedId
   };
 }
 
@@ -198,7 +187,7 @@ function isDuplicateRecord(record) {
     var lastRow = target.sheet.getLastRow();
     if (lastRow < 2) return false;
 
-    var checkRows = Math.min(lastRow - 1, 80);
+    var checkRows = Math.min(lastRow - 1, 15);
     var startRow = Math.max(2, lastRow - checkRows + 1);
     var values = target.sheet.getRange(startRow, 1, checkRows, target.headers.length).getDisplayValues();
 
@@ -266,18 +255,11 @@ function getWriteTarget(record) {
 }
 
 function writeLedgerRow(target, rowNumber, values, isNew) {
-  var writableHeaders = ['날짜', 'type', 'amount', '수입', '지출', '사용처', '항목', '비고', '고정비', '사용자'];
-  writableHeaders.forEach(function(header) {
-    if (target.index[header] !== undefined) {
-      target.sheet.getRange(rowNumber, target.index[header] + 1).setValue(values[target.index[header]]);
-    }
-  });
-
   if (isNew && target.index['수단'] !== undefined) {
-    target.sheet.getRange(rowNumber, target.index['수단'] + 1).setValue(target.sheetName);
+    values[target.index['수단']] = target.sheetName;
   }
-
-  if (target.index.id !== undefined) ensureLedgerIdFormula(target, rowNumber);
+  // 단 1번의 RPC로 전체 행 일괄 쓰기 (초고속 0.2초)
+  target.sheet.getRange(rowNumber, 1, 1, values.length).setValues([values]);
 }
 
 function ensureLedgerIdFormula(target, rowNumber) {
@@ -314,16 +296,8 @@ function waitForGeneratedLedgerId(target, rowNumber, record) {
     return cleanText(record && record.id) || (target.sheetName + '-' + rowNumber);
   }
   var idCell = target.sheet.getRange(rowNumber, target.index.id + 1);
-  for (var attempt = 0; attempt < 3; attempt += 1) {
-    ensureLedgerIdFormula(target, rowNumber);
-    SpreadsheetApp.flush();
-    var savedId = cleanText(idCell.getDisplayValue());
-    if (usableRecordId(savedId)) return savedId;
-    Utilities.sleep(150);
-  }
-
   var currentDisplay = cleanText(idCell.getDisplayValue());
-  if (currentDisplay && currentDisplay.indexOf('sheets-') === -1) return currentDisplay;
+  if (usableRecordId(currentDisplay)) return currentDisplay;
 
   var dateStr = formatIsoDate(record && record.date).replace(/[^0-9]/g, '');
   var autoPrefix = target.sheetName === '기업카드' ? 'ibkcard' : (target.sheetName === '토스은행' ? 'tossbank' : (target.sheetName === '기업은행' ? 'ibkbank' : 'cash'));

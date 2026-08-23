@@ -26,7 +26,7 @@ var LEDGER_PAYMENT_TO_SHEET = {
 var BALANCE_FORECAST_SHEET_NAME = '\uC794\uC561\uC804\uB9DD';
 var BALANCE_SYNC_SOURCE_SHEETS = ['\uAE30\uC5C5\uCE74\uB4DC', '\uD1A0\uC2A4\uC740\uD589', '\uAE30\uC5C5\uC740\uD589'];
 var BALANCE_SYNC_CONFIG = {
-  lockWaitMs: 20000,
+  lockWaitMs: 3000,
   currentCardPaymentDueDay: 27,
   cardCycleStartDay: 13,
   cardCycleEndDay: 12,

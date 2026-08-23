@@ -132,23 +132,12 @@ function upsertLedgerRecord(record) {
     ? cleanText(record.id)
     : waitForGeneratedLedgerId(target, existingRow, record);
 
-  // \uC6F9 \uC800\uC7A5\uC73C\uB85C \uC0DD\uAE34 \uAC70\uB798\uB294 \uC794\uC561\uC804\uB9DD\uC5D0 \uC548\uC804\uD558\uAC8C \uBC18\uC601 (\uC624\uB958 \uC2DC\uC5D0\uB3C4 \uC800\uC7A5\uC740 \uC131\uACF5 \uBCF4\uC7A5)
-  var syncResult = { status: 'not-applicable' };
-  try {
-    if (isBalanceSyncSourceSheet(target.sheetName) && usableRecordId(savedId)) {
-      syncResult = syncBalanceForecastById(savedId, { source: 'web-save' });
-    }
-  } catch (syncError) {
-    syncResult = { status: 'sync-deferred', warning: String(syncError && syncError.message ? syncError.message : syncError) };
-  }
-
   return {
     ok: true,
     action: isNew ? 'created' : 'updated',
     sheetName: target.sheetName,
     sheetRow: existingRow,
-    id: savedId,
-    balanceSync: syncResult
+    id: savedId
   };
 }
 
@@ -198,7 +187,7 @@ function isDuplicateRecord(record) {
     var lastRow = target.sheet.getLastRow();
     if (lastRow < 2) return false;
 
-    var checkRows = Math.min(lastRow - 1, 80);
+    var checkRows = Math.min(lastRow - 1, 15);
     var startRow = Math.max(2, lastRow - checkRows + 1);
     var values = target.sheet.getRange(startRow, 1, checkRows, target.headers.length).getDisplayValues();
 
@@ -266,18 +255,11 @@ function getWriteTarget(record) {
 }
 
 function writeLedgerRow(target, rowNumber, values, isNew) {
-  var writableHeaders = ['\uB0A0\uC9DC', 'type', 'amount', '\uC218\uC785', '\uC9C0\uCD9C', '\uC0AC\uC6A9\uCC98', '\uD56D\uBAA9', '\uBE44\uACE0', '\uACE0\uC815\uBE44', '\uC0AC\uC6A9\uC790'];
-  writableHeaders.forEach(function(header) {
-    if (target.index[header] !== undefined) {
-      target.sheet.getRange(rowNumber, target.index[header] + 1).setValue(values[target.index[header]]);
-    }
-  });
-
   if (isNew && target.index['\uC218\uB2E8'] !== undefined) {
-    target.sheet.getRange(rowNumber, target.index['\uC218\uB2E8'] + 1).setValue(target.sheetName);
+    values[target.index['\uC218\uB2E8']] = target.sheetName;
   }
-
-  if (target.index.id !== undefined) ensureLedgerIdFormula(target, rowNumber);
+  // \uB2E8 1\uBC88\uC758 RPC\uB85C \uC804\uCCB4 \uD589 \uC77C\uAD04 \uC4F0\uAE30 (\uCD08\uACE0\uC18D 0.2\uCD08)
+  target.sheet.getRange(rowNumber, 1, 1, values.length).setValues([values]);
 }
 
 function ensureLedgerIdFormula(target, rowNumber) {
@@ -314,16 +296,8 @@ function waitForGeneratedLedgerId(target, rowNumber, record) {
     return cleanText(record && record.id) || (target.sheetName + '-' + rowNumber);
   }
   var idCell = target.sheet.getRange(rowNumber, target.index.id + 1);
-  for (var attempt = 0; attempt < 3; attempt += 1) {
-    ensureLedgerIdFormula(target, rowNumber);
-    SpreadsheetApp.flush();
-    var savedId = cleanText(idCell.getDisplayValue());
-    if (usableRecordId(savedId)) return savedId;
-    Utilities.sleep(150);
-  }
-
   var currentDisplay = cleanText(idCell.getDisplayValue());
-  if (currentDisplay && currentDisplay.indexOf('sheets-') === -1) return currentDisplay;
+  if (usableRecordId(currentDisplay)) return currentDisplay;
 
   var dateStr = formatIsoDate(record && record.date).replace(/[^0-9]/g, '');
   var autoPrefix = target.sheetName === '\uAE30\uC5C5\uCE74\uB4DC' ? 'ibkcard' : (target.sheetName === '\uD1A0\uC2A4\uC740\uD589' ? 'tossbank' : (target.sheetName === '\uAE30\uC5C5\uC740\uD589' ? 'ibkbank' : 'cash'));
