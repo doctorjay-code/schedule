@@ -562,8 +562,6 @@ function bindLedgerEvents() {
   document.getElementById('ledgerBankSourceBtn')?.addEventListener('click', () => setLedgerSource('bank'));
   document.getElementById('ledgerCashSourceBtn')?.addEventListener('click', () => setLedgerSource('cash'));
   document.getElementById('ledgerForecastSourceBtn')?.addEventListener('click', () => setLedgerSource('forecast'));
-  document.getElementById('fundplanExpandAllBtn')?.addEventListener('click', () => getFundplanView().setAllExpanded(true));
-  document.getElementById('fundplanCollapseAllBtn')?.addEventListener('click', () => getFundplanView().setAllExpanded(false));
   document.getElementById('ledgerMonthlyToggleEntryBtn')?.addEventListener('click', () => toggleLedgerEntry());
   getLedgerColorSettings().bind();
   document.getElementById('ledgerReportBtn')?.addEventListener('click', () => {

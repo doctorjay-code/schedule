@@ -176,13 +176,6 @@
 
 <main class="ledger-wrapper hidden" id="ledgerViewWrapper">
     <section id="fundplanAllTimeWrapper" class="ledger-period-wrapper">
-      <div class="fundplan-header-toolbar">
-        <button class="ledger-toggle-entry-btn" id="ledgerToggleEntryBtn" type="button">＋ 거래 입력</button>
-        <div class="fundplan-fold-actions">
-          <button id="fundplanExpandAllBtn" type="button">전체 펼치기</button>
-          <button id="fundplanCollapseAllBtn" type="button">전체 접기</button>
-        </div>
-      </div>
       <div class="table-wrapper" aria-label="Ledger all-time transactions">
         <table class="schedule-table" id="ledgerAllTable">
           <thead id="ledgerAllTableHead">
@@ -199,10 +192,10 @@
           <tbody id="fundplanAllTimeList"></tbody>
         </table>
       </div>
+      <button class="ledger-toggle-entry-btn" id="ledgerToggleEntryBtn" type="button">＋ 거래 입력</button>
     </section>
 
     <section id="ledgerMonthlyWrapper" class="ledger-period-wrapper hidden">
-      <button class="ledger-toggle-entry-btn" id="ledgerMonthlyToggleEntryBtn" type="button">＋ 거래 입력</button>
       <div class="table-wrapper ledger-monthly-list" aria-label="Ledger monthly transactions">
         <table class="schedule-table" id="ledgerMonthlyTable">
           <thead id="ledgerMonthlyTableHead">
@@ -219,6 +212,7 @@
           <tbody id="ledgerMonthlyTransactionList"></tbody>
         </table>
       </div>
+      <button class="ledger-toggle-entry-btn" id="ledgerMonthlyToggleEntryBtn" type="button">＋ 거래 입력</button>
     </section>
 </main>
 <div class="modal-overlay" id="ledgerReportOverlay">
