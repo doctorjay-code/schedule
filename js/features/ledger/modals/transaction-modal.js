@@ -82,7 +82,11 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
       if (element) element.value = value[property] ?? '';
     });
     document.getElementById('ledgerModalType').value = value.type || 'expense';
-    document.getElementById('ledgerModalPayment').value = value.payment || defaults.payment;
+    let selectedPayment = String(value.payment || defaults.payment || '').trim();
+    if (selectedPayment === '토스' || selectedPayment === '토스카드' || selectedPayment === '토스뱅크') selectedPayment = '토스은행';
+    if (selectedPayment === '기업' || selectedPayment === '신용카드' || selectedPayment === '카드') selectedPayment = '기업카드';
+    if (selectedPayment === '통장' || selectedPayment === '은행') selectedPayment = '기업은행';
+    document.getElementById('ledgerModalPayment').value = selectedPayment || '현금';
     document.getElementById('ledgerModalPerson').value = memoParts.person;
     document.getElementById('ledgerModalMemo').value = memoParts.detail;
     setGroup('ledgerModalCategoryGroup', 'ledgerModalCategory', value.category);
