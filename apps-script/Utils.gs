@@ -85,6 +85,24 @@ function valuesEqual(left, right) {
   return cleanText(left) === cleanText(right);
 }
 
+function logApiRequest(e, result, error) {
+  try {
+    var ss = getLedgerSpreadsheet();
+    var logSheet = ss.getSheetByName('_API_LOGS');
+    if (!logSheet) {
+      logSheet = ss.insertSheet('_API_LOGS');
+      logSheet.appendRow(['일시', '수신데이터', '처리결과', '오류내용']);
+    }
+    var raw = e && e.postData ? e.postData.contents : '';
+    logSheet.appendRow([
+      timestamp(),
+      String(raw || '').slice(0, 3000),
+      JSON.stringify(result || '').slice(0, 3000),
+      error ? String(error.message || error) : ''
+    ]);
+  } catch (err) {}
+}
+
 function parsePostRequest(e) {
   if (!e || !e.postData) throw new Error('POST 본문이 없습니다.');
 
@@ -103,10 +121,16 @@ function parsePostRequest(e) {
   var raw = cleanText(e.postData.contents);
   if (!raw) throw new Error('POST 본문이 비어있습니다.');
 
-  // 2. JSON 파싱 시도
+  // 2. JSON 파싱 시도 (마크다운 ```json 및 여백 자동 제거)
+  var cleanJson = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
   try {
-    var request = JSON.parse(raw);
-    if (request && typeof request === 'object') return request;
+    var request = JSON.parse(cleanJson);
+    if (request && typeof request === 'object') {
+      if (Array.isArray(request)) {
+        return { action: 'BATCH_UPSERT_LEDGER_RECORDS', records: request };
+      }
+      return request;
+    }
   } catch (jsonErr) {
     // 3. 만약 Base64 텍스트 자체가 바로 전송된 경우 (또는 data:image/... URL)
     if (raw.length > 200 && !raw.match(/[<>{}\[\]]/)) {

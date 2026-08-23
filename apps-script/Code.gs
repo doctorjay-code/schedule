@@ -26,28 +26,38 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  var response = null;
   try {
     var request = parsePostRequest(e);
 
     // 1. 다중 일괄 등록 요청 (BATCH_UPSERT_LEDGER_RECORDS or records 배열)
-    if (request.action === 'BATCH_UPSERT_LEDGER_RECORDS' || Array.isArray(request.records)) {
+    if (request.action === 'BATCH_UPSERT_LEDGER_RECORDS' || Array.isArray(request.records) || Array.isArray(request)) {
       var records = request.records || (Array.isArray(request) ? request : []);
-      return jsonResponse(batchUpsertLedgerRecords(records, request.options));
+      response = batchUpsertLedgerRecords(records, request.options);
+      logApiRequest(e, response, null);
+      return jsonResponse(response);
     }
 
     // 2. 단일 거래 저장 요청 (웹 표준 or 단축어 직접 전송)
     if (request.action === 'UPSERT_LEDGER_RECORD' || request.record || request.amount || request.item) {
       var singleRecord = request.record || normalizeShortcutRecord(request);
-      return jsonResponse(upsertLedgerRecord(singleRecord));
+      response = upsertLedgerRecord(singleRecord);
+      logApiRequest(e, response, null);
+      return jsonResponse(response);
     }
 
     // 3. 삭제 요청
     if (request.action === 'DELETE_LEDGER_RECORD') {
-      return jsonResponse(deleteLedgerRecord(request.record));
+      response = deleteLedgerRecord(request.record);
+      logApiRequest(e, response, null);
+      return jsonResponse(response);
     }
 
-    return jsonResponse({ ok: false, error: '지원하지 않는 쓰기 요청입니다.' });
+    response = { ok: false, error: '지원하지 않는 쓰기 요청입니다.' };
+    logApiRequest(e, response, null);
+    return jsonResponse(response);
   } catch (error) {
+    logApiRequest(e, null, error);
     return errorResponse(error);
   }
 }

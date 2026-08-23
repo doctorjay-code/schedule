@@ -85,6 +85,24 @@ function valuesEqual(left, right) {
   return cleanText(left) === cleanText(right);
 }
 
+function logApiRequest(e, result, error) {
+  try {
+    var ss = getLedgerSpreadsheet();
+    var logSheet = ss.getSheetByName('_API_LOGS');
+    if (!logSheet) {
+      logSheet = ss.insertSheet('_API_LOGS');
+      logSheet.appendRow(['\uC77C\uC2DC', '\uC218\uC2E0\uB370\uC774\uD130', '\uCC98\uB9AC\uACB0\uACFC', '\uC624\uB958\uB0B4\uC6A9']);
+    }
+    var raw = e && e.postData ? e.postData.contents : '';
+    logSheet.appendRow([
+      timestamp(),
+      String(raw || '').slice(0, 3000),
+      JSON.stringify(result || '').slice(0, 3000),
+      error ? String(error.message || error) : ''
+    ]);
+  } catch (err) {}
+}
+
 function parsePostRequest(e) {
   if (!e || !e.postData) throw new Error('POST \uBCF8\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.');
 
@@ -103,10 +121,16 @@ function parsePostRequest(e) {
   var raw = cleanText(e.postData.contents);
   if (!raw) throw new Error('POST \uBCF8\uBB38\uC774 \uBE44\uC5B4\uC788\uC2B5\uB2C8\uB2E4.');
 
-  // 2. JSON \uD30C\uC2F1 \uC2DC\uB3C4
+  // 2. JSON \uD30C\uC2F1 \uC2DC\uB3C4 (\uB9C8\uD06C\uB2E4\uC6B4 ```json \uBC0F \uC5EC\uBC31 \uC790\uB3D9 \uC81C\uAC70)
+  var cleanJson = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
   try {
-    var request = JSON.parse(raw);
-    if (request && typeof request === 'object') return request;
+    var request = JSON.parse(cleanJson);
+    if (request && typeof request === 'object') {
+      if (Array.isArray(request)) {
+        return { action: 'BATCH_UPSERT_LEDGER_RECORDS', records: request };
+      }
+      return request;
+    }
   } catch (jsonErr) {
     // 3. \uB9CC\uC57D Base64 \uD14D\uC2A4\uD2B8 \uC790\uCCB4\uAC00 \uBC14\uB85C \uC804\uC1A1\uB41C \uACBD\uC6B0 (\uB610\uB294 data:image/... URL)
     if (raw.length > 200 && !raw.match(/[<>{}\[\]]/)) {
