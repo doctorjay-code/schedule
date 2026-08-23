@@ -113,10 +113,77 @@ function repairAllSheetColumns() {
     // \uB0A0\uC9DC \uC624\uB984\uCC28\uC21C \uC815\uB82C
     sortSheetByDate(sheet, index);
 
+    // \uC0AC\uC6A9\uC561 / \uC794\uC561 \uACC4\uC0B0 \uBC0F \uCC44\uC6B0\uAE30
+    recalculateSheetBalances(sheet, sheetName, headers, index);
+
     results[sheetName] = rows;
   });
 
   return { ok: true, results: results };
+}
+
+function getCardCycleKey(isoDate) {
+  if (!isoDate) return '';
+  var parts = String(isoDate).split('-');
+  if (parts.length < 3) return '';
+  var y = parseInt(parts[0], 10);
+  var m = parseInt(parts[1], 10);
+  var d = parseInt(parts[2], 10);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return '';
+  if (d >= 13) {
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return y + '-' + (m < 10 ? '0' + m : String(m));
+}
+
+function recalculateSheetBalances(sheet, sheetName, headers, index) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+  var rows = lastRow - 1;
+
+  var balColName = index['\uC0AC\uC6A9\uC561'] !== undefined ? '\uC0AC\uC6A9\uC561' : (index['\uC794\uC561'] !== undefined ? '\uC794\uC561' : null);
+  if (!balColName) return;
+  var balCol = index[balColName] + 1;
+
+  var dateVals = index['\uB0A0\uC9DC'] !== undefined ? sheet.getRange(2, index['\uB0A0\uC9DC'] + 1, rows, 1).getDisplayValues() : [];
+  var incVals = index['\uC218\uC785'] !== undefined ? sheet.getRange(2, index['\uC218\uC785'] + 1, rows, 1).getValues() : [];
+  var expVals = index['\uC9C0\uCD9C'] !== undefined ? sheet.getRange(2, index['\uC9C0\uCD9C'] + 1, rows, 1).getValues() : [];
+  var existingBal = sheet.getRange(2, balCol, rows, 1).getValues();
+
+  var newBalances = [];
+  var runningBalance = 0;
+  var prevCycle = '';
+
+  for (var r = 0; r < rows; r++) {
+    var d = dateVals[r] ? cleanText(dateVals[r][0]) : '';
+    var inc = Number(incVals[r] ? incVals[r][0] : 0) || 0;
+    var exp = Number(expVals[r] ? expVals[r][0] : 0) || 0;
+
+    if (!d && inc === 0 && exp === 0) {
+      newBalances.push(['']);
+      continue;
+    }
+
+    if (sheetName === '\uAE30\uC5C5\uCE74\uB4DC') {
+      var cycle = getCardCycleKey(d);
+      if (cycle !== prevCycle) {
+        runningBalance = 0;
+        prevCycle = cycle;
+      }
+      runningBalance += (exp - inc);
+      newBalances.push([runningBalance]);
+    } else {
+      if (r === 0 && existingBal[0] && Number(existingBal[0][0])) {
+        runningBalance = Number(existingBal[0][0]);
+      } else {
+        runningBalance += (inc - exp);
+      }
+      newBalances.push([runningBalance]);
+    }
+  }
+
+  sheet.getRange(2, balCol, rows, 1).setValues(newBalances);
 }
 
 function upsertLedgerRecord(record) {
@@ -161,6 +228,7 @@ function upsertLedgerRecord(record) {
 
   writeLedgerRow(target, existingRow, sourceRowValues, isNew);
   sortSheetByDate(target.sheet, target.index);
+  recalculateSheetBalances(target.sheet, target.sheetName, target.headers, target.index);
 
   return {
     ok: true,
@@ -296,8 +364,28 @@ function writeLedgerRow(target, rowNumber, values, isNew) {
   if (isNew && target.index['\uC218\uB2E8'] !== undefined) {
     values[target.index['\uC218\uB2E8']] = target.sheetName;
   }
+
+  // \uC0AC\uC6A9\uC561/\uC794\uC561 \uC5F4 \uC218\uC2DD \uBCF4\uC874
+  var balIdx = target.index['\uC0AC\uC6A9\uC561'] !== undefined ? target.index['\uC0AC\uC6A9\uC561'] : target.index['\uC794\uC561'];
+  if (balIdx !== undefined && !values[balIdx]) {
+    var curFormula = target.sheet.getRange(rowNumber, balIdx + 1).getFormula();
+    if (curFormula) {
+      values[balIdx] = curFormula;
+    }
+  }
+
   // \uB2E8 1\uBC88\uC758 RPC\uB85C \uC804\uCCB4 \uD589 \uC77C\uAD04 \uC4F0\uAE30 (\uCD08\uACE0\uC18D 0.2\uCD08)
   target.sheet.getRange(rowNumber, 1, 1, values.length).setValues([values]);
+
+  // \uC2E0\uADDC \uD589\uC774\uAC70\uB098 \uC218\uC2DD\uC774 \uBE44\uC5B4\uC788\uB294 \uACBD\uC6B0 \uC774\uC804 \uD589\uC5D0\uC11C \uC218\uC2DD \uC790\uB3D9 \uBCF5\uC0AC
+  if (balIdx !== undefined && rowNumber > 2) {
+    var balCell = target.sheet.getRange(rowNumber, balIdx + 1);
+    if (!balCell.getFormula() && !balCell.getValue()) {
+      try {
+        target.sheet.getRange(rowNumber - 1, balIdx + 1).copyTo(balCell, SpreadsheetApp.CopyPasteType.PASTE_FORMULA, false);
+      } catch (e) {}
+    }
+  }
 }
 
 function ensureLedgerIdFormula(target, rowNumber) {

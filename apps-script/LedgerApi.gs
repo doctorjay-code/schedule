@@ -113,10 +113,77 @@ function repairAllSheetColumns() {
     // 날짜 오름차순 정렬
     sortSheetByDate(sheet, index);
 
+    // 사용액 / 잔액 계산 및 채우기
+    recalculateSheetBalances(sheet, sheetName, headers, index);
+
     results[sheetName] = rows;
   });
 
   return { ok: true, results: results };
+}
+
+function getCardCycleKey(isoDate) {
+  if (!isoDate) return '';
+  var parts = String(isoDate).split('-');
+  if (parts.length < 3) return '';
+  var y = parseInt(parts[0], 10);
+  var m = parseInt(parts[1], 10);
+  var d = parseInt(parts[2], 10);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return '';
+  if (d >= 13) {
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return y + '-' + (m < 10 ? '0' + m : String(m));
+}
+
+function recalculateSheetBalances(sheet, sheetName, headers, index) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+  var rows = lastRow - 1;
+
+  var balColName = index['사용액'] !== undefined ? '사용액' : (index['잔액'] !== undefined ? '잔액' : null);
+  if (!balColName) return;
+  var balCol = index[balColName] + 1;
+
+  var dateVals = index['날짜'] !== undefined ? sheet.getRange(2, index['날짜'] + 1, rows, 1).getDisplayValues() : [];
+  var incVals = index['수입'] !== undefined ? sheet.getRange(2, index['수입'] + 1, rows, 1).getValues() : [];
+  var expVals = index['지출'] !== undefined ? sheet.getRange(2, index['지출'] + 1, rows, 1).getValues() : [];
+  var existingBal = sheet.getRange(2, balCol, rows, 1).getValues();
+
+  var newBalances = [];
+  var runningBalance = 0;
+  var prevCycle = '';
+
+  for (var r = 0; r < rows; r++) {
+    var d = dateVals[r] ? cleanText(dateVals[r][0]) : '';
+    var inc = Number(incVals[r] ? incVals[r][0] : 0) || 0;
+    var exp = Number(expVals[r] ? expVals[r][0] : 0) || 0;
+
+    if (!d && inc === 0 && exp === 0) {
+      newBalances.push(['']);
+      continue;
+    }
+
+    if (sheetName === '기업카드') {
+      var cycle = getCardCycleKey(d);
+      if (cycle !== prevCycle) {
+        runningBalance = 0;
+        prevCycle = cycle;
+      }
+      runningBalance += (exp - inc);
+      newBalances.push([runningBalance]);
+    } else {
+      if (r === 0 && existingBal[0] && Number(existingBal[0][0])) {
+        runningBalance = Number(existingBal[0][0]);
+      } else {
+        runningBalance += (inc - exp);
+      }
+      newBalances.push([runningBalance]);
+    }
+  }
+
+  sheet.getRange(2, balCol, rows, 1).setValues(newBalances);
 }
 
 function upsertLedgerRecord(record) {
@@ -161,6 +228,7 @@ function upsertLedgerRecord(record) {
 
   writeLedgerRow(target, existingRow, sourceRowValues, isNew);
   sortSheetByDate(target.sheet, target.index);
+  recalculateSheetBalances(target.sheet, target.sheetName, target.headers, target.index);
 
   return {
     ok: true,
@@ -296,8 +364,28 @@ function writeLedgerRow(target, rowNumber, values, isNew) {
   if (isNew && target.index['수단'] !== undefined) {
     values[target.index['수단']] = target.sheetName;
   }
+
+  // 사용액/잔액 열 수식 보존
+  var balIdx = target.index['사용액'] !== undefined ? target.index['사용액'] : target.index['잔액'];
+  if (balIdx !== undefined && !values[balIdx]) {
+    var curFormula = target.sheet.getRange(rowNumber, balIdx + 1).getFormula();
+    if (curFormula) {
+      values[balIdx] = curFormula;
+    }
+  }
+
   // 단 1번의 RPC로 전체 행 일괄 쓰기 (초고속 0.2초)
   target.sheet.getRange(rowNumber, 1, 1, values.length).setValues([values]);
+
+  // 신규 행이거나 수식이 비어있는 경우 이전 행에서 수식 자동 복사
+  if (balIdx !== undefined && rowNumber > 2) {
+    var balCell = target.sheet.getRange(rowNumber, balIdx + 1);
+    if (!balCell.getFormula() && !balCell.getValue()) {
+      try {
+        target.sheet.getRange(rowNumber - 1, balIdx + 1).copyTo(balCell, SpreadsheetApp.CopyPasteType.PASTE_FORMULA, false);
+      } catch (e) {}
+    }
+  }
 }
 
 function ensureLedgerIdFormula(target, rowNumber) {
