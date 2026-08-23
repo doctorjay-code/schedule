@@ -60,7 +60,15 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
     morningCell.classList.add('ledger-payment-cell');
     const paymentTag = document.createElement('span');
     paymentTag.className = 'ledger-bottom-tag ledger-payment-tag';
-    paymentTag.textContent = String(item.payment || '').trim();
+    const paymentText = String(item.payment || '').trim();
+    if (paymentText.length >= 4 && !paymentText.includes(' ')) {
+      const mid = Math.ceil(paymentText.length / 2);
+      paymentTag.innerHTML = `${paymentText.slice(0, mid)}<br>${paymentText.slice(mid)}`;
+    } else if (paymentText.includes(' ')) {
+      paymentTag.innerHTML = paymentText.split(' ').join('<br>');
+    } else {
+      paymentTag.textContent = paymentText;
+    }
     morningCell.appendChild(paymentTag);
   }
   detailRow.appendChild(morningCell);

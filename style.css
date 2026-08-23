@@ -2331,9 +2331,28 @@ body {
 
 /* Card payment column and future regularity placeholder */
 .schedule-table .ledger-payment-cell,
-.ledger-schedule-table .ledger-payment-cell { padding: 4px 3px !important; text-align: center; vertical-align: middle; border-bottom: 2px solid var(--border-day-end) !important; background: #F8FAFC; }
+.ledger-schedule-table .ledger-payment-cell { padding: 3px 2px !important; text-align: center; vertical-align: middle; border-bottom: 2px solid var(--border-day-end) !important; background: #F8FAFC; }
 .schedule-table .ledger-payment-cell .ledger-payment-tag,
-.ledger-schedule-table .ledger-payment-cell .ledger-payment-tag { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; margin: 0; background: #FFFFFF; }
+.ledger-schedule-table .ledger-payment-cell .ledger-payment-tag {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  max-width: 100%;
+  padding: 4px 3px;
+  margin: 0 auto;
+  background: #FFFFFF;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 6px;
+  color: #334155;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: normal;
+  text-align: center;
+  box-sizing: border-box;
+}
 .schedule-table .ledger-regularity-cell,
 .ledger-schedule-table .ledger-regularity-cell { min-width: 0; background: #FFFFFF; text-align: center; vertical-align: middle; padding: 4px 5px !important; }
 .schedule-table .ledger-regularity-cell:empty,
