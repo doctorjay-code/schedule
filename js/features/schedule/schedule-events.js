@@ -20,7 +20,7 @@ let colorLoadPromise = null;
 
 function loadLedgerFeature() {
   if (!ledgerLoadPromise) {
-    ledgerLoadPromise = import('../ledger/index.js?v=20260823_18')
+    ledgerLoadPromise = import('../ledger/index.js?v=20260823_19')
       .then(module => {
         ledgerLifecycle = module.initLedgerView();
         return ledgerLifecycle;

@@ -6,12 +6,12 @@ import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor } from '
 import { filterLedgerRecords } from './card.js';
 import { normalizeFundplanRows } from './fundplan.js';
 import { groupExpenses, renderStatList } from './stats.js';
-import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js';
-import { createLedgerTransactionModal } from './modals/transaction-modal.js';
-import { createLedgerColorSettings } from './modals/color-settings.js';
-import { bindLedgerListActions } from './ledger-events.js';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_18';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_18';
+import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260823_19';
+import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260823_19';
+import { createLedgerColorSettings } from './modals/color-settings.js?v=20260823_19';
+import { bindLedgerListActions } from './ledger-events.js?v=20260823_19';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_19';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_19';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -503,8 +503,12 @@ function saveLedgerRecord(form, overrides = {}) {
 }
 
 function deleteRecord(id) {
-  const record = ledgerState.records.find(item => item.id === id);
-  if (!record || !confirm('이 거래를 삭제할까요?')) return;
+  const record = findLedgerRecordById(id) || ledgerState.records.find(item => String(item.id) === String(id));
+  if (!record) {
+    showLedgerToast('⚠️ 삭제할 거래 정보를 찾을 수 없습니다.');
+    return;
+  }
+  if (!confirm('이 거래를 삭제할까요?')) return;
 
   const snapshot = captureLedgerSheetState();
 
