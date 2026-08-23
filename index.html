@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="스마트일정">
-  <link rel="stylesheet" href="style.css?v=20260823_11">
+  <link rel="stylesheet" href="style.css?v=20260823_12">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -111,6 +111,7 @@
         <button class="filter-chip" id="ledgerPersonFilterToggle" type="button" aria-expanded="false">사용자</button>
         <button class="filter-chip" id="ledgerCategoryFilterToggle" type="button" aria-expanded="false">사용처</button>
         <button class="filter-chip" id="ledgerFixedFilterBtn" type="button">고정비</button>
+        <button class="filter-chip multi-edit-chip" id="ledgerToggleMultiEditBtn" title="다중 선택 복사 모드" type="button">✏️</button>
       </div>
       <div class="ledger-filter-options hidden" id="ledgerPersonFilterOptions" role="group" aria-label="사용자 선택">
         <button class="filter-chip" data-ledger-filter-type="person" data-ledger-filter-value="쥬쥬" type="button">쥬쥬</button>
@@ -279,6 +280,25 @@
         <div class="multi-btn-row">
           <button class="multi-action-btn copy-btn" id="bulkCopyBtn">📋 복사</button>
           <button class="multi-action-btn paste-btn" id="bulkPasteBtn">📥 붙여넣기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ledger Multi-Edit Action Bottom Bar Group -->
+    <div class="bottom-action-group ledger-only">
+      <!-- Copy Status Toast Bar -->
+      <div class="copy-buffer-bar hidden" id="ledgerCopyBufferBar">
+        <span>📋 <strong id="ledgerCopiedItemLabel">0건</strong> 거래 복사됨</span>
+        <button class="multi-action-btn paste-btn" id="ledgerBulkPasteBtn" type="button" style="margin-left:auto; padding: 4px 10px; font-size:12px;">📥 붙여넣기</button>
+        <button class="clear-copy-btn" id="ledgerClearCopyBtn" title="복사 취소" type="button">✕</button>
+      </div>
+
+      <!-- Multi-Edit Action Bottom Bar (Copy, Cancel) -->
+      <div class="multi-action-bar hidden" id="ledgerMultiActionBar">
+        <span id="ledgerSelectedCountLabel">0건 선택됨</span>
+        <div class="multi-btn-row">
+          <button class="multi-action-btn copy-btn" id="ledgerBulkCopyBtn" type="button">📋 복사</button>
+          <button class="multi-action-btn cancel-btn" id="ledgerCancelMultiEditBtn" type="button" style="background:#64748B; color:#fff;">✕ 취소</button>
         </div>
       </div>
     </div>
@@ -648,7 +668,7 @@
 
   </div>
 
-  <script type="module" src="js/bootstrap.js?v=20260823_11"></script>
+  <script type="module" src="js/bootstrap.js?v=20260823_12"></script>
 <div class="modal-overlay" id="ledgerAverageBalanceOverlay">
   <section class="bottom-sheet ledger-average-sheet" role="dialog" aria-modal="true" aria-labelledby="ledgerAverageBalanceTitle">
     <div class="sheet-handle"></div>

@@ -10,8 +10,8 @@ import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, 
 import { createLedgerTransactionModal } from './modals/transaction-modal.js';
 import { createLedgerColorSettings } from './modals/color-settings.js';
 import { bindLedgerListActions } from './ledger-events.js';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_11';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_11';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_12';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_12';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -593,8 +593,192 @@ function bindLedgerEvents() {
   };
   document.getElementById('ledgerRefreshBtn')?.addEventListener('click', event => refreshLedgerFromSheet(event.currentTarget));
   document.getElementById('ledgerSyncBtn')?.addEventListener('click', event => refreshLedgerFromSheet(event.currentTarget));
+let isLedgerMultiEdit = false;
+let selectedLedgerIds = new Set();
+let copiedLedgerRecords = [];
+
+function updateLedgerSelectionUI() {
+  const count = selectedLedgerIds.size;
+  const label = document.getElementById('ledgerSelectedCountLabel');
+  if (label) label.textContent = `${count}건 선택됨`;
+
+  document.querySelectorAll('tr[data-ledger-id]').forEach(row => {
+    const id = row.dataset.ledgerId;
+    row.classList.toggle('ledger-row-selected', selectedLedgerIds.has(id));
+  });
+}
+
+function setLedgerMultiEditMode(active) {
+  isLedgerMultiEdit = Boolean(active);
+  document.getElementById('ledgerToggleMultiEditBtn')?.classList.toggle('active', isLedgerMultiEdit);
+  
+  const multiBar = document.getElementById('ledgerMultiActionBar');
+  const entryBtn1 = document.getElementById('ledgerToggleEntryBtn');
+  const entryBtn2 = document.getElementById('ledgerMonthlyToggleEntryBtn');
+
+  if (isLedgerMultiEdit) {
+    multiBar?.classList.remove('hidden');
+    entryBtn1?.classList.add('hidden');
+    entryBtn2?.classList.add('hidden');
+  } else {
+    multiBar?.classList.add('hidden');
+    selectedLedgerIds.clear();
+    updateLedgerSelectionUI();
+    if (!copiedLedgerRecords.length) {
+      entryBtn1?.classList.remove('hidden');
+      entryBtn2?.classList.remove('hidden');
+    }
+  }
+}
+
+function toggleLedgerMultiEdit() {
+  setLedgerMultiEditMode(!isLedgerMultiEdit);
+}
+
+function handleLedgerRowClick(id, event) {
+  if (isLedgerMultiEdit) {
+    if (selectedLedgerIds.has(id)) {
+      selectedLedgerIds.delete(id);
+    } else {
+      selectedLedgerIds.add(id);
+    }
+    updateLedgerSelectionUI();
+  } else {
+    getLedgerTransactionModal().open(id);
+  }
+}
+
+function copySelectedLedgerRecords() {
+  if (selectedLedgerIds.size === 0) {
+    alert('복사할 거래를 선택해주세요.');
+    return;
+  }
+  const records = getActiveSourceRecords();
+  copiedLedgerRecords = records.filter(r => selectedLedgerIds.has(r.id)).map(r => JSON.parse(JSON.stringify(r)));
+  
+  const copyBar = document.getElementById('ledgerCopyBufferBar');
+  const copyLabel = document.getElementById('ledgerCopiedItemLabel');
+  if (copyLabel) copyLabel.textContent = `${copiedLedgerRecords.length}건`;
+  copyBar?.classList.remove('hidden');
+  
+  setLedgerMultiEditMode(false);
+}
+
+async function pasteCopiedLedgerRecords() {
+  if (!copiedLedgerRecords || copiedLedgerRecords.length === 0) {
+    alert('복사된 거래가 없습니다.');
+    return;
+  }
+  if (!ledgerLiveConnected) {
+    alert('시트 연결이 확인된 뒤에 거래를 붙여넣을 수 있습니다.');
+    return;
+  }
+
+  const targetYear = ledgerState.monthCursor.getFullYear();
+  const targetMonth = ledgerState.monthCursor.getMonth();
+  const maxDays = new Date(targetYear, targetMonth + 1, 0).getDate();
+
+  const snapshot = captureLedgerSheetState();
+  const newRecords = [];
+
+  for (let i = 0; i < copiedLedgerRecords.length; i++) {
+    const item = copiedLedgerRecords[i];
+    const origDay = parseInt(String(item.date || '').split('-')[2], 10) || 1;
+    const day = Math.min(origDay, maxDays);
+    const newDate = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const newId = 'cp_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 6);
+
+    const newRecord = {
+      ...item,
+      id: newId,
+      date: newDate
+    };
+    newRecords.push(newRecord);
+    applyOptimisticSave(newRecord);
+  }
+
+  try {
+    for (const record of newRecords) {
+      await upsertLedgerSheetRecord(record);
+    }
+    refreshLedgerInBackground();
+    alert(`${newRecords.length}건의 거래가 ${targetYear}년 ${targetMonth + 1}월로 붙여넣기 되었습니다.`);
+  } catch (error) {
+    restoreLedgerSheetState(snapshot);
+    alert(error?.message || '거래를 시트에 저장하지 못했습니다.');
+  }
+}
+
+function clearLedgerCopyBuffer() {
+  copiedLedgerRecords = [];
+  document.getElementById('ledgerCopyBufferBar')?.classList.add('hidden');
+  if (!isLedgerMultiEdit) {
+    document.getElementById('ledgerToggleEntryBtn')?.classList.remove('hidden');
+    document.getElementById('ledgerMonthlyToggleEntryBtn')?.classList.remove('hidden');
+  }
+}
+
+function bindLedgerEvents() {
+  getLedgerTransactionModal().bind();
+  document.getElementById('ledgerToggleEntryBtn')?.addEventListener('click', () => toggleLedgerEntry());
+  document.getElementById('ledgerFilterAllBtn')?.addEventListener('click', () => setLedgerFilter('all', 'all'));
+  document.getElementById('ledgerPersonFilterToggle')?.addEventListener('click', () => toggleLedgerFilterOptions('person'));
+  document.getElementById('ledgerCategoryFilterToggle')?.addEventListener('click', () => toggleLedgerFilterOptions('category'));
+  document.getElementById('ledgerFixedFilterBtn')?.addEventListener('click', () => {
+    setLedgerFilter(ledgerState.filterType === 'fixed' ? 'all' : 'fixed', ledgerState.filterType === 'fixed' ? 'all' : '고정비');
+  });
+  document.querySelectorAll('[data-ledger-filter-type]').forEach(button => {
+    button.addEventListener('click', () => {
+      const type = button.dataset.ledgerFilterType;
+      const value = button.dataset.ledgerFilterValue;
+      const isSelected = ledgerState.filterType === type && ledgerState.filterValue === value;
+      setLedgerFilter(isSelected ? 'all' : type, isSelected ? 'all' : value);
+    });
+  });
+  document.getElementById('ledgerToggleMultiEditBtn')?.addEventListener('click', toggleLedgerMultiEdit);
+  document.getElementById('ledgerBulkCopyBtn')?.addEventListener('click', copySelectedLedgerRecords);
+  document.getElementById('ledgerCancelMultiEditBtn')?.addEventListener('click', () => setLedgerMultiEditMode(false));
+  document.getElementById('ledgerBulkPasteBtn')?.addEventListener('click', pasteCopiedLedgerRecords);
+  document.getElementById('ledgerClearCopyBtn')?.addEventListener('click', clearLedgerCopyBuffer);
+
+  document.getElementById('ledgerCompanyCardBtn')?.addEventListener('click', () => setLedgerPayment('\uAE30\uC5C5\uCE74\uB4DC', true));
+  document.getElementById('ledgerTossBankBtn')?.addEventListener('click', () => setLedgerPayment('\uD1A0\uC2A4\uC740\uD589', true));
+  document.getElementById('ledgerBankSourceBtn')?.addEventListener('click', () => setLedgerSource('bank'));
+  document.getElementById('ledgerCashSourceBtn')?.addEventListener('click', () => setLedgerSource('cash'));
+  document.getElementById('ledgerForecastSourceBtn')?.addEventListener('click', () => setLedgerSource('forecast'));
+  document.getElementById('ledgerMonthlyToggleEntryBtn')?.addEventListener('click', () => toggleLedgerEntry());
+  getLedgerColorSettings().bind();
+  document.getElementById('ledgerReportBtn')?.addEventListener('click', () => {
+    renderLedgerReport();
+    document.getElementById('ledgerReportOverlay')?.classList.add('active');
+  });
+  document.getElementById('ledgerReportCloseBtn')?.addEventListener('click', () => document.getElementById('ledgerReportOverlay')?.classList.remove('active'));
+  document.getElementById('ledgerReportOverlay')?.addEventListener('click', event => {
+    if (event.target.id === 'ledgerReportOverlay') event.currentTarget.classList.remove('active');
+  });
+  const ledgerPeriodTitle = document.getElementById('ledgerPeriodTitle');
+  if (ledgerPeriodTitle) {
+    ledgerPeriodTitle.addEventListener('pointerup', openLedgerPeriodPicker);
+    ledgerPeriodTitle.addEventListener('click', openLedgerPeriodPicker);
+    ledgerPeriodTitle.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') openLedgerPeriodPicker(event);
+    });
+  }
+  document.getElementById('ledgerPrevPeriodBtn')?.addEventListener('click', () => moveLedgerPeriod(-1));
+  document.getElementById('ledgerNextPeriodBtn')?.addEventListener('click', () => moveLedgerPeriod(1));
+  document.getElementById('ledgerLatestBtn')?.addEventListener('click', focusLedgerLatest);
+  const refreshLedgerFromSheet = async button => {
+    button?.classList.add('is-syncing');
+    try {
+      await refreshLedgerSheetData(getCurrentLedgerSheetName());
+    } finally {
+      button?.classList.remove('is-syncing');
+    }
+  };
+  document.getElementById('ledgerRefreshBtn')?.addEventListener('click', event => refreshLedgerFromSheet(event.currentTarget));
+  document.getElementById('ledgerSyncBtn')?.addEventListener('click', event => refreshLedgerFromSheet(event.currentTarget));
   bindLedgerListActions({
-    onOpen: id => getLedgerTransactionModal().open(id)
+    onRowClick: handleLedgerRowClick
   });
 }
 
@@ -616,9 +800,12 @@ function getFundplanView() {
 function renderActiveLedgerPeriod() {
   if (ledgerState.period === 'monthly') {
     renderMonthly();
-    return;
+  } else {
+    getFundplanView().render();
   }
-  getFundplanView().render();
+  if (isLedgerMultiEdit) {
+    updateLedgerSelectionUI();
+  }
 }
 
 function setLedgerSource(source) {

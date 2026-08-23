@@ -2259,7 +2259,7 @@ body {
 }
 #ledgerPersonSwitch .ledger-filter-primary {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
   width: 100%;
 }
@@ -2267,6 +2267,12 @@ body {
   width: 100%;
   min-width: 0;
   padding: 6px 4px;
+}
+.schedule-table tr.ledger-row-selected td,
+.ledger-schedule-table tr.ledger-row-selected td {
+  background-color: #DBEAFE !important;
+  color: #1E40AF !important;
+  font-weight: 700;
 }
 #ledgerPersonSwitch .ledger-filter-options {
   display: grid;
