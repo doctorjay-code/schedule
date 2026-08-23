@@ -12,13 +12,36 @@ function onLedgerSourceEdit(e) {
     if (!e || !e.range) return;
     var sheet = e.range.getSheet();
     if (sheet.getParent().getId() !== LEDGER_SPREADSHEET_ID) return;
-    if (!isBalanceSyncSourceSheet(sheet.getName()) || e.range.getRow() < 2) return;
+    var sheetName = sheet.getName();
+    if (LEDGER_SOURCE_SHEETS.indexOf(sheetName) === -1 || e.range.getRow() < 2) return;
 
-    var source = readSourceRow(sheet, e.range.getRow());
-    if (!source || !isSourceRowReady(source)) return;
-    syncBalanceForecastById(source.id, { source: 'sheet-edit' });
+    var row = e.range.getRow();
+    var lastCol = sheet.getLastColumn();
+    var headers = sheet.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
+    var index = headerIndex(headers);
+
+    // 날짜가 입력되어 있는데 ID가 없거나 2026 형태인 경우 자동 생성
+    var dateVal = index['날짜'] !== undefined ? getCellDisplayValue(sheet, row, index['날짜']) : '';
+    var curId = index['id'] !== undefined ? getCellDisplayValue(sheet, row, index['id']) : '';
+    if (dateVal && (!usableRecordId(curId) || curId.indexOf('-2026') !== -1)) {
+      var target = { sheet: sheet, sheetName: sheetName, headers: headers, index: index };
+      var newId = generateLedgerId(target, { date: dateVal }, row);
+      if (index['id'] !== undefined) {
+        sheet.getRange(row, index['id'] + 1).setValue(newId);
+      }
+    }
+
+    // 날짜순 오름차순 정렬
+    sortSheetByDate(sheet, index);
+
+    if (isBalanceSyncSourceSheet(sheetName)) {
+      var source = readSourceRow(sheet, row);
+      if (source && isSourceRowReady(source)) {
+        syncBalanceForecastById(source.id, { source: 'sheet-edit' });
+      }
+    }
   } catch (error) {
-    console.error('잔액전망 편집 동기화 실패: ' + (error && error.stack ? error.stack : error));
+    console.error('가계부 시트 직접 편집 동기화/정렬 실패: ' + (error && error.stack ? error.stack : error));
   }
 }
 

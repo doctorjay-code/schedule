@@ -12,13 +12,36 @@ function onLedgerSourceEdit(e) {
     if (!e || !e.range) return;
     var sheet = e.range.getSheet();
     if (sheet.getParent().getId() !== LEDGER_SPREADSHEET_ID) return;
-    if (!isBalanceSyncSourceSheet(sheet.getName()) || e.range.getRow() < 2) return;
+    var sheetName = sheet.getName();
+    if (LEDGER_SOURCE_SHEETS.indexOf(sheetName) === -1 || e.range.getRow() < 2) return;
 
-    var source = readSourceRow(sheet, e.range.getRow());
-    if (!source || !isSourceRowReady(source)) return;
-    syncBalanceForecastById(source.id, { source: 'sheet-edit' });
+    var row = e.range.getRow();
+    var lastCol = sheet.getLastColumn();
+    var headers = sheet.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
+    var index = headerIndex(headers);
+
+    // \uB0A0\uC9DC\uAC00 \uC785\uB825\uB418\uC5B4 \uC788\uB294\uB370 ID\uAC00 \uC5C6\uAC70\uB098 2026 \uD615\uD0DC\uC778 \uACBD\uC6B0 \uC790\uB3D9 \uC0DD\uC131
+    var dateVal = index['\uB0A0\uC9DC'] !== undefined ? getCellDisplayValue(sheet, row, index['\uB0A0\uC9DC']) : '';
+    var curId = index['id'] !== undefined ? getCellDisplayValue(sheet, row, index['id']) : '';
+    if (dateVal && (!usableRecordId(curId) || curId.indexOf('-2026') !== -1)) {
+      var target = { sheet: sheet, sheetName: sheetName, headers: headers, index: index };
+      var newId = generateLedgerId(target, { date: dateVal }, row);
+      if (index['id'] !== undefined) {
+        sheet.getRange(row, index['id'] + 1).setValue(newId);
+      }
+    }
+
+    // \uB0A0\uC9DC\uC21C \uC624\uB984\uCC28\uC21C \uC815\uB82C
+    sortSheetByDate(sheet, index);
+
+    if (isBalanceSyncSourceSheet(sheetName)) {
+      var source = readSourceRow(sheet, row);
+      if (source && isSourceRowReady(source)) {
+        syncBalanceForecastById(source.id, { source: 'sheet-edit' });
+      }
+    }
   } catch (error) {
-    console.error('\uC794\uC561\uC804\uB9DD \uD3B8\uC9D1 \uB3D9\uAE30\uD654 \uC2E4\uD328: ' + (error && error.stack ? error.stack : error));
+    console.error('\uAC00\uACC4\uBD80 \uC2DC\uD2B8 \uC9C1\uC811 \uD3B8\uC9D1 \uB3D9\uAE30\uD654/\uC815\uB82C \uC2E4\uD328: ' + (error && error.stack ? error.stack : error));
   }
 }
 

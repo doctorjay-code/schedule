@@ -54,10 +54,14 @@ function repairAllSheetColumns() {
     var incomeVals = colMap['\uC218\uC785'] ? sheet.getRange(2, colMap['\uC218\uC785'], rows, 1).getValues() : [];
     var expenseVals = colMap['\uC9C0\uCD9C'] ? sheet.getRange(2, colMap['\uC9C0\uCD9C'], rows, 1).getValues() : [];
 
+    var idVals = index['id'] !== undefined ? sheet.getRange(2, index['id'] + 1, rows, 1).getDisplayValues() : [];
+
     var newTypes = [];
     var newAmounts = [];
     var newIncomes = [];
     var newExpenses = [];
+    var newIds = [];
+    var hasIdChange = false;
 
     for (var r = 0; r < rows; r++) {
       var d = dateVals[r] ? cleanText(dateVals[r][0]) : '';
@@ -66,6 +70,7 @@ function repairAllSheetColumns() {
       var a = amountVals[r] ? amountVals[r][0] : 0;
       var inc = incomeVals[r] ? incomeVals[r][0] : '';
       var exp = expenseVals[r] ? expenseVals[r][0] : '';
+      var curId = idVals[r] ? cleanText(idVals[r][0]) : '';
 
       var num = requiredAmount(a || inc || exp);
       if (!d && !it && num === 0) {
@@ -73,6 +78,7 @@ function repairAllSheetColumns() {
         newAmounts.push(['']);
         newIncomes.push(['']);
         newExpenses.push(['']);
+        newIds.push([curId]);
         continue;
       }
 
@@ -81,6 +87,14 @@ function repairAllSheetColumns() {
         else if (cleanText(exp)) t = 'expense';
         else t = 'expense';
       }
+
+      // ID \uD45C\uC900\uD654 (2026 -> 26 \uB4F1 \uC218\uC815)
+      var fixedId = curId;
+      if (fixedId.indexOf('-2026') !== -1) {
+        fixedId = fixedId.replace('-2026', '-26');
+        hasIdChange = true;
+      }
+      newIds.push([fixedId]);
 
       newTypes.push([t]);
       newAmounts.push([num]);
@@ -92,6 +106,12 @@ function repairAllSheetColumns() {
     if (colMap['amount']) sheet.getRange(2, colMap['amount'], rows, 1).setValues(newAmounts);
     if (colMap['\uC218\uC785']) sheet.getRange(2, colMap['\uC218\uC785'], rows, 1).setValues(newIncomes);
     if (colMap['\uC9C0\uCD9C']) sheet.getRange(2, colMap['\uC9C0\uCD9C'], rows, 1).setValues(newExpenses);
+    if (hasIdChange && index['id'] !== undefined) {
+      sheet.getRange(2, index['id'] + 1, rows, 1).setValues(newIds);
+    }
+
+    // \uB0A0\uC9DC \uC624\uB984\uCC28\uC21C \uC815\uB82C
+    sortSheetByDate(sheet, index);
 
     results[sheetName] = rows;
   });
@@ -108,8 +128,20 @@ function upsertLedgerRecord(record) {
     ? target.sheet.getRange(existingRow, 1, 1, colCount).getValues()[0]
     : blankRow(colCount);
 
+  var savedId = '';
   if (!isNew && usableRecordId(record && record.id)) {
-    setCell(sourceRowValues, target.index, 'id', String(record.id));
+    savedId = cleanText(record.id);
+  } else if (!isNew && usableRecordId(sourceRowValues[target.index.id])) {
+    savedId = cleanText(sourceRowValues[target.index.id]);
+  }
+
+  // ID\uAC00 \uC5C6\uAC70\uB098 2026\uC73C\uB85C \uC2DC\uC791\uD558\uB294 \uAD6C\uBC84\uC804 ID\uBA74 \uC62C\uBC14\uB978 YYMMDD \uADDC\uACA9\uC73C\uB85C \uC0DD\uC131
+  if (!usableRecordId(savedId) || savedId.indexOf('-2026') !== -1) {
+    savedId = generateLedgerId(target, record, existingRow);
+  }
+
+  if (target.index.id !== undefined) {
+    setCell(sourceRowValues, target.index, 'id', savedId);
   }
 
   setCell(sourceRowValues, target.index, '\uB0A0\uC9DC', requiredDate(record && record.date));
@@ -128,9 +160,7 @@ function upsertLedgerRecord(record) {
   }
 
   writeLedgerRow(target, existingRow, sourceRowValues, isNew);
-  var savedId = !isNew && usableRecordId(record && record.id)
-    ? cleanText(record.id)
-    : waitForGeneratedLedgerId(target, existingRow, record);
+  sortSheetByDate(target.sheet, target.index);
 
   return {
     ok: true,
@@ -299,21 +329,60 @@ function ensureLedgerIdFormula(target, rowNumber) {
   }
 }
 
-function waitForGeneratedLedgerId(target, rowNumber, record) {
-  if (target.index.id === undefined) {
-    return cleanText(record && record.id) || (target.sheetName + '-' + rowNumber);
-  }
-  var idCell = target.sheet.getRange(rowNumber, target.index.id + 1);
-  var currentDisplay = cleanText(idCell.getDisplayValue());
-  if (usableRecordId(currentDisplay)) return currentDisplay;
+function generateLedgerId(target, record, rowNumber) {
+  var dateIso = formatIsoDate(record && record.date);
+  var rawDate = dateIso.replace(/[^0-9]/g, '');
+  // 6\uC790\uB9AC YYMMDD (\uC608: 2026-08-20 -> 260820)
+  var yymmdd = rawDate.length === 8 ? rawDate.substring(2) : (rawDate.length === 6 ? rawDate : '260101');
 
-  var dateStr = formatIsoDate(record && record.date).replace(/[^0-9]/g, '');
-  var autoPrefix = target.sheetName === '\uAE30\uC5C5\uCE74\uB4DC' ? 'ibkcard' : (target.sheetName === '\uD1A0\uC2A4\uC740\uD589' ? 'tossbank' : (target.sheetName === '\uAE30\uC5C5\uC740\uD589' ? 'ibkbank' : 'cash'));
-  var autoId = autoPrefix + '-' + (dateStr || '20260101') + ('0' + (rowNumber % 100)).slice(-2);
+  var autoPrefix = 'cash';
+  if (target.sheetName === '\uAE30\uC5C5\uCE74\uB4DC') autoPrefix = 'ibkcard';
+  else if (target.sheetName === '\uD1A0\uC2A4\uC740\uD589') autoPrefix = 'tossbank';
+  else if (target.sheetName === '\uAE30\uC5C5\uC740\uD589') autoPrefix = 'ibkbank';
+
+  var basePrefix = autoPrefix + '-' + yymmdd;
+
+  // \uD574\uB2F9 \uC77C\uC790\uC758 \uAE30\uC874 \uC21C\uBC88(01, 02...) \uC911 \uCD5C\uB313\uAC12 \uC870\uD68C
+  var lastRow = target.sheet.getLastRow();
+  var maxSeq = 0;
+  if (lastRow >= 2 && target.index.id !== undefined) {
+    var existingIds = target.sheet.getRange(2, target.index.id + 1, lastRow - 1, 1).getDisplayValues();
+    for (var i = 0; i < existingIds.length; i++) {
+      if (rowNumber && (i + 2 === rowNumber)) continue;
+      var idVal = cleanText(existingIds[i][0]);
+      if (idVal.indexOf(basePrefix) === 0) {
+        var numPart = parseInt(idVal.substring(basePrefix.length), 10);
+        if (!isNaN(numPart) && numPart > maxSeq) {
+          maxSeq = numPart;
+        }
+      }
+    }
+  }
+  var nextSeq = maxSeq + 1;
+  var seqStr = (nextSeq < 10 ? '0' : '') + nextSeq;
+  return basePrefix + seqStr;
+}
+
+function sortSheetByDate(sheet, index) {
   try {
-    idCell.setValue(autoId);
-  } catch (e) {}
-  return autoId;
+    var lastRow = sheet.getLastRow();
+    var lastCol = sheet.getLastColumn();
+    if (lastRow <= 2 || lastCol < 1) return;
+
+    var dateCol = 1;
+    if (index && index['\uB0A0\uC9DC'] !== undefined) {
+      dateCol = index['\uB0A0\uC9DC'] + 1;
+    } else {
+      var headers = sheet.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
+      var idx = headerIndex(headers);
+      if (idx['\uB0A0\uC9DC'] !== undefined) dateCol = idx['\uB0A0\uC9DC'] + 1;
+    }
+
+    var range = sheet.getRange(2, 1, lastRow - 1, lastCol);
+    range.sort({ column: dateCol, ascending: true });
+  } catch (e) {
+    console.error('\uC2DC\uD2B8 \uB0A0\uC9DC \uC815\uB82C \uC2E4\uD328:', e);
+  }
 }
 
 function findExistingRow(target, record) {
