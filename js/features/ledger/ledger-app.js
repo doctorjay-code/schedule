@@ -6,12 +6,12 @@ import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor } from '
 import { filterLedgerRecords } from './card.js';
 import { normalizeFundplanRows } from './fundplan.js';
 import { groupExpenses, renderStatList } from './stats.js';
-import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260823_21';
-import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260823_21';
-import { createLedgerColorSettings } from './modals/color-settings.js?v=20260823_21';
-import { bindLedgerListActions } from './ledger-events.js?v=20260823_21';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_21';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_21';
+import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260823_22';
+import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260823_22';
+import { createLedgerColorSettings } from './modals/color-settings.js?v=20260823_22';
+import { bindLedgerListActions } from './ledger-events.js?v=20260823_22';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_22';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_22';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -125,6 +125,41 @@ function loadOptionalFundplanRecords() {
   });
 }
 
+// === 스마트 보호 큐 및 지능형 상태 병합 (Race-Condition Proof) ===
+const pendingCreatedRecords = new Map();
+const pendingDeletedIds = new Set();
+let ledgerQueuePromise = Promise.resolve();
+
+function enqueueLedgerTask(taskFn) {
+  ledgerQueuePromise = ledgerQueuePromise.then(async () => {
+    try {
+      await taskFn();
+    } catch (err) {
+      console.error('Ledger background task error:', err);
+    }
+  });
+  return ledgerQueuePromise;
+}
+
+function mergeWithPendingRecords(incomingRecords, targetSheets = null) {
+  let result = (incomingRecords || []).filter(r => r && !pendingDeletedIds.has(String(r.id)));
+
+  for (const [id, pendingRecord] of pendingCreatedRecords.entries()) {
+    if (pendingDeletedIds.has(String(id))) continue;
+    const sheetName = pendingRecord.sheetName || ledgerSheetNameForRecord(pendingRecord);
+    if (!targetSheets || targetSheets.includes(sheetName)) {
+      const idx = result.findIndex(r => String(r.id) === String(id));
+      if (idx !== -1) {
+        result[idx] = { ...result[idx], ...pendingRecord };
+      } else {
+        result.push(pendingRecord);
+      }
+    }
+  }
+
+  return result;
+}
+
 function getCurrentLedgerSheetName() {
   if (ledgerState.source === 'card') return LEDGER_SHEET_BY_PAYMENT[ledgerState.payment] || '';
   if (ledgerState.source === 'cash') return '현금';
@@ -139,21 +174,22 @@ async function refreshLedgerSheetData(sheetName = '') {
     const { records, counts, fetchedAt } = await fetchLedgerSheetData(fetch, selectedSheet);
     if (selectedSheet) {
       const preservedLedgerRecords = (sheetLedgerRecords || []).filter(record => record.sheetName !== selectedSheet);
+      const merged = mergeWithPendingRecords(records, [selectedSheet]);
       if (selectedSheet === '현금') {
-        sheetCashRecords = records;
+        sheetCashRecords = merged;
       } else if (selectedSheet === '기업은행') {
-        sheetBankRecords = records;
+        sheetBankRecords = merged;
       } else if (selectedSheet === '잔액전망') {
-        sheetForecastRecords = records;
+        sheetForecastRecords = merged;
       } else {
-        sheetLedgerRecords = [...preservedLedgerRecords, ...records];
+        sheetLedgerRecords = mergeWithPendingRecords([...preservedLedgerRecords, ...merged]);
       }
       ledgerSheetCounts = { ...(ledgerSheetCounts || {}), ...counts };
     } else {
-      sheetLedgerRecords = records.filter(record => ['기업카드', '토스은행'].includes(record.sheetName));
-      sheetCashRecords = records.filter(record => record.sheetName === '현금');
-      sheetBankRecords = records.filter(record => record.sheetName === '기업은행');
-      sheetForecastRecords = records.filter(record => record.sheetName === '잔액전망');
+      sheetLedgerRecords = mergeWithPendingRecords(records.filter(record => ['기업카드', '토스은행'].includes(record.sheetName)), ['기업카드', '토스은행']);
+      sheetCashRecords = mergeWithPendingRecords(records.filter(record => record.sheetName === '현금'), ['현금']);
+      sheetBankRecords = mergeWithPendingRecords(records.filter(record => record.sheetName === '기업은행'), ['기업은행']);
+      sheetForecastRecords = mergeWithPendingRecords(records.filter(record => record.sheetName === '잔액전망'), ['잔액전망']);
       ledgerSheetCounts = counts;
     }
     ledgerDataState = 'fresh';
@@ -489,19 +525,23 @@ function saveLedgerRecord(form, overrides = {}) {
   };
   record.sheetName = ledgerSheetNameForRecord(record);
 
+  pendingDeletedIds.delete(String(record.id));
+  pendingCreatedRecords.set(String(record.id), record);
+
   applyOptimisticSave(record);
   getLedgerTransactionModal().close();
   showLedgerToast(isEdit ? '✏️ 거래가 수정되었습니다.' : '＋ 거래가 등록되었습니다.');
 
-  (async () => {
+  enqueueLedgerTask(async () => {
     try {
       await upsertLedgerSheetRecord(record);
+      pendingCreatedRecords.delete(String(record.id));
       refreshLedgerInBackground(record);
     } catch (error) {
       console.error('Background ledger save error:', error);
       showLedgerToast('⚠️ 시트 저장 동기화 지연 중 (로컬 반영 완료)');
     }
-  })();
+  });
 }
 
 function deleteRecord(id) {
@@ -517,11 +557,14 @@ function deleteRecord(id) {
     sheetName: ledgerSheetNameForRecord(record)
   };
 
+  pendingCreatedRecords.delete(String(record.id));
+  pendingDeletedIds.add(String(record.id));
+
   applyOptimisticDelete(record);
   getLedgerTransactionModal().close();
   showLedgerToast('🗑️ 거래가 삭제되었습니다.');
 
-  (async () => {
+  enqueueLedgerTask(async () => {
     try {
       if (deletePayload.sheetRow || !String(deletePayload.id || '').startsWith('cp_')) {
         await deleteLedgerSheetRecord(deletePayload);
@@ -530,7 +573,7 @@ function deleteRecord(id) {
     } catch (error) {
       console.error('Background ledger delete error:', error);
     }
-  })();
+  });
 }
 
 function toggleLedgerEntry() {
@@ -665,13 +708,15 @@ function deleteSelectedLedgerRecords() {
   }
 
   for (const record of recordsToDelete) {
+    pendingCreatedRecords.delete(String(record.id));
+    pendingDeletedIds.add(String(record.id));
     applyOptimisticDelete(record);
   }
 
   setLedgerMultiEditMode(false);
   showLedgerToast(`🗑️ ${recordsToDelete.length}건의 거래가 삭제되었습니다.`);
 
-  (async () => {
+  enqueueLedgerTask(async () => {
     try {
       for (const record of recordsToDelete) {
         const deletePayload = {
@@ -688,7 +733,7 @@ function deleteSelectedLedgerRecords() {
     } catch (error) {
       console.error('Background multi-delete error:', error);
     }
-  })();
+  });
 }
 
 let toastTimer = null;
@@ -713,7 +758,6 @@ function pasteCopiedLedgerRecords() {
   const targetMonth = ledgerState.monthCursor.getMonth();
   const maxDays = new Date(targetYear, targetMonth + 1, 0).getDate();
 
-  const snapshot = captureLedgerSheetState();
   const newRecords = [];
   const recordsToSave = [...copiedLedgerRecords];
 
@@ -732,6 +776,11 @@ function pasteCopiedLedgerRecords() {
       sheetRow: null,
       createdAt: Date.now() + i
     };
+    newRecord.sheetName = ledgerSheetNameForRecord(newRecord);
+
+    pendingDeletedIds.delete(String(newRecord.id));
+    pendingCreatedRecords.set(String(newRecord.id), newRecord);
+
     newRecords.push(newRecord);
     applyOptimisticSave(newRecord);
   }
@@ -739,18 +788,20 @@ function pasteCopiedLedgerRecords() {
   clearLedgerCopyBuffer();
   showLedgerToast(`📋 ${newRecords.length}건의 거래가 ${targetYear}년 ${targetMonth + 1}월로 복사되었습니다.`);
 
-  (async () => {
+  enqueueLedgerTask(async () => {
     try {
       for (const record of newRecords) {
         await upsertLedgerSheetRecord(record);
+        pendingCreatedRecords.delete(String(record.id));
       }
-      refreshLedgerInBackground(newRecords[0]);
+      if (newRecords.length > 0) {
+        refreshLedgerInBackground(newRecords[0]);
+      }
     } catch (error) {
       console.error('Background paste sync error:', error);
-      restoreLedgerSheetState(snapshot);
-      showLedgerToast('⚠️ 시트 저장 중 지연이 발생했습니다.');
+      showLedgerToast('⚠️ 시트 저장 동기화 지연 중 (로컬 반영 완료)');
     }
-  })();
+  });
 }
 
 function clearLedgerCopyBuffer() {
