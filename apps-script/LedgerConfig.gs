@@ -4,13 +4,24 @@
 var LEDGER_SPREADSHEET_ID = '1OGxGZ-Wp9ivIj8-QohBqkY5VmGidy6R38Di45YtWUXM';
 var LEDGER_SOURCE_SHEETS = ['기업카드', '토스은행', '현금', '기업은행'];
 var LEDGER_WEB_SHEETS = ['기업카드', '토스은행', '현금', '기업은행'];
-var LEDGER_READ_SHEETS = ['현금', '기업카드', '토스은행', '기업은행', '잔액전망'];
+var LEDGER_READ_SHEETS = ['현금', '기업카드', '토스은행', '기업은행', '잔액전망', '_API_LOGS'];
 var LEDGER_PAYMENT_TO_SHEET = {
   '기업카드': '기업카드',
+  'ibk카드': '기업카드',
+  'ibk기업카드': '기업카드',
+  '비씨카드': '기업카드',
+  '신용카드': '기업카드',
+  'bliss': '기업카드',
+  'bliss카드': '기업카드',
+  '카드': '기업카드',
   '토스카드': '토스은행',
   '토스은행': '토스은행',
+  '토스': '토스은행',
+  '토스뱅크': '토스은행',
   '현금': '현금',
-  '기업은행': '기업은행'
+  '기업은행': '기업은행',
+  'ibk은행': '기업은행',
+  'ibk기업은행': '기업은행'
 };
 var BALANCE_FORECAST_SHEET_NAME = '잔액전망';
 var BALANCE_SYNC_SOURCE_SHEETS = ['기업카드', '토스은행', '기업은행'];

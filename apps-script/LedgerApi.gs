@@ -163,7 +163,24 @@ function deleteLedgerRecord(record) {
 function getWriteTarget(record) {
   var explicitSheet = cleanText(record && record.sheetName);
   var payment = cleanText(record && record.payment);
-  var sheetName = explicitSheet || LEDGER_PAYMENT_TO_SHEET[payment] || payment || '현금';
+  var sheetName = explicitSheet;
+
+  if (!sheetName) {
+    if (LEDGER_PAYMENT_TO_SHEET[payment]) {
+      sheetName = LEDGER_PAYMENT_TO_SHEET[payment];
+    } else {
+      var p = payment.toLowerCase().replace(/[\s_\-]/g, '');
+      if (p.indexOf('기업카드') !== -1 || p.indexOf('ibk카드') !== -1 || p.indexOf('비씨') !== -1 || p.indexOf('bliss') !== -1 || p.indexOf('신용') !== -1 || p.indexOf('카드') !== -1) {
+        sheetName = '기업카드';
+      } else if (p.indexOf('토스') !== -1 || p.indexOf('toss') !== -1) {
+        sheetName = '토스은행';
+      } else if (p.indexOf('기업은행') !== -1 || p.indexOf('ibk') !== -1) {
+        sheetName = '기업은행';
+      } else {
+        sheetName = '현금';
+      }
+    }
+  }
 
   var spreadsheet = getLedgerSpreadsheet();
   var sheet = getRequiredSheet(spreadsheet, sheetName);
