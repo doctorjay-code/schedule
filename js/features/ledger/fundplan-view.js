@@ -1,5 +1,5 @@
 import { toIso, formatMoney } from './ledger-utils.js';
-import { createLedgerTableHead, renderTransactionRow } from './transaction-view.js?v=20260823_14';
+import { createLedgerTableHead, renderTransactionRow } from './transaction-view.js?v=20260823_15';
 
 export function getRecordMonthGroup(record, isCompanyCard) {
   if (!isCompanyCard) {
@@ -68,7 +68,8 @@ export function createLedgerMonthDividerRow({
   titleEl.className = 'ledger-month-title';
   titleEl.textContent = formatMonthTitle(monthKey, isCompanyCard);
 
-  content.append(toggleIcon, titleEl);
+  content.appendChild(toggleIcon);
+  content.appendChild(titleEl);
   titleCell.appendChild(content);
   dividerRow.appendChild(titleCell);
 

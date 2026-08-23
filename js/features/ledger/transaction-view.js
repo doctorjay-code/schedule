@@ -146,7 +146,7 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
   balanceCell.textContent = Number.isFinite(usageAmount)
     ? `${usageAmount < 0 ? '-' : ''}${formatMoney(usageAmount)}`
     : '';
-  if (usageAmount < 0) balanceCell.style.color = '#DC2626';
   tagRow.appendChild(balanceCell);
-  list.append(detailRow, tagRow);
+  list.appendChild(detailRow);
+  list.appendChild(tagRow);
 }

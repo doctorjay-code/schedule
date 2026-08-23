@@ -10,8 +10,8 @@ import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, 
 import { createLedgerTransactionModal } from './modals/transaction-modal.js';
 import { createLedgerColorSettings } from './modals/color-settings.js';
 import { bindLedgerListActions } from './ledger-events.js';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_14';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_14';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_15';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_15';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -595,14 +595,36 @@ function handleLedgerRowClick(id, event) {
   }
 }
 
+function findLedgerRecordById(id) {
+  const allPool = [
+    ...(ledgerState.records || []),
+    ...(sheetLedgerRecords || []),
+    ...(sheetCashRecords || []),
+    ...(sheetBankRecords || []),
+    ...(sheetForecastRecords || []),
+    ...(importedLedgerRecords || []),
+    ...(importedBankRecords || []),
+    ...(importedCashRecords || []),
+    ...(importedForecastRecords || [])
+  ];
+  return allPool.find(item => item && String(item.id) === String(id)) || null;
+}
+
 function copySelectedLedgerRecords() {
   if (selectedLedgerIds.size === 0) {
     alert('복사할 거래를 선택해주세요.');
     return;
   }
-  const records = getActiveSourceRecords();
-  copiedLedgerRecords = records.filter(r => selectedLedgerIds.has(r.id)).map(r => JSON.parse(JSON.stringify(r)));
+  copiedLedgerRecords = Array.from(selectedLedgerIds)
+    .map(id => findLedgerRecordById(id))
+    .filter(Boolean)
+    .map(r => JSON.parse(JSON.stringify(r)));
   
+  if (copiedLedgerRecords.length === 0) {
+    alert('선택된 거래 정보를 찾을 수 없습니다.');
+    return;
+  }
+
   const copyBar = document.getElementById('ledgerCopyBufferBar');
   const copyLabel = document.getElementById('ledgerCopiedItemLabel');
   if (copyLabel) copyLabel.textContent = `${copiedLedgerRecords.length}건`;
@@ -614,10 +636,6 @@ function copySelectedLedgerRecords() {
 async function pasteCopiedLedgerRecords() {
   if (!copiedLedgerRecords || copiedLedgerRecords.length === 0) {
     alert('복사된 거래가 없습니다.');
-    return;
-  }
-  if (!ledgerLiveConnected) {
-    alert('시트 연결이 확인된 뒤에 거래를 붙여넣을 수 있습니다.');
     return;
   }
 
