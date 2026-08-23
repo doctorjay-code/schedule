@@ -1,5 +1,35 @@
-import { toIso } from './ledger-utils.js';
+import { toIso, formatMoney } from './ledger-utils.js';
 import { createLedgerTableHead, renderTransactionRow } from './transaction-view.js';
+
+function getRecordMonthGroup(record, isCompanyCard) {
+  if (!isCompanyCard) {
+    return record.date.slice(0, 7);
+  }
+  const [yearStr, monthStr, dayStr] = record.date.split('-');
+  let year = parseInt(yearStr, 10);
+  let month = parseInt(monthStr, 10);
+  const day = parseInt(dayStr, 10);
+
+  if (day >= 13) {
+    month += 1;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+  }
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
+function formatMonthTitle(monthKey, isCompanyCard) {
+  const [yearStr, monthStr] = monthKey.split('-');
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10);
+  if (!isCompanyCard) {
+    return `${year}년 ${month}월`;
+  }
+  const prevMonth = month === 1 ? 12 : month - 1;
+  return `${year}년 ${month}월 (${String(prevMonth).padStart(2, '0')}.13~${String(month).padStart(2, '0')}.12)`;
+}
 
 // Bank, cash, and card all-time ledger rendering responsibility.
 export function createFundplanView({ ledgerState, colorSettings, getActiveSourceRecords, clampLedgerDate, minDate, setText }) {
@@ -7,12 +37,13 @@ export function createFundplanView({ ledgerState, colorSettings, getActiveSource
 
   function render() {
     const source = ledgerState.source;
+    const isCompanyCard = source === 'card' && ledgerState.payment === '\uAE30\uC5C5\uCE74\uB4DC';
     const records = getActiveSourceRecords().filter(record => new Date(record.date + 'T00:00:00') >= minDate);
     const titles = {
       cash: '\uD604\uAE08 \uB0B4\uC5ED',
       bank: '\uAE30\uC5C5\uC740\uD589 \uB0B4\uC5ED',
       forecast: '\uC794\uC561\uC804\uB9DD',
-      card: ledgerState.payment === '\uAE30\uC5C5\uCE74\uB4DC' ? '\uAE30\uC5C5\uCE74\uB4DC \uB0B4\uC5ED' : '\uD1A0\uC2A4\uC740\uD589 \uB0B4\uC5ED'
+      card: isCompanyCard ? '\uAE30\uC5C5\uCE74\uB4DC \uB0B4\uC5ED' : '\uD1A0\uC2A4\uC740\uD589 \uB0B4\uC5ED'
     };
     const title = titles[source] || '\uAC00\uACC4\uBD80 \uB0B4\uC5ED';
     setText('fundplanAllTimeTitle', title);
@@ -20,7 +51,6 @@ export function createFundplanView({ ledgerState, colorSettings, getActiveSource
 
     const thead = document.getElementById('ledgerAllTableHead');
     if (thead) {
-      const isCompanyCard = source === 'card' && ledgerState.payment === '\uAE30\uC5C5\uCE74\uB4DC';
       const moneyInLabel = isCompanyCard ? '\uC218\uC785' : '\uC785\uAE08';
       const moneyOutLabel = isCompanyCard ? '\uC9C0\uCD9C' : '\uCD9C\uAE08';
       const balanceLabel = isCompanyCard ? '\uC0AC\uC6A9\uC561' : '\uC794\uC561';
@@ -45,10 +75,10 @@ export function createFundplanView({ ledgerState, colorSettings, getActiveSource
       return;
     }
 
-    // Group records by month (YYYY-MM)
+    // Group records by calculated month (YYYY-MM)
     const grouped = records.reduce((map, record) => {
-      const month = record.date.slice(0, 7);
-      (map[month] ||= []).push(record);
+      const monthKey = getRecordMonthGroup(record, isCompanyCard);
+      (map[monthKey] ||= []).push(record);
       return map;
     }, {});
 
@@ -68,13 +98,19 @@ export function createFundplanView({ ledgerState, colorSettings, getActiveSource
       const monthRecords = grouped[month];
       const isExpanded = monthExpandedState[month] !== false;
 
-      // 1. Clean Month Header Row
+      // Calculate month totals
+      const monthIncome = monthRecords.filter(x => x.type === 'income').reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
+      const monthExpense = monthRecords.filter(x => x.type === 'expense').reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
+
+      // 1. Clean Month Header Row with matching columns
       const dividerRow = document.createElement('tr');
       dividerRow.className = 'ledger-month-divider-row';
       dividerRow.dataset.month = month;
 
-      const cell = document.createElement('td');
-      cell.colSpan = 7;
+      // Column 1~4 (날짜, 수단, 사용자, 사용처)
+      const titleCell = document.createElement('td');
+      titleCell.colSpan = 4;
+      titleCell.className = 'ledger-month-divider-title-cell';
 
       const content = document.createElement('div');
       content.className = 'ledger-month-divider-content';
@@ -85,15 +121,39 @@ export function createFundplanView({ ledgerState, colorSettings, getActiveSource
 
       const titleEl = document.createElement('strong');
       titleEl.className = 'ledger-month-title';
-      titleEl.textContent = month.replace('-', '\uB144 ') + '\uC6D4';
+      titleEl.textContent = formatMonthTitle(month, isCompanyCard);
 
-      const countBadge = document.createElement('span');
-      countBadge.className = 'ledger-month-count';
-      countBadge.textContent = monthRecords.length + '\uAC74';
+      content.append(toggleIcon, titleEl);
+      titleCell.appendChild(content);
+      dividerRow.appendChild(titleCell);
 
-      content.append(toggleIcon, titleEl, countBadge);
-      cell.appendChild(content);
-      dividerRow.appendChild(cell);
+      // Column 5 (수입 / 입금)
+      const incomeCell = document.createElement('td');
+      incomeCell.className = 'ledger-month-divider-num-cell ledger-month-income-cell';
+      incomeCell.textContent = monthIncome > 0 ? formatMoney(monthIncome) : '';
+      dividerRow.appendChild(incomeCell);
+
+      // Column 6 (지출 / 출금)
+      const expenseCell = document.createElement('td');
+      expenseCell.className = 'ledger-month-divider-num-cell ledger-month-expense-cell';
+      expenseCell.textContent = monthExpense > 0 ? formatMoney(monthExpense) : '';
+      dividerRow.appendChild(expenseCell);
+
+      // Column 7 (사용액 / 잔액)
+      const balanceCell = document.createElement('td');
+      balanceCell.className = 'ledger-month-divider-num-cell ledger-month-balance-cell';
+      if (isCompanyCard) {
+        balanceCell.textContent = monthExpense > 0 ? formatMoney(monthExpense) : '';
+      } else {
+        const lastRecord = monthRecords[monthRecords.length - 1];
+        const lastBalance = Number(lastRecord?.balance);
+        balanceCell.textContent = Number.isFinite(lastBalance)
+          ? `${lastBalance < 0 ? '-' : ''}${formatMoney(lastBalance)}`
+          : '';
+        if (lastBalance < 0) balanceCell.style.color = '#DC2626';
+      }
+      dividerRow.appendChild(balanceCell);
+
       list.appendChild(dividerRow);
 
       // 2. Month Transaction Rows

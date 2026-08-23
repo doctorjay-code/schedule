@@ -1895,17 +1895,35 @@ td.cell-date {
   background: #EEF2FF !important;
   border-top: 2px solid #C7D2FE !important;
   border-bottom: 2px solid #C7D2FE !important;
-  padding: 7px 10px !important;
-  text-align: left !important;
+  padding: 6px 8px !important;
   height: 36px !important;
+  vertical-align: middle !important;
 }
 .ledger-month-divider-row:hover td {
   background: #E0E7FF !important;
 }
+.ledger-month-divider-title-cell {
+  text-align: left !important;
+}
+.ledger-month-divider-num-cell {
+  text-align: right !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  padding-right: 6px !important;
+}
+.ledger-month-income-cell {
+  color: #15803D !important;
+}
+.ledger-month-expense-cell {
+  color: #DC2626 !important;
+}
+.ledger-month-balance-cell {
+  color: #1E1B4B !important;
+}
 .ledger-month-divider-content {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
 }
 .ledger-month-toggle-icon {
@@ -1914,9 +1932,10 @@ td.cell-date {
   font-weight: 800;
 }
 .ledger-month-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
   color: #1E1B4B;
+  white-space: nowrap;
 }
 .ledger-month-count {
   margin-left: auto;
