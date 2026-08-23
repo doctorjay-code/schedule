@@ -10,8 +10,8 @@ import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, 
 import { createLedgerTransactionModal } from './modals/transaction-modal.js';
 import { createLedgerColorSettings } from './modals/color-settings.js';
 import { bindLedgerListActions } from './ledger-events.js';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_15';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_15';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_16';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_16';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -633,9 +633,21 @@ function copySelectedLedgerRecords() {
   setLedgerMultiEditMode(false);
 }
 
-async function pasteCopiedLedgerRecords() {
+let toastTimer = null;
+function showLedgerToast(message) {
+  const toast = document.getElementById('ledgerToast');
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.remove('hidden');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.add('hidden');
+  }, 1800);
+}
+
+function pasteCopiedLedgerRecords() {
   if (!copiedLedgerRecords || copiedLedgerRecords.length === 0) {
-    alert('복사된 거래가 없습니다.');
+    showLedgerToast('복사된 거래가 없습니다.');
     return;
   }
 
@@ -645,9 +657,10 @@ async function pasteCopiedLedgerRecords() {
 
   const snapshot = captureLedgerSheetState();
   const newRecords = [];
+  const recordsToSave = [...copiedLedgerRecords];
 
-  for (let i = 0; i < copiedLedgerRecords.length; i++) {
-    const item = copiedLedgerRecords[i];
+  for (let i = 0; i < recordsToSave.length; i++) {
+    const item = recordsToSave[i];
     const origDay = parseInt(String(item.date || '').split('-')[2], 10) || 1;
     const day = Math.min(origDay, maxDays);
     const newDate = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -656,22 +669,30 @@ async function pasteCopiedLedgerRecords() {
     const newRecord = {
       ...item,
       id: newId,
-      date: newDate
+      date: newDate,
+      balance: '',
+      sheetRow: null,
+      createdAt: Date.now() + i
     };
     newRecords.push(newRecord);
     applyOptimisticSave(newRecord);
   }
 
-  try {
-    for (const record of newRecords) {
-      await upsertLedgerSheetRecord(record);
+  clearLedgerCopyBuffer();
+  showLedgerToast(`📋 ${newRecords.length}건의 거래가 ${targetYear}년 ${targetMonth + 1}월로 복사되었습니다.`);
+
+  (async () => {
+    try {
+      for (const record of newRecords) {
+        await upsertLedgerSheetRecord(record);
+      }
+      refreshLedgerInBackground(newRecords[0]);
+    } catch (error) {
+      console.error('Background paste sync error:', error);
+      restoreLedgerSheetState(snapshot);
+      showLedgerToast('⚠️ 시트 저장 중 지연이 발생했습니다.');
     }
-    refreshLedgerInBackground();
-    alert(`${newRecords.length}건의 거래가 ${targetYear}년 ${targetMonth + 1}월로 붙여넣기 되었습니다.`);
-  } catch (error) {
-    restoreLedgerSheetState(snapshot);
-    alert(error?.message || '거래를 시트에 저장하지 못했습니다.');
-  }
+  })();
 }
 
 function clearLedgerCopyBuffer() {

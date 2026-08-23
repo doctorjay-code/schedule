@@ -2259,6 +2259,29 @@ body {
 }
 .app-container:not(.ledger-active) .ledger-only { display: none !important; }
 .app-container.ledger-active .ledger-only { display: block !important; }
+.floating-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  background: rgba(15, 23, 42, 0.92);
+  color: #FFFFFF;
+  padding: 10px 18px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  z-index: 9999;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  white-space: nowrap;
+  opacity: 1;
+}
+.floating-toast.hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(12px);
+  pointer-events: none;
+}
 #ledgerPersonSwitch .ledger-filter-primary {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
