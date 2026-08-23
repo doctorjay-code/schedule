@@ -738,6 +738,19 @@ function getMonthlyRecords() {
 function renderMonthlyList(items) {
   const sorted = [...items].sort((a,b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
   setText('ledgerMonthlyTransactionCount', sorted.length + '\uAC74');
+
+  const thead = document.getElementById('ledgerMonthlyTableHead');
+  if (thead) {
+    const isCompanyCard = ledgerState.source === 'card' && ledgerState.payment === '\uAE30\uC5C5\uCE74\uB4DC';
+    const moneyInLabel = isCompanyCard ? '\uC218\uC785' : '\uC785\uAE08';
+    const moneyOutLabel = isCompanyCard ? '\uC9C0\uCD9C' : '\uCD9C\uAE08';
+    const balanceLabel = isCompanyCard ? '\uC0AC\uC6A9\uC561' : '\uC794\uC561';
+    const useMerged = ['card', 'cash', 'bank'].includes(ledgerState.source);
+    thead.replaceWith(createLedgerTableHead(moneyInLabel, moneyOutLabel, useMerged, balanceLabel));
+    const newThead = document.querySelector('#ledgerMonthlyTable thead');
+    if (newThead) newThead.id = 'ledgerMonthlyTableHead';
+  }
+
   const list = document.getElementById('ledgerMonthlyTransactionList');
   if (!list) return;
   list.replaceChildren();

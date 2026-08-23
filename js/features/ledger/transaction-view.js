@@ -11,10 +11,10 @@ export function appendLedgerEmptyRow(list, message) {
   list.appendChild(row);
 }
 
-export function createLedgerTableHead(incomeLabel = '\uC218\uC785', expenseLabel = '\uC9C0\uCD9C', useMergedPaymentColumn = true) {
+export function createLedgerTableHead(incomeLabel = '\uC218\uC785', expenseLabel = '\uC9C0\uCD9C', useMergedPaymentColumn = true, balanceLabel = '\uC794\uC561') {
   const thead = document.createElement('thead');
   const row = document.createElement('tr');
-  const labels = ['\uB0A0\uC9DC/\uC694\uC77C', useMergedPaymentColumn ? '\uC218\uB2E8' : '\uC2DC\uAC04', useMergedPaymentColumn ? '\uC0AC\uC6A9\uC790' : '\uAD6C\uBD84', useMergedPaymentColumn ? '\uC0AC\uC6A9\uCC98' : '\uBD84\uB958', incomeLabel, expenseLabel, useMergedPaymentColumn ? '\uC0AC\uC6A9\uC561' : '\uC794\uC561'];
+  const labels = ['\uB0A0\uC9DC/\uC694\uC77C', useMergedPaymentColumn ? '\uC218\uB2E8' : '\uC2DC\uAC04', useMergedPaymentColumn ? '\uC0AC\uC6A9\uC790' : '\uAD6C\uBD84', useMergedPaymentColumn ? '\uC0AC\uC6A9\uCC98' : '\uBD84\uB958', incomeLabel, expenseLabel, balanceLabel];
   const classes = ['col-date', 'col-time', 'col-region', 'col-clinic', 'col-trans', 'col-hr', 'col-ot'];
   labels.forEach((label, index) => {
     const cell = document.createElement('th');
@@ -136,11 +136,10 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
   tagRow.appendChild(expenseCell);
   const balanceCell = makeDayEndCell();
   const usageAmount = Number(item.balance);
-  const isCardIncome = source === 'card' && item.type === 'income';
   balanceCell.textContent = Number.isFinite(usageAmount)
-    ? `${isCardIncome ? '-' : ''}${formatMoney(usageAmount)}`
+    ? `${usageAmount < 0 ? '-' : ''}${formatMoney(usageAmount)}`
     : '';
-  if (isCardIncome) balanceCell.style.color = '#15803D';
+  if (usageAmount < 0) balanceCell.style.color = '#DC2626';
   tagRow.appendChild(balanceCell);
   list.append(detailRow, tagRow);
 }
