@@ -1,4 +1,4 @@
-import { formatMoney, getLedgerTagColor, normalizeLedgerDate } from './ledger-utils.js?v=20260824_32';
+import { formatMoney, getLedgerTagColor, normalizeLedgerDate } from './ledger-utils.js?v=20260824_33';
 
 // Transaction table and row rendering responsibility.
 export function appendLedgerEmptyRow(list, message) {

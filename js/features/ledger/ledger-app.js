@@ -2,16 +2,16 @@ import { state, pastelPalette, saveColorSettings, defaultColorSettings } from '.
 import { switchViewModeUI } from '../schedule/render.js';
 import { openWeekSelectModal } from '../schedule/modals/week-picker.js';
 import { openMonthSelectModal } from '../schedule/modals/month-picker.js';
-import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor, recalculateRunningBalances, normalizeLedgerDate } from './ledger-utils.js?v=20260824_32';
+import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor, recalculateRunningBalances, normalizeLedgerDate } from './ledger-utils.js?v=20260824_33';
 import { filterLedgerRecords } from './card.js';
 import { normalizeFundplanRows } from './fundplan.js';
 import { groupExpenses, renderStatList } from './stats.js';
-import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_32';
-import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_32';
-import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_32';
-import { bindLedgerListActions } from './ledger-events.js?v=20260824_32';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_32';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_32';
+import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_33';
+import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_33';
+import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_33';
+import { bindLedgerListActions } from './ledger-events.js?v=20260824_33';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_33';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_33';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -72,7 +72,7 @@ function syncLedgerWriteControls() {
       : '시트 연결 후 거래를 입력할 수 있습니다.';
 }
 
-const LEDGER_CUSTOM_ORDER_KEY = 'ledger_custom_order_map_v1';
+const LEDGER_CUSTOM_ORDER_KEY = 'ledger_custom_order_map_v2';
 
 function getCustomOrderMap() {
   try {
@@ -99,8 +99,6 @@ function applyCustomOrderToList(records) {
     const aOrder = orderMap[String(a.id)];
     const bOrder = orderMap[String(b.id)];
     if (aOrder !== undefined && bOrder !== undefined) return aOrder - bOrder;
-    if (aOrder !== undefined) return -1;
-    if (bOrder !== undefined) return 1;
     return 0;
   });
 }
@@ -534,10 +532,26 @@ function recalculateLedgerBalances(records) {
 function reorderLedgerRecord(orderedIds) {
   if (!Array.isArray(orderedIds) || orderedIds.length === 0) return;
   const orderMap = getCustomOrderMap();
+  
+  const existingOrders = orderedIds
+    .map(id => orderMap[String(id)])
+    .filter(val => typeof val === 'number')
+    .sort((a, b) => a - b);
+  
+  const baseOrder = existingOrders.length > 0 ? existingOrders[0] : Date.now();
+  
   orderedIds.forEach((id, idx) => {
-    if (id) orderMap[String(id)] = idx;
+    if (id) {
+      orderMap[String(id)] = baseOrder + idx;
+    }
   });
+  
   saveCustomOrderMap(orderMap);
+  
+  if (sheetLedgerRecords) sheetLedgerRecords = applyCustomOrderToList(sheetLedgerRecords);
+  if (sheetBankRecords) sheetBankRecords = applyCustomOrderToList(sheetBankRecords);
+  if (sheetCashRecords) sheetCashRecords = applyCustomOrderToList(sheetCashRecords);
+  
   applyLedgerDataSources();
   showLedgerToast('↕️ 거래 순서가 저장되었습니다.');
 }

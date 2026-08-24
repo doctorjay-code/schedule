@@ -19,7 +19,7 @@ export function bindLedgerListActions({ onRowClick, onOpen, onReorder }) {
 
   function isLedgerRow(el) {
     if (!el) return null;
-    if (el.closest('button, input, select, textarea, a, .color-indicator')) return null;
+    if (el.closest('button, input, select, textarea, a, .color-indicator, .ledger-month-divider-row')) return null;
     const row = el.closest('tr[data-ledger-id]');
     if (!row || row.dataset.ledgerReadOnly === 'true') return null;
     return row;
@@ -29,12 +29,16 @@ export function bindLedgerListActions({ onRowClick, onOpen, onReorder }) {
     if (isDragging || !row) return;
     activeContainer = row.parentNode;
     draggedId = row.dataset.ledgerId;
+    if (!draggedId || !activeContainer) return;
+
     isDragging = true;
     hasMoved = false;
     document.body.classList.add('ledger-dragging-locked');
     draggedRows = Array.from(activeContainer.querySelectorAll(`tr[data-ledger-id="${draggedId}"]`));
     draggedRows.forEach(r => r.classList.add('dragging'));
-    if (navigator.vibrate) navigator.vibrate(35);
+    if (navigator.vibrate) {
+      try { navigator.vibrate(35); } catch {}
+    }
   }
 
   function moveDrag(clientX, clientY) {
@@ -53,6 +57,7 @@ export function bindLedgerListActions({ onRowClick, onOpen, onReorder }) {
     if (!targetRow) return;
 
     const targetId = targetRow.dataset.ledgerId;
+    if (!targetId || targetId === draggedId) return;
     const targetRows = Array.from(activeContainer.querySelectorAll(`tr[data-ledger-id="${targetId}"]`));
     if (targetRows.length === 0) return;
 
@@ -83,7 +88,7 @@ export function bindLedgerListActions({ onRowClick, onOpen, onReorder }) {
 
     if (isDragging && draggedId && activeContainer) {
       globalJustDragged = true;
-      setTimeout(() => { globalJustDragged = false; }, 180);
+      setTimeout(() => { globalJustDragged = false; }, 200);
 
       if (hasMoved && onReorder) {
         const orderedIds = [];
@@ -111,14 +116,14 @@ export function bindLedgerListActions({ onRowClick, onOpen, onReorder }) {
 
   // 1. 단일 클릭(Tap) 이벤트 -> 거래 수정 모달 열기
   document.addEventListener('click', event => {
-    if (globalJustDragged) return;
+    if (globalJustDragged || isDragging) return;
     const row = isLedgerRow(event.target);
     if (row && handler) {
       handler(row.dataset.ledgerId, event);
     }
   });
 
-  // 2. 모바일 터치 이벤트 (Passive: false로 스크롤 완벽 잠금)
+  // 2. 모바일 터치 이벤트
   document.addEventListener('touchstart', e => {
     const row = isLedgerRow(e.target);
     if (!row) return;
@@ -130,14 +135,14 @@ export function bindLedgerListActions({ onRowClick, onOpen, onReorder }) {
 
     longTouchTimer = setTimeout(() => {
       startDrag(row);
-    }, 220);
+    }, 180);
   }, { passive: true });
 
   document.addEventListener('touchmove', e => {
     if (!isDragging && longTouchTimer) {
       const touch = e.touches[0];
       const moveDist = Math.hypot(touch.clientX - startX, touch.clientY - startY);
-      if (moveDist > 10) {
+      if (moveDist > 8) {
         clearTimeout(longTouchTimer);
         longTouchTimer = null;
       }
@@ -165,7 +170,7 @@ export function bindLedgerListActions({ onRowClick, onOpen, onReorder }) {
 
     const onMouseMove = ev => {
       const moveDist = Math.hypot(ev.clientX - startX, ev.clientY - startY);
-      if (!isDragging && moveDist > 5) {
+      if (!isDragging && moveDist > 3) {
         startDrag(row);
       }
       if (isDragging) {

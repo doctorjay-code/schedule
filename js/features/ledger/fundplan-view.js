@@ -1,5 +1,5 @@
-import { toIso, formatMoney, recalculateRunningBalances, normalizeLedgerDate } from './ledger-utils.js?v=20260824_32';
-import { createLedgerTableHead, renderTransactionRow } from './transaction-view.js?v=20260824_32';
+import { toIso, formatMoney, recalculateRunningBalances, normalizeLedgerDate } from './ledger-utils.js?v=20260824_33';
+import { createLedgerTableHead, renderTransactionRow } from './transaction-view.js?v=20260824_33';
 
 export function getRecordMonthGroup(record, isCompanyCard) {
   const dStr = normalizeLedgerDate(record.date);
