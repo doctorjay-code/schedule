@@ -265,15 +265,14 @@ function reorderLedgerRows(sheetName, orderedIds) {
 
   var rowById = {};
   var idColIdx = index['id'];
-  var nonOrderedRows = [];
+  var targetPositions = [];
 
   for (var r = 0; r < allData.length; r++) {
     var row = allData[r];
     var rowId = cleanText(row[idColIdx]);
     if (rowId && orderedIds.indexOf(rowId) !== -1) {
       rowById[rowId] = row;
-    } else {
-      nonOrderedRows.push(row);
+      targetPositions.push(r);
     }
   }
 
@@ -285,12 +284,12 @@ function reorderLedgerRows(sheetName, orderedIds) {
     }
   }
 
-  // 전체 행 병합: 순서 변경 대상 행 + 나머지 행
-  var finalRows = reorderedRows.concat(nonOrderedRows);
-
-  if (finalRows.length === allData.length) {
-    sheet.getRange(2, 1, finalRows.length, lastCol).setValues(finalRows);
+  // 원래 차지하고 있던 행 위치들에 새로운 순서대로 1:1 슬롯 교체 (다른 월 영향 0%)
+  for (var k = 0; k < targetPositions.length && k < reorderedRows.length; k++) {
+    allData[targetPositions[k]] = reorderedRows[k];
   }
+
+  sheet.getRange(2, 1, allData.length, lastCol).setValues(allData);
 
   // 누적 잔액/사용액 실시간 재계산
   recalculateSheetBalances(sheet, sheetName, headers, index);
