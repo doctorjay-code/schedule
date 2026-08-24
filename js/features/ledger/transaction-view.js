@@ -1,4 +1,4 @@
-import { formatMoney, getLedgerTagColor } from './ledger-utils.js?v=20260824_30';
+import { formatMoney, getLedgerTagColor, normalizeLedgerDate } from './ledger-utils.js?v=20260824_31';
 
 // Transaction table and row rendering responsibility.
 export function appendLedgerEmptyRow(list, message) {
@@ -27,9 +27,17 @@ export function createLedgerTableHead(incomeLabel = '\uC218\uC785', expenseLabel
 }
 
 export function formatLedgerScheduleDate(isoDate) {
-  const date = new Date(isoDate + 'T00:00:00');
-  const dayNames = ['\uC77C', '\uC6D4', '\uD654', '\uC218', '\uBAA9', '\uAE08', '\uD1A0'];
-  return `${date.getMonth() + 1}. ${date.getDate()}.(${dayNames[date.getDay()]})`;
+  const safeDateStr = normalizeLedgerDate(isoDate);
+  const parts = safeDateStr.split('-');
+  if (parts.length === 3) {
+    const y = Number(parts[0]);
+    const m = Number(parts[1]);
+    const d = Number(parts[2]);
+    const dt = new Date(y, m - 1, d);
+    const dayNames = ['\uC77C', '\uC6D4', '\uD654', '\uC218', '\uBAA9', '\uAE08', '\uD1A0'];
+    return `${m}. ${d}.(${dayNames[dt.getDay()] || ''})`;
+  }
+  return safeDateStr;
 }
 
 export function renderTransactionRow(item, listId = 'ledgerTransactionList', options = {}) {

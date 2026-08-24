@@ -7,10 +7,23 @@ export function startOfWeek(date) {
   return d;
 }
 
+export function normalizeLedgerDate(rawDate) {
+  if (!rawDate) return '';
+  const str = String(rawDate).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  const d = new Date(str);
+  if (Number.isFinite(d.getTime())) {
+    const kst = new Date(d.getTime() + (9 * 60 - d.getTimezoneOffset()) * 60000);
+    const y = kst.getFullYear();
+    const m = String(kst.getMonth() + 1).padStart(2, '0');
+    const day = String(kst.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  return str.slice(0, 10);
+}
+
 export function toIso(date) {
-  const d = new Date(date);
-  const offset = d.getTimezoneOffset() * 60000;
-  return new Date(d.getTime() - offset).toISOString().slice(0, 10);
+  return normalizeLedgerDate(date);
 }
 
 export function escapeHtml(value) {

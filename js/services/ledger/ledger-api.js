@@ -1,3 +1,5 @@
+import { normalizeLedgerDate } from '../../features/ledger/ledger-utils.js?v=20260824_31';
+
 const LEDGER_API_URL = 'https://script.google.com/macros/s/AKfycbwrabwa6r6tuowlOiiewohmSTcESk2OhnwJST6uh50pDBCdx0cWUG8usGJASRqz1UBb/exec';
 
 const SHEET_PAYMENT = {
@@ -54,7 +56,7 @@ function mapSheetRows(sheetName, sheetData) {
 
     return {
       id: read('id', '원본id') || `sheets-${sheetName}-${rowIndex + 2}`,
-      date: read('날짜', 'date'),
+      date: normalizeLedgerDate(read('날짜', 'date')),
       type,
       amount,
       balance,
