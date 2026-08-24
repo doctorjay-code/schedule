@@ -2557,15 +2557,13 @@ body.ledger-dragging-locked {
 .schedule-row.dragging.schedule-row-detail td.cell-time {
   border-bottom: 2px solid #1E3A8A !important;
 }
-/* Fixed Cost Row: Soft Pastel Yellow Full Fill */
-tr.ledger-fixed-row > td {
-  background-color: #FEF9C3 !important;
+/* Fixed Cost Row: Soft Milk Butter (#FEFCE8) for columns 3-7 (Date & Payment columns remain clean) */
+tr.ledger-fixed-row > td:not(.cell-date):not(.cell-time) {
+  background-color: #FEFCE8 !important;
 }
-tr.ledger-fixed-row:hover > td {
-  background-color: #FEF08A !important;
-}
-tr.ledger-fixed-row.dragging > td {
-  background-color: #FEF08A !important;
+tr.ledger-fixed-row:hover > td:not(.cell-date):not(.cell-time),
+tr.ledger-fixed-row.dragging > td:not(.cell-date):not(.cell-time) {
+  background-color: #FEFCE8 !important;
 }
 
 /* 고정비 태그 뱃지 자체도 예쁜 노란색 */
