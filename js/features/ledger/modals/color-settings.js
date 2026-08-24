@@ -5,6 +5,7 @@ import { syncColorSettingsToSupabase } from '../../../services/schedule/api.js';
 export function createLedgerColorSettings({ state, pastelPalette, defaultColorSettings, saveColorSettings, renderLedgerViews }) {
   const defaultPersonList = ['쥬쥬', '지니', '콩콩', '기타'];
   const defaultCategoryList = ['식비', '교통', '문화', '생활', '보험', '이자', '상환', '저축', '입금', '기타'];
+  const defaultPaymentList = ['현금', '기업카드', '토스은행', '기업은행', '잔액전망'];
   let ruleColor = pastelPalette[0];
   let bound = false;
 
@@ -13,6 +14,7 @@ export function createLedgerColorSettings({ state, pastelPalette, defaultColorSe
   }
 
   function getColorNames(field) {
+    if (field === 'payment') return defaultPaymentList;
     const defaults = field === 'person' ? defaultPersonList : defaultCategoryList;
     const settingsKey = field === 'person' ? 'ledgerPersonColors' : 'ledgerCategoryColors';
     const savedKeys = Object.keys(state.colorSettings?.[settingsKey] || {});
@@ -55,11 +57,12 @@ export function createLedgerColorSettings({ state, pastelPalette, defaultColorSe
     if (!target) return;
     target.replaceChildren();
     const pin = String.fromCodePoint(0x1F4CD);
-    const buttonLabel = uiText(0xBC84, 0xD2BC, 0x20, 0xC0C9, 0xC0C1);
-    const unit = uiText(0xC885);
+    const buttonLabel = '버튼 색상';
+    const unit = '종';
     const groups = [
-      [uiText(0xAD6C, 0xBD84), 'person', 'ledgerPersonColors'],
-      [uiText(0xBD84, 0xB958), 'category', 'ledgerCategoryColors']
+      ['구분', 'person', 'ledgerPersonColors'],
+      ['분류', 'category', 'ledgerCategoryColors'],
+      ['수단', 'payment', 'ledgerPaymentColors']
     ];
     groups.forEach(([title, field, key]) => {
       const names = getColorNames(field);
@@ -146,6 +149,7 @@ export function createLedgerColorSettings({ state, pastelPalette, defaultColorSe
       if (!confirm(uiText(0xBAA8, 0xB4E0, 0x20, 0xC0C9, 0xC0C1, 0x20, 0xC124, 0xC815, 0xC744, 0x20, 0xAE30, 0xBCF8, 0xAC12, 0xC73C, 0xB85C, 0x20, 0xCD08, 0xAE30, 0xD654, 0xD558, 0xC2DC, 0xACA0, 0xC2B5, 0xB2C8, 0xAE4C, 0x3F))) return;
       state.colorSettings.ledgerPersonColors = { ...defaultColorSettings.ledgerPersonColors };
       state.colorSettings.ledgerCategoryColors = { ...defaultColorSettings.ledgerCategoryColors };
+      state.colorSettings.ledgerPaymentColors = { ...defaultColorSettings.ledgerPaymentColors };
       state.colorSettings.ledgerWordRules = [];
       saveColorSettings();
       syncColorSettingsToSupabase();

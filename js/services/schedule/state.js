@@ -41,6 +41,13 @@ export const defaultColorSettings = {
   wordRules: [],
   ledgerPersonColors: {},
   ledgerCategoryColors: {},
+  ledgerPaymentColors: {
+    '현금': '#D1FAE5',
+    '기업카드': '#FFEDD5',
+    '토스은행': '#E0F2FE',
+    '기업은행': '#E0E7FF',
+    '잔액전망': '#FEF3C7'
+  },
   ledgerWordRules: []
 };
 

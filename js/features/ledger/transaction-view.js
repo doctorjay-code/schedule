@@ -50,6 +50,13 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
   const tagRow = document.createElement('tr');
   tagRow.className = 'schedule-row schedule-row-tag cell-day-end-border';
   tagRow.dataset.ledgerId = item.id;
+
+  const isFixed = item.fixedCost === '고정비' || item.fixedCost === '고정' || (item.fixedCost && item.fixedCost !== 'false');
+  if (isFixed) {
+    detailRow.classList.add('ledger-fixed-row');
+    tagRow.classList.add('ledger-fixed-row');
+  }
+
   const isReadOnlySource = source === 'forecast';
   if (isReadOnlySource) {
     detailRow.dataset.ledgerReadOnly = 'true';
@@ -79,6 +86,9 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
     } else {
       paymentTag.textContent = paymentText;
     }
+    const paymentColor = getLedgerTagColor(colorSettings, 'payment', paymentText);
+    paymentTag.style.backgroundColor = paymentColor;
+    paymentTag.style.color = '#0F172A';
     morningCell.appendChild(paymentTag);
   }
   detailRow.appendChild(morningCell);

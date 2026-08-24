@@ -2557,6 +2557,13 @@ body.ledger-dragging-locked {
 .schedule-row.dragging.schedule-row-detail td.cell-time {
   border-bottom: 2px solid #1E3A8A !important;
 }
-
-
-
+/* Fixed Cost Row: Soft Pastel Yellow Full Fill */
+tr.ledger-fixed-row > td {
+  background-color: #FEF9C3 !important;
+}
+tr.ledger-fixed-row:hover > td {
+  background-color: #FEF08A !important;
+}
+tr.ledger-fixed-row.dragging > td {
+  background-color: #FEF08A !important;
+}

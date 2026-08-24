@@ -82,7 +82,9 @@ export function recalculateRunningBalances(items, isCompanyCard = false) {
 }
 
 export function getLedgerTagColor(colorSettings, field, value) {
-  const key = field === 'person' ? 'ledgerPersonColors' : 'ledgerCategoryColors';
+  let key = 'ledgerCategoryColors';
+  if (field === 'person') key = 'ledgerPersonColors';
+  else if (field === 'payment') key = 'ledgerPaymentColors';
   const colors = colorSettings?.[key] || {};
   return colors[value] || '#F1F5F9';
 }

@@ -206,8 +206,31 @@ function syncLedgerCardButtons() {
   document.querySelectorAll('[data-ledger-filter-type]').forEach(button => {
     button.classList.toggle('active', button.dataset.ledgerFilterType === ledgerState.filterType && button.dataset.ledgerFilterValue === ledgerState.filterValue);
   });
-  document.querySelectorAll('[data-ledger-payment]').forEach(button => {
-    button.classList.toggle('active', ledgerState.source === 'card' && button.dataset.ledgerPayment === ledgerState.payment);
+
+  const paymentBtnMap = [
+    { id: 'ledgerCashSourceBtn', name: '현금', isActive: ledgerState.source === 'cash' },
+    { id: 'ledgerCompanyCardBtn', name: '기업카드', isActive: ledgerState.source === 'card' && ledgerState.payment === '기업카드' },
+    { id: 'ledgerTossBankBtn', name: '토스은행', isActive: ledgerState.source === 'card' && ledgerState.payment === '토스은행' },
+    { id: 'ledgerBankSourceBtn', name: '기업은행', isActive: ledgerState.source === 'bank' },
+    { id: 'ledgerForecastSourceBtn', name: '잔액전망', isActive: ledgerState.source === 'forecast' }
+  ];
+
+  paymentBtnMap.forEach(({ id, name, isActive }) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.classList.toggle('active', isActive);
+    const color = getLedgerTagColor(state.colorSettings, 'payment', name);
+    if (isActive) {
+      btn.style.backgroundColor = color;
+      btn.style.borderColor = 'rgba(15, 23, 42, 0.2)';
+      btn.style.fontWeight = '700';
+      btn.style.color = '#0F172A';
+    } else {
+      btn.style.backgroundColor = '';
+      btn.style.borderColor = '';
+      btn.style.fontWeight = '';
+      btn.style.color = '';
+    }
   });
 }
 function setLedgerFilter(type, value) {
