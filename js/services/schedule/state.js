@@ -78,40 +78,61 @@ export const state = {
   scheduleDataState: 'loading'
 };
 
+// Master Color Normalization Helper (Clean Architecture - Single Source of Truth)
+export function normalizeColorSettings(raw = {}) {
+  const safe = raw && typeof raw === 'object' ? raw : {};
+  return {
+    regionColors: { ...defaultColorSettings.regionColors, ...(safe.regionColors || {}) },
+    clinicColors: { ...defaultColorSettings.clinicColors, ...(safe.clinicColors || {}) },
+    wordRules: Array.isArray(safe.wordRules) ? safe.wordRules : [],
+    ledgerPersonColors: { ...defaultColorSettings.ledgerPersonColors, ...(safe.ledgerPersonColors || {}) },
+    ledgerCategoryColors: { ...defaultColorSettings.ledgerCategoryColors, ...(safe.ledgerCategoryColors || {}) },
+    ledgerPaymentColors: { ...defaultColorSettings.ledgerPaymentColors, ...(safe.ledgerPaymentColors || {}) },
+    scheduleAlertColors: { ...defaultColorSettings.scheduleAlertColors, ...(safe.scheduleAlertColors || {}) },
+    ledgerWordRules: Array.isArray(safe.ledgerWordRules) ? safe.ledgerWordRules : []
+  };
+}
+
 // Load Color Settings from Local Storage
 export function loadColorSettings() {
   const saved = localStorage.getItem('user_color_settings');
   if (saved) {
     try {
-      const parsed = JSON.parse(saved);
-      state.colorSettings = {
-        regionColors: { ...defaultColorSettings.regionColors, ...(parsed.regionColors || {}) },
-        clinicColors: { ...defaultColorSettings.clinicColors, ...(parsed.clinicColors || {}) },
-        wordRules: Array.isArray(parsed.wordRules) ? parsed.wordRules : [],
-        ledgerPersonColors: { ...defaultColorSettings.ledgerPersonColors, ...(parsed.ledgerPersonColors || {}) },
-        ledgerCategoryColors: { ...defaultColorSettings.ledgerCategoryColors, ...(parsed.ledgerCategoryColors || {}) },
-        ledgerPaymentColors: { ...defaultColorSettings.ledgerPaymentColors, ...(parsed.ledgerPaymentColors || {}) },
-        scheduleAlertColors: { ...defaultColorSettings.scheduleAlertColors, ...(parsed.scheduleAlertColors || {}) },
-        ledgerWordRules: Array.isArray(parsed.ledgerWordRules) ? parsed.ledgerWordRules : []
-      };
+      state.colorSettings = normalizeColorSettings(JSON.parse(saved));
     } catch (e) {
       console.error('Error loading color settings:', e);
-      state.colorSettings = JSON.parse(JSON.stringify(defaultColorSettings));
+      state.colorSettings = normalizeColorSettings();
     }
   }
 }
 
 // Save Color Settings to Local Storage
 export function saveColorSettings() {
+  state.colorSettings = normalizeColorSettings(state.colorSettings);
   localStorage.setItem('user_color_settings', JSON.stringify(state.colorSettings));
 }
 
 // Reset ONLY Schedule Color Settings (preserves ledger colors!)
 export function resetScheduleColorSettings() {
-  state.colorSettings.regionColors = { ...defaultColorSettings.regionColors };
-  state.colorSettings.clinicColors = { ...defaultColorSettings.clinicColors };
-  state.colorSettings.scheduleAlertColors = { ...defaultColorSettings.scheduleAlertColors };
-  state.colorSettings.wordRules = [];
+  state.colorSettings = normalizeColorSettings({
+    ...state.colorSettings,
+    regionColors: defaultColorSettings.regionColors,
+    clinicColors: defaultColorSettings.clinicColors,
+    scheduleAlertColors: defaultColorSettings.scheduleAlertColors,
+    wordRules: []
+  });
+  saveColorSettings();
+}
+
+// Reset ONLY Ledger Color Settings (preserves schedule colors!)
+export function resetLedgerColorSettings() {
+  state.colorSettings = normalizeColorSettings({
+    ...state.colorSettings,
+    ledgerPersonColors: defaultColorSettings.ledgerPersonColors,
+    ledgerCategoryColors: defaultColorSettings.ledgerCategoryColors,
+    ledgerPaymentColors: defaultColorSettings.ledgerPaymentColors,
+    ledgerWordRules: []
+  });
   saveColorSettings();
 }
 

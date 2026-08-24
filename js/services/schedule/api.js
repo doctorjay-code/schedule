@@ -1,4 +1,4 @@
-import { state, getTodayWeekIndex, saveLocalStorageData, saveLastScheduleSheetSnapshot, saveColorSettings, defaultColorSettings, updateSummaryCounts } from './state.js';
+import { state, getTodayWeekIndex, saveLocalStorageData, saveLastScheduleSheetSnapshot, saveColorSettings, defaultColorSettings, updateSummaryCounts, normalizeColorSettings } from './state.js';
 import { setSyncStatus } from '../../shared/sync-ui.js';
 import { supabaseRest } from '../ledger/supabase-client.js';
 
@@ -37,41 +37,32 @@ async function flushScheduledSave() {
 }
 
 /**
- * Supabase DB에서 초고속 (0.05초) 일정 및 색상 설정 동기화
+ * Supabase DB에서 schedules 및 color_settings 동기화
  */
 export async function syncScheduleFromSupabase() {
-  let fetched = false;
   setSyncStatus('loading');
+  let fetched = false;
+
   try {
     const [scheduleRows, colorSettingRows] = await Promise.all([
-      supabaseRest('schedules?select=*&order=order_index.asc'),
+      supabaseRest('schedules?order=week_title.asc,id.asc'),
       supabaseRest('schedule_settings?key=eq.color_settings')
     ]);
 
     if (Array.isArray(scheduleRows) && scheduleRows.length > 0) {
       parseSupabaseScheduleRecords(scheduleRows);
-      saveLastScheduleSheetSnapshot();
-      state.scheduleDataState = 'fresh';
+      saveLocalStorageData();
+      saveLastScheduleSheetSnapshot(state.allWeeksData);
+      state.scheduleDataState = 'saved';
+      if (apiLoadWeekDataFn) apiLoadWeekDataFn(state.currentWeekIndex);
       updateSummaryCounts();
       fetched = true;
     }
 
     if (Array.isArray(colorSettingRows) && colorSettingRows.length > 0) {
-      const parsed = colorSettingRows[0].value;
-      if (parsed && typeof parsed === 'object') {
-        state.colorSettings = {
-          regionColors: { ...defaultColorSettings.regionColors, ...(parsed.regionColors || {}) },
-          clinicColors: { ...defaultColorSettings.clinicColors, ...(parsed.clinicColors || {}) },
-          wordRules: Array.isArray(parsed.wordRules) ? parsed.wordRules : [],
-          ledgerPersonColors: { ...defaultColorSettings.ledgerPersonColors, ...(parsed.ledgerPersonColors || {}) },
-          ledgerCategoryColors: { ...defaultColorSettings.ledgerCategoryColors, ...(parsed.ledgerCategoryColors || {}) },
-          ledgerPaymentColors: { ...defaultColorSettings.ledgerPaymentColors, ...(parsed.ledgerPaymentColors || {}) },
-          scheduleAlertColors: { ...defaultColorSettings.scheduleAlertColors, ...(parsed.scheduleAlertColors || {}) },
-          ledgerWordRules: Array.isArray(parsed.ledgerWordRules) ? parsed.ledgerWordRules : []
-        };
-        saveColorSettings();
-        if (apiLoadWeekDataFn) apiLoadWeekDataFn(state.currentWeekIndex);
-      }
+      state.colorSettings = normalizeColorSettings(colorSettingRows[0]?.value);
+      saveColorSettings();
+      if (apiLoadWeekDataFn) apiLoadWeekDataFn(state.currentWeekIndex);
     }
 
     if (fetched && !saveInProgress && !saveQueued) setSyncStatus('saved', '최신 일정 반영');
@@ -88,21 +79,9 @@ export async function syncColorSettingsFromSupabase() {
   try {
     const colorSettingRows = await supabaseRest('schedule_settings?key=eq.color_settings');
     if (Array.isArray(colorSettingRows) && colorSettingRows.length > 0) {
-      const parsed = colorSettingRows[0].value;
-      if (parsed && typeof parsed === 'object') {
-        state.colorSettings = {
-          regionColors: { ...defaultColorSettings.regionColors, ...(parsed.regionColors || {}) },
-          clinicColors: { ...defaultColorSettings.clinicColors, ...(parsed.clinicColors || {}) },
-          wordRules: Array.isArray(parsed.wordRules) ? parsed.wordRules : [],
-          ledgerPersonColors: { ...defaultColorSettings.ledgerPersonColors, ...(parsed.ledgerPersonColors || {}) },
-          ledgerCategoryColors: { ...defaultColorSettings.ledgerCategoryColors, ...(parsed.ledgerCategoryColors || {}) },
-          ledgerPaymentColors: { ...defaultColorSettings.ledgerPaymentColors, ...(parsed.ledgerPaymentColors || {}) },
-          scheduleAlertColors: { ...defaultColorSettings.scheduleAlertColors, ...(parsed.scheduleAlertColors || {}) },
-          ledgerWordRules: Array.isArray(parsed.ledgerWordRules) ? parsed.ledgerWordRules : []
-        };
-        saveColorSettings();
-        if (apiLoadWeekDataFn) apiLoadWeekDataFn(state.currentWeekIndex);
-      }
+      state.colorSettings = normalizeColorSettings(colorSettingRows[0]?.value);
+      saveColorSettings();
+      if (apiLoadWeekDataFn) apiLoadWeekDataFn(state.currentWeekIndex);
     }
   } catch (e) {
     console.warn('Color settings sync error:', e);
@@ -112,16 +91,7 @@ export const syncColorSettingsFromSheets = syncColorSettingsFromSupabase;
 
 export async function syncColorSettingsToSupabase() {
   try {
-    const payload = {
-      regionColors: { ...defaultColorSettings.regionColors, ...(state.colorSettings?.regionColors || {}) },
-      clinicColors: { ...defaultColorSettings.clinicColors, ...(state.colorSettings?.clinicColors || {}) },
-      wordRules: Array.isArray(state.colorSettings?.wordRules) ? state.colorSettings.wordRules : [],
-      ledgerPersonColors: { ...defaultColorSettings.ledgerPersonColors, ...(state.colorSettings?.ledgerPersonColors || {}) },
-      ledgerCategoryColors: { ...defaultColorSettings.ledgerCategoryColors, ...(state.colorSettings?.ledgerCategoryColors || {}) },
-      ledgerPaymentColors: { ...defaultColorSettings.ledgerPaymentColors, ...(state.colorSettings?.ledgerPaymentColors || {}) },
-      scheduleAlertColors: { ...defaultColorSettings.scheduleAlertColors, ...(state.colorSettings?.scheduleAlertColors || {}) },
-      ledgerWordRules: Array.isArray(state.colorSettings?.ledgerWordRules) ? state.colorSettings.ledgerWordRules : []
-    };
+    const payload = normalizeColorSettings(state.colorSettings);
     state.colorSettings = payload;
     saveColorSettings();
 

@@ -1,5 +1,6 @@
 import { getLedgerTagColor } from '../ledger-utils.js';
 import { syncColorSettingsToSupabase } from '../../../services/schedule/api.js';
+import { resetLedgerColorSettings } from '../../../services/schedule/state.js';
 
 // Ledger tag-color settings and word-rule UI responsibility.
 export function createLedgerColorSettings({ state, pastelPalette, defaultColorSettings, saveColorSettings, renderLedgerViews }) {
@@ -147,11 +148,7 @@ export function createLedgerColorSettings({ state, pastelPalette, defaultColorSe
     document.getElementById('ledgerColorCloseBtn')?.addEventListener('click', () => document.getElementById('ledgerColorOverlay')?.classList.remove('active'));
     document.getElementById('ledgerColorResetBtn')?.addEventListener('click', () => {
       if (!confirm(uiText(0xBAA8, 0xB4E0, 0x20, 0xC0C9, 0xC0C1, 0x20, 0xC124, 0xC815, 0xC744, 0x20, 0xAE30, 0xBCF8, 0xAC12, 0xC73C, 0xB85C, 0x20, 0xCD08, 0xAE30, 0xD654, 0xD558, 0xC2DC, 0xACA0, 0xC2B5, 0xB2C8, 0xAE4C, 0x3F))) return;
-      state.colorSettings.ledgerPersonColors = { ...defaultColorSettings.ledgerPersonColors };
-      state.colorSettings.ledgerCategoryColors = { ...defaultColorSettings.ledgerCategoryColors };
-      state.colorSettings.ledgerPaymentColors = { ...defaultColorSettings.ledgerPaymentColors };
-      state.colorSettings.ledgerWordRules = [];
-      saveColorSettings();
+      resetLedgerColorSettings();
       syncColorSettingsToSupabase();
       renderModalContent();
       renderLedgerViews();
