@@ -404,7 +404,7 @@ function renderWeekly() {
 }
 
 function findLedgerTransaction(id) {
-  return [...ledgerState.records, ...importedBankRecords, ...importedCashRecords, ...importedForecastRecords].find(record => record.id === id);
+  return findLedgerRecordById(id, { ledgerState, ledgerDataSources });
 }
 let ledgerTransactionModal = null;
 function getLedgerTransactionModal() {
@@ -424,63 +424,6 @@ function editRecord(id) {
 
 function ledgerSheetNameForRecord(record) {
   return String(record?.sheetName || LEDGER_SHEET_BY_PAYMENT[record?.payment] || '');
-}
-
-function copyRecordList(records) {
-  return Array.isArray(records) ? records.map(record => ({ ...record })) : null;
-}
-
-function captureLedgerSheetState() {
-  return {
-    ledgerRecords: copyRecordList(sheetLedgerRecords),
-    cashRecords: copyRecordList(sheetCashRecords),
-    bankRecords: copyRecordList(sheetBankRecords),
-    forecastRecords: copyRecordList(sheetForecastRecords)
-  };
-}
-
-function restoreLedgerSheetState(snapshot) {
-  sheetLedgerRecords = snapshot.ledgerRecords;
-  sheetCashRecords = snapshot.cashRecords;
-  sheetBankRecords = snapshot.bankRecords;
-  sheetForecastRecords = snapshot.forecastRecords;
-  applyLedgerDataSources();
-}
-
-function recalculateLedgerBalances(records) {
-  if (!Array.isArray(records) || records.length === 0) return records;
-
-  let lastKnownBalance = null;
-
-  return records.map(rec => {
-    // 기업카드는 잔액 열을 강제 조작하지 않음
-    if (rec.payment === '기업카드' || rec.sheetName === '기업카드') {
-      return rec;
-    }
-
-    const rawBal = Number(String(rec.balance ?? '').replace(/[^0-9.-]/g, ''));
-    const hasValidSheetBalance = Number.isFinite(rawBal) && rec.balance !== '' && rec.balance !== null && rec.balance !== undefined;
-
-    if (hasValidSheetBalance) {
-      // 1. 시트 원본에 이미 실제 잔액이 있는 경우 100% 그대로 보존
-      lastKnownBalance = rawBal;
-      return rec;
-    }
-
-    // 2. 신규 추가되었거나 잔액이 없는 행의 경우: 직전 잔액을 기준으로 계산
-    if (lastKnownBalance !== null) {
-      const amt = Number(rec.amount) || 0;
-      const isIncome = rec.type === 'income' || rec.type === '\uC218\uC785';
-      const diff = isIncome ? amt : -amt;
-      lastKnownBalance = lastKnownBalance + diff;
-      return {
-        ...rec,
-        balance: lastKnownBalance
-      };
-    }
-
-    return rec;
-  });
 }
 
 function reorderLedgerRecord(orderedIds) {
@@ -503,9 +446,9 @@ function reorderLedgerRecord(orderedIds) {
     }).sort(compareLedgerRecords);
   };
 
-  if (sheetLedgerRecords) sheetLedgerRecords = updateOrderInList(sheetLedgerRecords);
-  if (sheetBankRecords) sheetBankRecords = updateOrderInList(sheetBankRecords);
-  if (sheetCashRecords) sheetCashRecords = updateOrderInList(sheetCashRecords);
+  for (const key of Object.keys(ledgerDataSources)) {
+    ledgerDataSources[key] = updateOrderInList(ledgerDataSources[key]);
+  }
 
   applyLedgerDataSources();
   saveLedgerSheetSnapshot();
@@ -535,34 +478,24 @@ function upsertLocalRecord(records, record) {
 function applyOptimisticSave(record) {
   const isCash = record.payment === '현금' || record.sheetName === '현금';
   const isBank = record.payment === '기업은행' || record.sheetName === '기업은행';
-  const isCard = !isCash && !isBank;
+  const isForecast = record.payment === '잔액전망' || record.sheetName === '잔액전망';
+  const targetKey = isCash ? 'cash' : isBank ? 'bank' : isForecast ? 'forecast' : 'card';
 
-  const removeIfOther = (rows, isTarget) => isTarget ? rows : (rows || []).filter(item => String(item.id) !== String(record.id));
-
-  sheetCashRecords = removeIfOther(sheetCashRecords, isCash);
-  sheetBankRecords = removeIfOther(sheetBankRecords, isBank);
-  sheetLedgerRecords = removeIfOther(sheetLedgerRecords, isCard);
-
-  if (isCash) {
-    sheetCashRecords = upsertLocalRecord(sheetCashRecords, record);
-  } else if (isBank) {
-    sheetBankRecords = upsertLocalRecord(sheetBankRecords, record);
-  } else {
-    sheetLedgerRecords = upsertLocalRecord(sheetLedgerRecords, record);
+  for (const key of Object.keys(ledgerDataSources)) {
+    if (key !== targetKey) {
+      ledgerDataSources[key] = ledgerDataSources[key].filter(item => String(item.id) !== String(record.id));
+    }
   }
+
+  ledgerDataSources[targetKey] = upsertLocalRecord(ledgerDataSources[targetKey], record);
 
   applyLedgerDataSources();
   if (ledgerState.source === 'card') setLedgerPayment(record.payment, false);
 }
 
 function applyOptimisticDelete(record) {
-  const withoutRecord = rows => (rows || []).filter(item => item.id !== record.id);
-  if (record.payment === '현금' || record.sheetName === '현금') {
-    sheetCashRecords = withoutRecord(sheetCashRecords);
-  } else if (record.payment === '기업은행' || record.sheetName === '기업은행') {
-    sheetBankRecords = withoutRecord(sheetBankRecords);
-  } else {
-    sheetLedgerRecords = withoutRecord(sheetLedgerRecords);
+  for (const key of Object.keys(ledgerDataSources)) {
+    ledgerDataSources[key] = ledgerDataSources[key].filter(item => String(item.id) !== String(record.id));
   }
   applyLedgerDataSources();
 }

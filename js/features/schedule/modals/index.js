@@ -6,3 +6,4 @@ export * from './edit.js';
 export * from './summary.js';
 export * from './week-picker.js';
 export * from './color-settings.js';
+export { applyScheduleAlertChipColors } from './color-settings.js';
