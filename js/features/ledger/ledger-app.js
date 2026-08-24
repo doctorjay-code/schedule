@@ -6,12 +6,12 @@ import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor } from '
 import { filterLedgerRecords } from './card.js';
 import { normalizeFundplanRows } from './fundplan.js';
 import { groupExpenses, renderStatList } from './stats.js';
-import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260823_22';
-import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260823_22';
-import { createLedgerColorSettings } from './modals/color-settings.js?v=20260823_22';
-import { bindLedgerListActions } from './ledger-events.js?v=20260823_22';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260823_22';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260823_22';
+import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_01';
+import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_01';
+import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_01';
+import { bindLedgerListActions } from './ledger-events.js?v=20260824_01';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_01';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_01';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -460,26 +460,36 @@ function restoreLedgerSheetState(snapshot) {
 
 function upsertLocalRecord(records, record) {
   const nextRecord = { ...record, sheetName: ledgerSheetNameForRecord(record), source: 'google-sheets' };
-  const index = records.findIndex(item => item.id === nextRecord.id);
-  return index === -1
-    ? [...records, nextRecord]
-    : records.map(item => item.id === nextRecord.id ? nextRecord : item);
+  const list = records || [];
+  const index = list.findIndex(item => String(item.id) === String(nextRecord.id));
+  if (index !== -1) {
+    return list.map(item => String(item.id) === String(nextRecord.id) ? nextRecord : item);
+  }
+  const nextList = [...list, nextRecord];
+  return nextList.sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.createdAt || 0) - (b.createdAt || 0));
 }
 
 function applyOptimisticSave(record) {
-  const withoutRecord = rows => (rows || []).filter(item => item.id !== record.id);
-  sheetLedgerRecords = withoutRecord(sheetLedgerRecords);
-  sheetCashRecords = withoutRecord(sheetCashRecords);
-  sheetBankRecords = withoutRecord(sheetBankRecords);
-  if (record.payment === '현금' || record.sheetName === '현금') {
+  const isCash = record.payment === '현금' || record.sheetName === '현금';
+  const isBank = record.payment === '기업은행' || record.sheetName === '기업은행';
+  const isCard = !isCash && !isBank;
+
+  const removeIfOther = (rows, isTarget) => isTarget ? rows : (rows || []).filter(item => String(item.id) !== String(record.id));
+
+  sheetCashRecords = removeIfOther(sheetCashRecords, isCash);
+  sheetBankRecords = removeIfOther(sheetBankRecords, isBank);
+  sheetLedgerRecords = removeIfOther(sheetLedgerRecords, isCard);
+
+  if (isCash) {
     sheetCashRecords = upsertLocalRecord(sheetCashRecords, record);
-  } else if (record.payment === '기업은행' || record.sheetName === '기업은행') {
+  } else if (isBank) {
     sheetBankRecords = upsertLocalRecord(sheetBankRecords, record);
   } else {
     sheetLedgerRecords = upsertLocalRecord(sheetLedgerRecords, record);
   }
+
   applyLedgerDataSources();
-  if (ledgerState.source === 'card') setLedgerPayment(record.payment, true);
+  if (ledgerState.source === 'card') setLedgerPayment(record.payment, false);
 }
 
 function applyOptimisticDelete(record) {
