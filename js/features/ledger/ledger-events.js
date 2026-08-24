@@ -2,65 +2,124 @@
 export function bindLedgerListActions({ onRowClick, onOpen, onReorder }) {
   const handler = onRowClick || onOpen;
   const listIds = ['ledgerTransactionList', 'ledgerMonthlyTransactionList', 'fundplanAllTimeList'];
-
-  const handleLedgerListAction = event => {
-    // 드래그 중 클릭 방지
-    if (document.querySelector('.schedule-row.dragging')) return;
-    const row = event.target.closest('tr[data-ledger-id]');
-    if (row && row.dataset.ledgerReadOnly !== 'true') {
-      handler(row.dataset.ledgerId, event);
-    }
-  };
+  let globalJustDragged = false;
 
   listIds.forEach(id => {
     const listEl = document.getElementById(id);
     if (!listEl) return;
 
-    listEl.addEventListener('click', handleLedgerListAction);
+    listEl.addEventListener('click', event => {
+      if (globalJustDragged) return;
+      const row = event.target.closest('tr[data-ledger-id]');
+      if (row && row.dataset.ledgerReadOnly !== 'true') {
+        handler(row.dataset.ledgerId, event);
+      }
+    });
 
     if (onReorder) {
-      bindDragAndDropEvents(listEl, onReorder);
+      bindPointerDragEngine(listEl, onReorder, () => {
+        globalJustDragged = true;
+        setTimeout(() => { globalJustDragged = false; }, 100);
+      });
     }
   });
 }
 
-function bindDragAndDropEvents(listEl, onReorder) {
+function bindPointerDragEngine(listEl, onReorder, onDragFinished) {
+  let activePointerId = null;
   let draggedId = null;
-  let hasMoved = false;
+  let startX = 0;
+  let startY = 0;
+  let isDragging = false;
+  let draggedRows = [];
+  let longTouchTimer = null;
 
-  function shiftDraggedRowsTo(targetId, clientY) {
-    if (!draggedId || !targetId || targetId === draggedId) return;
+  function startDrag() {
+    if (isDragging || !draggedId) return;
+    isDragging = true;
+    document.body.classList.add('ledger-is-dragging');
+    draggedRows = Array.from(listEl.querySelectorAll(`tr[data-ledger-id="${draggedId}"]`));
+    draggedRows.forEach(r => r.classList.add('dragging', 'touch-holding'));
+    if (navigator.vibrate) navigator.vibrate(35);
+  }
 
-    const draggedRows = Array.from(listEl.querySelectorAll(`tr[data-ledger-id="${draggedId}"]`));
+  listEl.addEventListener('pointerdown', e => {
+    if (e.target.closest('button, input, select, textarea, a, .color-indicator')) return;
+    const row = e.target.closest('tr[data-ledger-id]');
+    if (!row || row.dataset.ledgerReadOnly === 'true') return;
+
+    activePointerId = e.pointerId;
+    draggedId = row.dataset.ledgerId;
+    startX = e.clientX;
+    startY = e.clientY;
+    isDragging = false;
+    draggedRows = [];
+
+    // 모바일 터치 시 180ms 롱터치 타이머
+    if (e.pointerType === 'touch') {
+      longTouchTimer = setTimeout(() => {
+        startDrag();
+      }, 180);
+    }
+  });
+
+  listEl.addEventListener('pointermove', e => {
+    if (!draggedId || e.pointerId !== activePointerId) return;
+
+    const moveDist = Math.hypot(e.clientX - startX, e.clientY - startY);
+
+    // PC 마우스는 5px 움직이면 즉시 드래그 시작
+    if (!isDragging && e.pointerType !== 'touch' && moveDist > 5) {
+      startDrag();
+    } else if (!isDragging && e.pointerType === 'touch' && moveDist > 10) {
+      // 터치 중 손가락이 많이 움직이면 스크롤로 간주하여 롱터치 취소
+      if (longTouchTimer) {
+        clearTimeout(longTouchTimer);
+        longTouchTimer = null;
+      }
+    }
+
+    if (!isDragging) return;
+
+    if (e.cancelable) e.preventDefault();
+
+    // 실시간 자리 비켜주기 (Live DOM Displacement)
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const targetRow = el ? el.closest('tr[data-ledger-id]') : null;
+    if (!targetRow || targetRow.dataset.ledgerId === draggedId) return;
+
+    const targetId = targetRow.dataset.ledgerId;
     const targetRows = Array.from(listEl.querySelectorAll(`tr[data-ledger-id="${targetId}"]`));
-    if (draggedRows.length === 0 || targetRows.length === 0) return;
+    if (targetRows.length === 0) return;
 
     const topRect = targetRows[0].getBoundingClientRect();
     const bottomRect = targetRows[targetRows.length - 1].getBoundingClientRect();
     const targetCenterY = (topRect.top + bottomRect.bottom) / 2;
-
     const parent = targetRows[0].parentNode;
     if (!parent) return;
 
-    if (clientY < targetCenterY) {
-      // 타겟 묶음 위로 즉시 이동
+    if (e.clientY < targetCenterY) {
       const firstTarget = targetRows[0];
-      if (draggedRows[draggedRows.length - 1].nextSibling !== firstTarget) {
+      if (draggedRows[draggedRows.length - 1]?.nextSibling !== firstTarget) {
         draggedRows.forEach(r => parent.insertBefore(r, firstTarget));
-        hasMoved = true;
       }
     } else {
-      // 타겟 묶음 아래로 즉시 이동
-      const nextSibling = targetRows[targetRows.length - 1].nextSibling;
+      const nextSibling = targetRows[targetRows.length - 1]?.nextSibling;
       if (draggedRows[0] !== nextSibling) {
         draggedRows.forEach(r => parent.insertBefore(r, nextSibling));
-        hasMoved = true;
       }
     }
-  }
+  });
 
-  function commitFinalOrder() {
-    if (draggedId && hasMoved) {
+  const endDrag = e => {
+    if (longTouchTimer) {
+      clearTimeout(longTouchTimer);
+      longTouchTimer = null;
+    }
+    if (e && e.pointerId !== activePointerId) return;
+
+    if (isDragging && draggedId) {
+      onDragFinished();
       const orderedIds = [];
       const seen = new Set();
       listEl.querySelectorAll('tr[data-ledger-id]').forEach(r => {
@@ -74,102 +133,14 @@ function bindDragAndDropEvents(listEl, onReorder) {
         onReorder(orderedIds);
       }
     }
-    cleanupDragState(listEl);
+
+    document.body.classList.remove('ledger-is-dragging');
+    draggedRows.forEach(r => r.classList.remove('dragging', 'touch-holding'));
     draggedId = null;
-    hasMoved = false;
-  }
+    activePointerId = null;
+    isDragging = false;
+  };
 
-  // 1. PC Drag & Drop
-  listEl.addEventListener('dragstart', e => {
-    const row = e.target.closest('tr[data-ledger-id]');
-    if (!row || row.dataset.ledgerReadOnly === 'true') return;
-    draggedId = row.dataset.ledgerId;
-    hasMoved = false;
-    if (e.dataTransfer) {
-      e.dataTransfer.setData('text/plain', draggedId);
-      e.dataTransfer.effectAllowed = 'move';
-    }
-    setTimeout(() => {
-      listEl.querySelectorAll(`tr[data-ledger-id="${draggedId}"]`).forEach(r => r.classList.add('dragging'));
-    }, 0);
-  });
-
-  listEl.addEventListener('dragover', e => {
-    if (e.preventDefault) e.preventDefault();
-    if (!draggedId) return;
-    const targetRow = e.target.closest('tr[data-ledger-id]');
-    if (!targetRow || targetRow.dataset.ledgerId === draggedId) return;
-
-    shiftDraggedRowsTo(targetRow.dataset.ledgerId, e.clientY);
-  });
-
-  listEl.addEventListener('drop', e => {
-    if (e.preventDefault) e.preventDefault();
-    commitFinalOrder();
-  });
-
-  listEl.addEventListener('dragend', () => {
-    commitFinalOrder();
-  });
-
-  // 2. 모바일 Touch Drag & Drop (롱터치 지원)
-  let touchTimer = null;
-  let touchTargetRow = null;
-  let touchStartY = 0;
-
-  listEl.addEventListener('touchstart', e => {
-    const row = e.target.closest('tr[data-ledger-id]');
-    if (!row || row.dataset.ledgerReadOnly === 'true') return;
-    touchTargetRow = row;
-    touchStartY = e.touches[0].clientY;
-
-    touchTimer = setTimeout(() => {
-      if (touchTargetRow) {
-        draggedId = touchTargetRow.dataset.ledgerId;
-        hasMoved = false;
-        listEl.querySelectorAll(`tr[data-ledger-id="${draggedId}"]`).forEach(r => r.classList.add('touch-holding', 'dragging'));
-        if (navigator.vibrate) navigator.vibrate(35);
-      }
-    }, 220);
-  }, { passive: true });
-
-  listEl.addEventListener('touchmove', e => {
-    const touchY = e.touches[0].clientY;
-    if (!draggedId) {
-      if (Math.abs(touchY - touchStartY) > 10 && touchTimer) {
-        clearTimeout(touchTimer);
-        touchTimer = null;
-      }
-      return;
-    }
-
-    e.preventDefault();
-    const el = document.elementFromPoint(e.touches[0].clientX, touchY);
-    const targetRow = el ? el.closest('tr[data-ledger-id]') : null;
-
-    if (targetRow && targetRow.dataset.ledgerId !== draggedId) {
-      shiftDraggedRowsTo(targetRow.dataset.ledgerId, touchY);
-    }
-  }, { passive: false });
-
-  listEl.addEventListener('touchend', () => {
-    if (touchTimer) {
-      clearTimeout(touchTimer);
-      touchTimer = null;
-    }
-    commitFinalOrder();
-    touchTargetRow = null;
-  });
-
-  listEl.addEventListener('touchcancel', () => {
-    if (touchTimer) clearTimeout(touchTimer);
-    commitFinalOrder();
-    touchTargetRow = null;
-  });
-}
-
-function cleanupDragState(listEl) {
-  listEl.querySelectorAll('.dragging, .touch-holding').forEach(el => {
-    el.classList.remove('dragging', 'touch-holding');
-  });
+  listEl.addEventListener('pointerup', endDrag);
+  listEl.addEventListener('pointercancel', endDrag);
 }

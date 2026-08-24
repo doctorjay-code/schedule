@@ -2516,20 +2516,22 @@ body {
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
-  transition: opacity 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+  touch-action: pan-y;
+  transition: opacity 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
 }
-.schedule-row:active {
-  cursor: grabbing;
+.schedule-row:active,
+body.ledger-is-dragging .schedule-row {
+  cursor: grabbing !important;
 }
 /* 드래그 중인 행: 반투명하게 슥 연해짐 (Ghost 효과) */
 .schedule-row.dragging {
-  opacity: 0.38 !important;
-  background-color: #F1F5F9 !important;
-  filter: grayscale(0.25);
+  opacity: 0.35 !important;
+  background-color: #EEF2FF !important;
+  filter: grayscale(0.2);
 }
 .schedule-row.dragging td {
-  border-color: #E2E8F0 !important;
-  color: #94A3B8 !important;
+  border-color: #C7D2FE !important;
+  color: #6366F1 !important;
 }
 /* 모바일 롱터치 시 집어 올림 효과 */
 .schedule-row.touch-holding {
