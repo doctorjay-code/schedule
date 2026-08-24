@@ -1,1 +1,1 @@
-import { initializeAppLogic as initializeScheduleAppLogic } from './features/schedule/schedule-app.js?v=20260824_14'; export function initializeAppLogic() { return initializeScheduleAppLogic(); }
+import { initializeAppLogic as initializeScheduleAppLogic } from './features/schedule/schedule-app.js?v=20260824_15'; export function initializeAppLogic() { return initializeScheduleAppLogic(); }

@@ -2535,27 +2535,40 @@ body.ledger-dragging-locked {
   user-select: none !important;
   -webkit-user-select: none !important;
 }
-/* 잡은 거래: 위아래 파란 굵은선 동반 이동 + 내부 칸 구분선 선명하게 보존 */
+/* 잡은 거래: 위아래 파란 굵은선 동반 이동 + 내부 칸 구분선 선명하게 보존 (border-collapse 상쇄 우회) */
 .schedule-row.dragging {
   background-color: #EEF2FF !important;
-  position: relative;
-  z-index: 50;
 }
-/* 내부 칸 기본 세로/가로 구분선 */
+
+/* 1. 내부 모든 칸 기본 구분선 (세로/가로) */
 .schedule-row.dragging td {
-  border: 1px solid #CBD5E1 !important;
+  box-shadow: inset 0 0 0 1px #CBD5E1 !important;
 }
-/* 잡은 블록의 맨 위 파란 굵은선 (같이 따라감) */
+
+/* 2. 상세행: 상단 3px 파란 굵은선 */
 .schedule-row.dragging.schedule-row-detail td {
-  border-top: 2.5px solid #4F46E5 !important;
+  box-shadow: inset 0 3px 0 0 #4F46E5, inset 0 0 0 1px #CBD5E1 !important;
 }
-/* 잡은 블록 상세-태그 중간 가로 점선 */
-.schedule-row.dragging.schedule-row-detail td:not(.cell-date) {
-  border-bottom: 1px dashed #94A3B8 !important;
-}
-/* 잡은 블록의 맨 아래 파란 굵은선 (같이 따라감) */
+
+/* 3. 태그행: 하단 3px 파란 굵은선 */
 .schedule-row.dragging.schedule-row-tag td {
-  border-bottom: 2.5px solid #4F46E5 !important;
+  box-shadow: inset 0 -3px 0 0 #4F46E5, inset 0 0 0 1px #CBD5E1 !important;
+}
+
+/* 4. 맨 왼쪽 셀 좌측 파란선 결합 */
+.schedule-row.dragging.schedule-row-detail td:first-child {
+  box-shadow: inset 3px 3px 0 0 #4F46E5, inset 0 0 0 1px #CBD5E1 !important;
+}
+.schedule-row.dragging.schedule-row-tag td:first-child {
+  box-shadow: inset 3px -3px 0 0 #4F46E5, inset 0 0 0 1px #CBD5E1 !important;
+}
+
+/* 5. 맨 오른쪽 셀 우측 파란선 결합 */
+.schedule-row.dragging.schedule-row-detail td:last-child {
+  box-shadow: inset -3px 3px 0 0 #4F46E5, inset 0 0 0 1px #CBD5E1 !important;
+}
+.schedule-row.dragging.schedule-row-tag td:last-child {
+  box-shadow: inset -3px -3px 0 0 #4F46E5, inset 0 0 0 1px #CBD5E1 !important;
 }
 
 
