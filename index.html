@@ -87,11 +87,11 @@
         <button class="nav-btn" id="ledgerReportBtn" type="button" title="&#xC9C0;&#xCD9C; &#xB9AC;&#xD3EC;&#xD2B8;">&#x1F4CA;</button>
         <button class="nav-btn" id="ledgerColorSettingsBtn" type="button" title="&#xAC70;&#xB798; &#xD0DC;&#xADF8; &#xC0C9;&#xC0C1;">&#x1F3A8;</button>
       </div><div id="ledgerSyncBtn" class="sync-status hidden" role="button" tabindex="0" data-state="saved">&#xCD5C;&#xC2E0; &#xB0B4;&#xC5ED; &#xBC18;&#xC601;</div><div class="alert-row hidden" id="ledgerSourceSwitch" role="group" aria-label="&#xAC00;&#xACC4;&#xBD80; &#xC2DC;&#xD2B8; &#xC804;&#xD658;">
-        <button class="alert-chip alert-unpaid" id="ledgerCashSourceBtn" data-ledger-source="cash" type="button">&#xD604;&#xAE08;</button>
-        <button class="alert-chip alert-unapplied" id="ledgerCompanyCardBtn" data-ledger-source="card" data-ledger-payment="&#xAE30;&#xC5C5;&#xCE74;&#xB4DC;" type="button">&#xAE30;&#xC5C5;&#xCE74;&#xB4DC;</button>
-        <button class="alert-chip alert-unapplied active" id="ledgerTossBankBtn" data-ledger-source="card" data-ledger-payment="&#xD1A0;&#xC2A4;&#xC740;&#xD589;" type="button">&#xD1A0;&#xC2A4;&#xC740;&#xD589;</button>
-        <button class="alert-chip alert-unapproved" id="ledgerBankSourceBtn" data-ledger-source="bank" type="button">&#xAE30;&#xC5C5;&#xC740;&#xD589;</button>
-        <button class="alert-chip alert-unapproved" id="ledgerForecastSourceBtn" data-ledger-source="forecast" type="button">&#xC794;&#xC561;&#xC804;&#xB9DD;</button>
+        <button class="alert-chip ledger-source-chip" id="ledgerCashSourceBtn" data-ledger-source="cash" type="button">현금</button>
+        <button class="alert-chip ledger-source-chip" id="ledgerCompanyCardBtn" data-ledger-source="card" data-ledger-payment="기업카드" type="button">기업카드</button>
+        <button class="alert-chip ledger-source-chip active" id="ledgerTossBankBtn" data-ledger-source="card" data-ledger-payment="토스은행" type="button">토스은행</button>
+        <button class="alert-chip ledger-source-chip" id="ledgerBankSourceBtn" data-ledger-source="bank" type="button">기업은행</button>
+        <button class="alert-chip ledger-source-chip" id="ledgerForecastSourceBtn" data-ledger-source="forecast" type="button">잔액전망</button>
       </div>
 <span class="ledger-stage-badge hidden" id="ledgerDataBadge">0건</span><input type="hidden" id="ledgerPayment" value="">
 </header>

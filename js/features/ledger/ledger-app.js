@@ -220,16 +220,19 @@ function syncLedgerCardButtons() {
     if (!btn) return;
     btn.classList.toggle('active', isActive);
     const color = getLedgerTagColor(state.colorSettings, 'payment', name);
+    btn.style.setProperty('--source-bg', color);
+    btn.style.backgroundColor = color;
+    btn.style.color = '#0F172A';
     if (isActive) {
-      btn.style.backgroundColor = color;
-      btn.style.borderColor = 'rgba(15, 23, 42, 0.2)';
-      btn.style.fontWeight = '700';
-      btn.style.color = '#0F172A';
+      btn.style.border = '2px solid #0F172A';
+      btn.style.fontWeight = '800';
+      btn.style.boxShadow = '0 2px 8px rgba(15, 23, 42, 0.2)';
+      btn.style.transform = 'scale(1.02)';
     } else {
-      btn.style.backgroundColor = '';
-      btn.style.borderColor = '';
-      btn.style.fontWeight = '';
-      btn.style.color = '';
+      btn.style.border = '1.5px solid rgba(15, 23, 42, 0.15)';
+      btn.style.fontWeight = '600';
+      btn.style.boxShadow = 'none';
+      btn.style.transform = 'scale(1)';
     }
   });
 }
@@ -619,7 +622,12 @@ function getLedgerColorSettings() {
       pastelPalette,
       defaultColorSettings,
       saveColorSettings,
-      renderLedgerViews: () => { renderWeekly(); renderMonthly(); }
+      renderLedgerViews: () => {
+        syncLedgerCardButtons();
+        renderWeekly();
+        renderMonthly();
+        getFundplanView().render();
+      }
     });
   }
   return ledgerColorSettings;
@@ -952,9 +960,7 @@ function setLedgerSource(source) {
   document.getElementById('ledgerForecastSourceBtn')?.classList.toggle('active', source === 'forecast');
   document.getElementById('ledgerToggleEntryBtn')?.classList.toggle('hidden', !['card', 'cash', 'bank'].includes(source));
   document.getElementById('ledgerMonthlyToggleEntryBtn')?.classList.toggle('hidden', !['card', 'cash', 'bank'].includes(source));
-  syncLedgerWriteControls();
-  document.getElementById('ledgerAllViewBtn')?.classList.toggle('active', ledgerState.period !== 'monthly');
-  document.getElementById('ledgerMonthlyViewBtn')?.classList.toggle('active', ledgerState.period === 'monthly');
+  syncLedgerCardButtons();
   renderActiveLedgerPeriod();
 }
 

@@ -2585,3 +2585,23 @@ tr.ledger-fixed-row .ledger-fixed-tag,
   color: #854D0E !important;
   font-weight: 700 !important;
 }
+
+/* 최신내역반영 아래 5개 수단 버튼 커스텀 색상 전용 스타일 */
+.ledger-source-chip {
+  background-color: var(--source-bg, #F1F5F9) !important;
+  color: #1E293B !important;
+  border: 1.5px solid rgba(15, 23, 42, 0.15) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 5px 10px !important;
+  border-radius: 12px !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.ledger-source-chip.active {
+  border: 2px solid #0F172A !important;
+  font-weight: 800 !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.2) !important;
+  transform: scale(1.02);
+}
