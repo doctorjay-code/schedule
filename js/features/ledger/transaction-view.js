@@ -46,9 +46,6 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
   if (isReadOnlySource) {
     detailRow.dataset.ledgerReadOnly = 'true';
     tagRow.dataset.ledgerReadOnly = 'true';
-  } else {
-    detailRow.draggable = true;
-    tagRow.draggable = true;
   }
   const dateCell = document.createElement('td');
   dateCell.className = 'cell-date';
