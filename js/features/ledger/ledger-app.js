@@ -30,7 +30,7 @@ const LEDGER_SHEET_SNAPSHOT_KEY = 'schedule_ledger_last_sheet_snapshot_v1';
 const ledgerSyncMessages = {
   loading: '가계부 불러오는 중',
   saved: '최신 내역 반영',
-  cached: '마지막 시트 동기화본 표시 중',
+  cached: '오프라인 캐시본 표시 중',
   offline: '인터넷 연결 확인 필요',
   error: '가계부 불러오기 실패'
 };
@@ -667,10 +667,6 @@ function deleteRecord(id) {
 }
 
 function toggleLedgerEntry() {
-  if (!ledgerLiveConnected) {
-    alert('시트 연결이 확인된 뒤에 거래를 입력할 수 있습니다.');
-    return;
-  }
   getLedgerTransactionModal().open();
 }
 let ledgerColorSettings = null;
