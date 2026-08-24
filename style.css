@@ -2510,3 +2510,30 @@ body {
 
 /* Google Sheets 읽기 전용 연결 단계 */
 #ledgerToggleEntryBtn:disabled { opacity: 0.55; cursor: not-allowed; filter: grayscale(0.3); }
+
+/* 가계부 행 드래그 앤 드롭 (Drag & Drop) */
+.schedule-row {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.schedule-row:active {
+  cursor: grabbing;
+}
+.schedule-row.dragging {
+  opacity: 0.45;
+  background-color: #EEF2FF !important;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+  transform: scale(0.99);
+}
+.schedule-row.drag-over-top td {
+  border-top: 3px solid #4F46E5 !important;
+}
+.schedule-row.drag-over-bottom td {
+  border-bottom: 3px solid #4F46E5 !important;
+}
+.schedule-row.touch-holding {
+  background-color: #E0E7FF !important;
+  box-shadow: 0 0 0 2px #6366F1 inset;
+}

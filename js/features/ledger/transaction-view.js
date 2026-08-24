@@ -37,13 +37,18 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
   const list = document.getElementById(listId);
   if (!list) return;
   const detailRow = document.createElement('tr');
+  detailRow.className = 'schedule-row schedule-row-detail';
   detailRow.dataset.ledgerId = item.id;
   const tagRow = document.createElement('tr');
+  tagRow.className = 'schedule-row schedule-row-tag cell-day-end-border';
   tagRow.dataset.ledgerId = item.id;
   const isReadOnlySource = source === 'forecast';
   if (isReadOnlySource) {
     detailRow.dataset.ledgerReadOnly = 'true';
     tagRow.dataset.ledgerReadOnly = 'true';
+  } else {
+    detailRow.draggable = true;
+    tagRow.draggable = true;
   }
   const dateCell = document.createElement('td');
   dateCell.className = 'cell-date';

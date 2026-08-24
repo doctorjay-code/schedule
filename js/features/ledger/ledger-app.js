@@ -6,12 +6,12 @@ import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor } from '
 import { filterLedgerRecords } from './card.js';
 import { normalizeFundplanRows } from './fundplan.js';
 import { groupExpenses, renderStatList } from './stats.js';
-import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_01';
-import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_01';
-import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_01';
-import { bindLedgerListActions } from './ledger-events.js?v=20260824_01';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_01';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_01';
+import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_02';
+import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_02';
+import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_02';
+import { bindLedgerListActions } from './ledger-events.js?v=20260824_02';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_02';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_02';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -458,15 +458,67 @@ function restoreLedgerSheetState(snapshot) {
   applyLedgerDataSources();
 }
 
+function recalculateLedgerBalances(records) {
+  if (!Array.isArray(records) || records.length === 0) return records;
+
+  let running = null;
+  return records.map(rec => {
+    const amt = Number(rec.amount) || 0;
+    const isIncome = rec.type === 'income' || rec.type === '\uC218\uC785';
+    const diff = isIncome ? amt : -amt;
+
+    const rawBal = Number(String(rec.balance || '').replace(/[^0-9.-]/g, ''));
+    if (running === null) {
+      running = Number.isFinite(rawBal) && rawBal !== 0 ? rawBal : (isIncome ? amt : 0);
+    } else {
+      running = running + diff;
+    }
+
+    return {
+      ...rec,
+      balance: running
+    };
+  });
+}
+
+function reorderLedgerRecord(draggedId, targetId, insertAfter = false) {
+  if (!draggedId || !targetId || draggedId === targetId) return;
+
+  const reorderList = list => {
+    if (!list || list.length === 0) return list;
+    const draggedIdx = list.findIndex(r => String(r.id) === String(draggedId));
+    const targetIdx = list.findIndex(r => String(r.id) === String(targetId));
+    if (draggedIdx === -1 || targetIdx === -1) return list;
+
+    const next = [...list];
+    const [draggedItem] = next.splice(draggedIdx, 1);
+    const finalTargetIdx = next.findIndex(r => String(r.id) === String(targetId));
+    const insertIdx = insertAfter ? finalTargetIdx + 1 : finalTargetIdx;
+    next.splice(insertIdx, 0, draggedItem);
+
+    return recalculateLedgerBalances(next);
+  };
+
+  if (sheetLedgerRecords) sheetLedgerRecords = reorderList(sheetLedgerRecords);
+  if (sheetCashRecords) sheetCashRecords = reorderList(sheetCashRecords);
+  if (sheetBankRecords) sheetBankRecords = reorderList(sheetBankRecords);
+
+  applyLedgerDataSources();
+  showLedgerToast('↕️ 거래 순서 및 잔액이 재계산되었습니다.');
+}
+
 function upsertLocalRecord(records, record) {
   const nextRecord = { ...record, sheetName: ledgerSheetNameForRecord(record), source: 'google-sheets' };
   const list = records || [];
   const index = list.findIndex(item => String(item.id) === String(nextRecord.id));
+  let updatedList;
   if (index !== -1) {
-    return list.map(item => String(item.id) === String(nextRecord.id) ? nextRecord : item);
+    updatedList = list.map(item => String(item.id) === String(nextRecord.id) ? nextRecord : item);
+  } else {
+    const nextList = [...list, nextRecord];
+    updatedList = nextList.sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.createdAt || 0) - (b.createdAt || 0));
   }
-  const nextList = [...list, nextRecord];
-  return nextList.sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.createdAt || 0) - (b.createdAt || 0));
+  return recalculateLedgerBalances(updatedList);
 }
 
 function applyOptimisticSave(record) {
@@ -493,7 +545,7 @@ function applyOptimisticSave(record) {
 }
 
 function applyOptimisticDelete(record) {
-  const withoutRecord = rows => (rows || []).filter(item => item.id !== record.id);
+  const withoutRecord = rows => recalculateLedgerBalances((rows || []).filter(item => item.id !== record.id));
   if (record.payment === '현금' || record.sheetName === '현금') {
     sheetCashRecords = withoutRecord(sheetCashRecords);
   } else if (record.payment === '기업은행' || record.sheetName === '기업은행') {
@@ -884,7 +936,8 @@ function bindLedgerEvents() {
   document.getElementById('ledgerRefreshBtn')?.addEventListener('click', event => refreshLedgerFromSheet(event.currentTarget));
   document.getElementById('ledgerSyncBtn')?.addEventListener('click', event => refreshLedgerFromSheet(event.currentTarget));
   bindLedgerListActions({
-    onRowClick: handleLedgerRowClick
+    onRowClick: handleLedgerRowClick,
+    onReorder: reorderLedgerRecord
   });
 }
 
