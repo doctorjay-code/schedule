@@ -3,7 +3,8 @@ import { state, getTodayWeekIndex, loadLastScheduleSheetSnapshot, loadColorSetti
 import { syncFromGoogleSheets, syncToGoogleSheets, setApiLoadWeekDataCallback } from '../../services/schedule/api.js';
 import { loadWeekData, renderTable, isCellSelected, renderMonthlyCalendar, switchViewModeUI } from './render.js';
 import { initAverageBalanceModal } from '../ledger/modals/average-balance.js';
-import { openModal, closeModal, openSummaryModal, closeSummaryModal, openWeekSelectModal, closeWeekSelectModal, saveModalToActiveItem, setupBtnGroupEvents, setupToggleEvents, setModalRenderCallback, setModalLoadWeekDataCallback, applyScheduleAlertChipColors } from './modals/index.js';
+import { openModal, closeModal, openSummaryModal, closeSummaryModal, openWeekSelectModal, closeWeekSelectModal, saveModalToActiveItem, setupBtnGroupEvents, setupToggleEvents, setModalRenderCallback, setModalLoadWeekDataCallback } from './modals/index.js';
+import { applyScheduleAlertChipColors } from './modals/color-settings.js';
 import { openMonthSelectModal, closeMonthSelectModal } from './modals/month-picker.js';
 import { bindScheduleNavigation } from './events/navigation.js';
 import { bindScheduleModalCloseEvents, bindScheduleFilterEvents } from './events/modal-filter-events.js';

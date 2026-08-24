@@ -2,6 +2,7 @@ import { initSecurityAuth, setAuthSuccessCallback } from './auth/auth.js';
 import { getVersionedUrl } from './version.js';
 
 let appLoadPromise = null;
+let prefetchPromise = null;
 
 function showAppLoadError() {
   let notice = document.getElementById('appLoadErrorNotice');
@@ -15,9 +16,23 @@ function showAppLoadError() {
   notice.textContent = '로그인은 완료되었지만 일정 화면을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.';
 }
 
+/**
+ * 비밀번호 입력 화면이 떠 있는 동안 백그라운드에서 모듈을 초고속 사전 로드(Pre-fetch)
+ */
+function prefetchInBackground() {
+  if (!prefetchPromise) {
+    prefetchPromise = import(getVersionedUrl('./app.js')).catch(err => {
+      console.warn('Background prefetch notice:', err);
+      prefetchPromise = null;
+    });
+  }
+}
+
 async function loadAuthenticatedApp() {
   if (appLoadPromise) return appLoadPromise;
-  appLoadPromise = import(getVersionedUrl('./app.js'))
+
+  const targetPromise = prefetchPromise || import(getVersionedUrl('./app.js'));
+  appLoadPromise = targetPromise
     .then(async module => {
       const res = module.initializeAppLogic();
       try {
@@ -39,6 +54,7 @@ async function loadAuthenticatedApp() {
 function startBootstrap() {
   setAuthSuccessCallback(loadAuthenticatedApp);
   initSecurityAuth();
+  prefetchInBackground();
   if (sessionStorage.getItem('security_authenticated') === 'true') {
     loadAuthenticatedApp();
   }
