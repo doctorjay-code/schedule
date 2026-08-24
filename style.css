@@ -2237,17 +2237,20 @@ body {
   white-space: normal;
   box-sizing: border-box;
 }
-.filter-bar .filter-chip,
-#ledgerPersonSwitch .filter-chip {
-  flex: 0 1 auto;
+.filter-bar .filter-chip {
+  flex: 0 0 auto;
   min-width: 0;
-  padding: 4px 7px;
-  font-size: 10px;
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
   line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  border-radius: 12px !important;
 }
-.filter-bar .multi-edit-chip { padding: 4px 7px !important; font-size: 11px !important; }
+.filter-bar .multi-edit-chip {
+  padding: 6px 10px !important;
+  font-size: 13px !important;
+  border-radius: 12px !important;
+}
 @media (max-width: 380px) {
   .filter-bar,
   #ledgerPersonSwitch { flex-wrap: wrap; padding: 5px 8px; }

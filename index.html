@@ -698,6 +698,8 @@
 
   <script type="module">
     const t = Date.now();
+    const styleLink = document.querySelector('link[href^="style.css"]');
+    if (styleLink) styleLink.href = `style.css?t=${t}`;
     import(`./js/bootstrap.js?t=${t}`);
   </script>
 <div class="modal-overlay" id="ledgerAverageBalanceOverlay">
