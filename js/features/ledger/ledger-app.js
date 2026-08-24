@@ -881,17 +881,49 @@ function pasteCopiedLedgerRecords() {
     return;
   }
 
+  const isCompanyCard = ledgerState.source === 'card' && ledgerState.payment === '기업카드';
+  const targetYear = ledgerState.monthCursor.getFullYear();
+  const targetMonth = ledgerState.monthCursor.getMonth(); // 0-indexed (0=1월, 7=8월, 8=9월)
+
   const newRecords = [];
   const recordsToSave = [...copiedLedgerRecords];
 
   for (let i = 0; i < recordsToSave.length; i++) {
     const item = recordsToSave[i];
+    const origParts = String(item.date || '').split('-');
+    const origDay = origParts.length === 3 ? parseInt(origParts[2], 10) || 1 : 1;
+
+    let newDate = '';
+    if (isCompanyCard) {
+      // 기업카드 13일 정산 주기 스마트 계산 (현재 화면의 청구월 targetMonth에 정확히 꽂히도록 계산)
+      let calcYear = targetYear;
+      let calcMonth = targetMonth; // 0-indexed
+      if (targetMonth <= 1) {
+        calcMonth = targetMonth;
+      } else {
+        // 13일 이상이면 전월(targetMonth-1), 12일 이하이면 당월(targetMonth)
+        if (origDay >= 13) {
+          calcMonth = targetMonth - 1;
+        } else {
+          calcMonth = targetMonth;
+        }
+      }
+      const maxDays = new Date(calcYear, calcMonth + 1, 0).getDate();
+      const clampedDay = Math.min(origDay, maxDays);
+      newDate = `${calcYear}-${String(calcMonth + 1).padStart(2, '0')}-${String(clampedDay).padStart(2, '0')}`;
+    } else {
+      // 일반 결제수단 (토스/현금/기업은행): 당월 1일~말일
+      const maxDays = new Date(targetYear, targetMonth + 1, 0).getDate();
+      const clampedDay = Math.min(origDay, maxDays);
+      newDate = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(clampedDay).padStart(2, '0')}`;
+    }
+
     const newId = 'cp_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 6);
 
     const newRecord = {
       ...item,
       id: newId,
-      date: item.date || toIso(new Date()), // 원본 날짜 100% 그대로 보존!
+      date: newDate,
       balance: '',
       sheetRow: null,
       createdAt: Date.now() + i
@@ -906,7 +938,7 @@ function pasteCopiedLedgerRecords() {
   }
 
   clearLedgerCopyBuffer();
-  showLedgerToast(`📋 ${newRecords.length}건의 거래가 복사되었습니다.`);
+  showLedgerToast(`📋 ${newRecords.length}건의 거래가 ${targetMonth + 1}월 화면으로 복사되었습니다.`);
 
   enqueueLedgerTask(async () => {
     try {
