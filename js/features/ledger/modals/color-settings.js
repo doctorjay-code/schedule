@@ -1,4 +1,4 @@
-import { getLedgerTagColor } from '../ledger-utils.js?v=20260824_31';
+import { getLedgerTagColor } from '../ledger-utils.js?v=20260824_32';
 
 // Ledger tag-color settings and word-rule UI responsibility.
 export function createLedgerColorSettings({ state, pastelPalette, defaultColorSettings, saveColorSettings, renderLedgerViews }) {

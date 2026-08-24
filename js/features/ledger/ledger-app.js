@@ -2,16 +2,16 @@ import { state, pastelPalette, saveColorSettings, defaultColorSettings } from '.
 import { switchViewModeUI } from '../schedule/render.js';
 import { openWeekSelectModal } from '../schedule/modals/week-picker.js';
 import { openMonthSelectModal } from '../schedule/modals/month-picker.js';
-import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor, recalculateRunningBalances } from './ledger-utils.js?v=20260824_31';
+import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor, recalculateRunningBalances, normalizeLedgerDate } from './ledger-utils.js?v=20260824_32';
 import { filterLedgerRecords } from './card.js';
 import { normalizeFundplanRows } from './fundplan.js';
 import { groupExpenses, renderStatList } from './stats.js';
-import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_31';
-import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_31';
-import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_31';
-import { bindLedgerListActions } from './ledger-events.js?v=20260824_31';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_31';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_31';
+import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_32';
+import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_32';
+import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_32';
+import { bindLedgerListActions } from './ledger-events.js?v=20260824_32';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_32';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_32';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -406,8 +406,10 @@ function focusLedgerLatest() {
   return d;
 }
 function inCurrentWeek(record) {
-  const date = new Date(record.date + 'T00:00:00');
-  return date >= ledgerState.weekStart && date <= getWeekEnd();
+  const dStr = normalizeLedgerDate(record.date);
+  const startStr = toIso(ledgerState.weekStart);
+  const endStr = toIso(getWeekEnd());
+  return dStr >= startStr && dStr <= endStr;
 }
 function getWeeklyRecords() {
   return getSelectedCardRecords()
@@ -1119,7 +1121,10 @@ function getMonthlyRecords() {
   }
   const startDate = toIso(start);
   const endDate = toIso(end);
-  return getActiveSourceRecords().filter(record => record.date >= startDate && record.date <= endDate);
+  return getActiveSourceRecords().filter(record => {
+    const dStr = normalizeLedgerDate(record.date);
+    return dStr >= startDate && dStr <= endDate;
+  });
 }function renderMonthly() {
   const items = getMonthlyRecords();
   const income = items.filter(x => x.type === 'income').reduce((sum,x) => sum + x.amount, 0);

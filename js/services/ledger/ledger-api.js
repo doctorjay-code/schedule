@@ -1,4 +1,4 @@
-import { normalizeLedgerDate } from '../../features/ledger/ledger-utils.js?v=20260824_31';
+import { normalizeLedgerDate } from '../../features/ledger/ledger-utils.js?v=20260824_32';
 
 const LEDGER_API_URL = 'https://script.google.com/macros/s/AKfycbwrabwa6r6tuowlOiiewohmSTcESk2OhnwJST6uh50pDBCdx0cWUG8usGJASRqz1UBb/exec';
 

@@ -1,11 +1,12 @@
-import { toIso, formatMoney, recalculateRunningBalances } from './ledger-utils.js?v=20260824_31';
-import { createLedgerTableHead, renderTransactionRow } from './transaction-view.js?v=20260824_31';
+import { toIso, formatMoney, recalculateRunningBalances, normalizeLedgerDate } from './ledger-utils.js?v=20260824_32';
+import { createLedgerTableHead, renderTransactionRow } from './transaction-view.js?v=20260824_32';
 
 export function getRecordMonthGroup(record, isCompanyCard) {
+  const dStr = normalizeLedgerDate(record.date);
   if (!isCompanyCard) {
-    return record.date.slice(0, 7);
+    return dStr.slice(0, 7);
   }
-  const [yearStr, monthStr, dayStr] = record.date.split('-');
+  const [yearStr, monthStr, dayStr] = dStr.split('-');
   let year = parseInt(yearStr, 10);
   let month = parseInt(monthStr, 10);
   const day = parseInt(dayStr, 10);
@@ -119,7 +120,10 @@ export function createFundplanView({ ledgerState, colorSettings, getActiveSource
   function render() {
     const source = ledgerState.source;
     const isCompanyCard = source === 'card' && ledgerState.payment === '\uAE30\uC5C5\uCE74\uB4DC';
-    const records = getActiveSourceRecords().filter(record => new Date(record.date + 'T00:00:00') >= minDate);
+    const records = getActiveSourceRecords().filter(record => {
+      const dStr = normalizeLedgerDate(record.date);
+      return dStr >= '2026-01-01';
+    });
     const titles = {
       cash: '\uD604\uAE08 \uB0B4\uC5ED',
       bank: '\uAE30\uC5C5\uC740\uD589 \uB0B4\uC5ED',
