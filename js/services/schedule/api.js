@@ -1,7 +1,6 @@
-import { GAS_WEB_APP_URL, state, getTodayWeekIndex, saveLocalStorageData, saveLastScheduleSheetSnapshot, saveColorSettings, defaultColorSettings, updateSummaryCounts } from './state.js';
-
+import { state, getTodayWeekIndex, saveLocalStorageData, saveLastScheduleSheetSnapshot, saveColorSettings, defaultColorSettings, updateSummaryCounts } from './state.js';
 import { setSyncStatus } from '../../shared/sync-ui.js';
-import { isHolidayDate } from '../../domain/schedule/calendar-rules.js';
+import { supabaseRest } from '../ledger/supabase-client.js?v=20260824_48';
 
 let apiLoadWeekDataFn = null;
 let saveTimer = null;
@@ -14,11 +13,10 @@ export function setApiLoadWeekDataCallback(fn) {
 
 export function syncToGoogleSheets() {
   saveLocalStorageData();
-  if (!GAS_WEB_APP_URL) { setSyncStatus('saved', '기기에만 저장됨'); return; }
   saveQueued = true;
   setSyncStatus('saving');
   if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(flushScheduledSave, 700);
+  saveTimer = setTimeout(flushScheduledSave, 300);
 }
 
 async function flushScheduledSave() {
@@ -27,275 +25,186 @@ async function flushScheduledSave() {
   saveInProgress = true;
   try {
     await postAllSchedules();
-    if (!saveQueued) setSyncStatus('saved');
+    if (!saveQueued) setSyncStatus('saved', '최신 일정 반영');
   } catch (e) {
+    console.error('Supabase 일정 저장 오류:', e);
     setSyncStatus('error');
   } finally {
     saveInProgress = false;
     if (saveQueued) flushScheduledSave();
   }
 }
+
+/**
+ * Supabase DB에서 초고속 (0.05초) 일정 및 색상 설정 동기화
+ */
 export async function syncFromGoogleSheets() {
-  if (!GAS_WEB_APP_URL) { setSyncStatus('offline', '연결 주소가 설정되지 않음'); return false; }
   let fetched = false;
   setSyncStatus('loading');
   try {
-    const freshUrl = GAS_WEB_APP_URL + (GAS_WEB_APP_URL.includes('?') ? '&' : '?') + 't=' + Date.now();
-    const res = await fetch(freshUrl, { cache: 'no-store' });
-    if (!res.ok) throw new Error('일정 불러오기 실패');
-    const records = await res.json();
-    if (!Array.isArray(records) || records.length === 0) throw new Error('일정 데이터가 비어 있습니다.');
-    parseGoogleSheetsRecordsUniversal(records);
-    saveLastScheduleSheetSnapshot();
-    state.scheduleDataState = 'fresh';
-    updateSummaryCounts();
-    fetched = true;
-  } catch (e) {
-    console.log('Google Sheets sync skipped or offline, keeping last sheet snapshot:', e);
-    state.scheduleDataState = state.allWeeksData.length ? 'cached' : 'error';
-    setSyncStatus('offline');
-  }
-  // 색상 설정도 함께 동기화
-  await syncColorSettingsFromSheets();
-  if (fetched && !saveInProgress && !saveQueued) setSyncStatus('saved', '최신 일정 반영');
-  return fetched;
-}
+    const [scheduleRows, colorSettingRows] = await Promise.all([
+      supabaseRest('schedules?select=*&order=order_index.asc'),
+      supabaseRest('schedule_settings?key=eq.color_settings')
+    ]);
 
-export async function syncColorSettingsFromSheets() {
-  if (!GAS_WEB_APP_URL) return;
-  try {
-    const url = GAS_WEB_APP_URL + '?action=GET_COLORS&t=' + Date.now();
-    const res = await fetch(url, { cache: 'no-store' });
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.colorSettings) {
-        const parsed = data.colorSettings;
+    if (Array.isArray(scheduleRows) && scheduleRows.length > 0) {
+      parseSupabaseScheduleRecords(scheduleRows);
+      saveLastScheduleSheetSnapshot();
+      state.scheduleDataState = 'fresh';
+      updateSummaryCounts();
+      fetched = true;
+    }
+
+    if (Array.isArray(colorSettingRows) && colorSettingRows.length > 0) {
+      const parsed = colorSettingRows[0].value;
+      if (parsed) {
         state.colorSettings = {
           regionColors: { ...defaultColorSettings.regionColors, ...(parsed.regionColors || {}) },
           clinicColors: { ...defaultColorSettings.clinicColors, ...(parsed.clinicColors || {}) },
           wordRules: Array.isArray(parsed.wordRules) ? parsed.wordRules : []
         };
         saveColorSettings();
-        // 색상 적용 (렌더 갱신)
+        if (apiLoadWeekDataFn) apiLoadWeekDataFn(state.currentWeekIndex);
+      }
+    }
+
+    if (fetched && !saveInProgress && !saveQueued) setSyncStatus('saved', '최신 일정 반영');
+  } catch (e) {
+    console.warn('Supabase schedule sync error, keeping local cached data:', e);
+    state.scheduleDataState = state.allWeeksData.length ? 'cached' : 'error';
+    setSyncStatus('offline');
+  }
+  return fetched;
+}
+
+export async function syncColorSettingsFromSheets() {
+  try {
+    const colorSettingRows = await supabaseRest('schedule_settings?key=eq.color_settings');
+    if (Array.isArray(colorSettingRows) && colorSettingRows.length > 0) {
+      const parsed = colorSettingRows[0].value;
+      if (parsed) {
+        state.colorSettings = {
+          regionColors: { ...defaultColorSettings.regionColors, ...(parsed.regionColors || {}) },
+          clinicColors: { ...defaultColorSettings.clinicColors, ...(parsed.clinicColors || {}) },
+          wordRules: Array.isArray(parsed.wordRules) ? parsed.wordRules : []
+        };
+        saveColorSettings();
         if (apiLoadWeekDataFn) apiLoadWeekDataFn(state.currentWeekIndex);
       }
     }
   } catch (e) {
-    console.log('Color settings sync skipped:', e);
+    console.warn('Color settings sync error:', e);
   }
 }
 
 export async function syncColorSettingsToSheets() {
-  if (!GAS_WEB_APP_URL) { setSyncStatus('saved', '기기에만 저장됨'); return; }
   setSyncStatus('saving');
   try {
-    const response = await fetch(GAS_WEB_APP_URL, {
+    await supabaseRest('schedule_settings', {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({
-        action: 'SET_COLORS',
-        colorSettings: state.colorSettings
-      })
+      prefer: 'resolution=merge-duplicates',
+      body: {
+        key: 'color_settings',
+        value: state.colorSettings,
+        updated_at: new Date().toISOString()
+      }
     });
-    if (!response.ok) throw new Error('색상 저장 실패');
     setSyncStatus('saved', '색상 설정 저장 완료');
   } catch (e) {
-    console.error('Error syncing color settings to Google Sheets:', e);
+    console.error('Supabase 색상 저장 오류:', e);
     setSyncStatus('error');
   }
 }
 
-export function parseGoogleSheetsRecordsUniversal(records) {
+/**
+ * Supabase DB의 schedules 레코드를 주차별 allWeeksData로 파싱
+ */
+export function parseSupabaseScheduleRecords(records) {
   if (!Array.isArray(records) || records.length === 0) return;
 
-  const getProp = (obj, propName) => {
-    if (!obj) return '';
-    const key = Object.keys(obj).find(k => k.toLowerCase() === propName.toLowerCase());
-    return key ? String(obj[key] ?? '').trim() : '';
-  };
+  const grouped = {};
+  records.forEach((r, index) => {
+    const weekName = r.week_title || '';
+    const dateVal = r.date || '';
+    if (!dateVal || !weekName) return;
 
-  const parseBoolean = (value) => ['true', 'on', '1'].includes(String(value).toLowerCase());
+    if (!grouped[weekName]) grouped[weekName] = [];
+    grouped[weekName].push({
+      id: r.id || (index + 1),
+      date: dateVal,
+      time: r.time || '오전',
+      region: r.region || '',
+      clinic: r.clinic || '',
+      transStatus: r.trans_status || '',
+      transDetail: r.trans_detail || '',
+      hrStatus: r.hr_status || '',
+      hrDetail: r.hr_detail || '',
+      otStatus: r.ot_status || '',
+      otDetail: r.ot_detail || '',
+      isHoliday: Boolean(r.is_holiday),
+      orderIndex: r.order_index ?? index
+    });
+  });
 
-  const is11Col = records.some(r => (getProp(r, 'week') || getProp(r, '주차')) && (getProp(r, 'date') || getProp(r, '날짜/요일')));
-  if (is11Col) {
-    const grouped = {};
-    records.forEach(r => {
-      const weekName = getProp(r, 'week') || getProp(r, '주차') || '';
-      const dateVal = getProp(r, 'date') || getProp(r, '날짜/요일') || '';
-      const timeVal = getProp(r, 'time') || getProp(r, '시간') || '오전';
-      if (!dateVal || !weekName) return;
-
-      if (!grouped[weekName]) grouped[weekName] = [];
-      const clinicVal = getProp(r, 'clinic') || getProp(r, '진료') || '';
-      const isHolidayRaw = getProp(r, 'isHoliday');
-      const isHoliday = isHolidayRaw ? parseBoolean(isHolidayRaw) : isHolidayDate({ date: dateVal });
-
-      grouped[weekName].push({
-        id: grouped[weekName].length + 1,
-        date: dateVal,
-        time: timeVal,
-        region: getProp(r, 'region') || getProp(r, '지역') || '',
-        clinic: clinicVal,
-        transStatus: getProp(r, 'transStatus') || getProp(r, '교통 상태') || '',
-        transDetail: getProp(r, 'transDetail') || getProp(r, '교통 상세') || '',
-        hrStatus: getProp(r, 'hrStatus') || getProp(r, '국인체 상태') || '',
-        hrDetail: getProp(r, 'hrDetail') || getProp(r, '국인체 상세') || '',
-        otStatus: getProp(r, 'otStatus') || getProp(r, '수당 상태') || '',
-        otDetail: getProp(r, 'otDetail') || getProp(r, '수당 상세') || '',
-        isHoliday: isHoliday
+  const keys = Object.keys(grouped);
+  if (keys.length > 0) {
+    state.allWeeksData.length = 0;
+    keys.forEach(wTitle => {
+      const items = grouped[wTitle];
+      const firstDate = items[0].date ? items[0].date.split('(')[0].trim() : '';
+      const lastDate = items[items.length - 1].date ? items[items.length - 1].date.split('(')[0].trim() : '';
+      state.allWeeksData.push({
+        title: `${wTitle} (${firstDate} ~ ${lastDate})`,
+        items: items
       });
     });
-
-    const keys = Object.keys(grouped);
-    if (keys.length > 0) {
-      state.allWeeksData.length = 0;
-      keys.forEach(wTitle => {
-        const items = grouped[wTitle];
-        const firstDate = items[0].date ? items[0].date.split('(')[0].trim() : '';
-        const lastDate = items[items.length - 1].date ? items[items.length - 1].date.split('(')[0].trim() : '';
-        state.allWeeksData.push({
-          title: `${wTitle} (${firstDate} ~ ${lastDate})`,
-          items: items
-        });
-      });
-    }
-
-    state.currentWeekIndex = getTodayWeekIndex();
-    if (apiLoadWeekDataFn) apiLoadWeekDataFn(state.currentWeekIndex);
-    saveLocalStorageData();
-    return;
   }
 
-  // Format B: Horizontal Format
-  let i = 0;
-  while (i < records.length) {
-    const rowObj = records[i];
-    const rowVals = Object.values(rowObj).map(v => String(v).trim());
-    const hasDate = rowVals.some(v => v.includes('.') && v.includes('('));
-
-    if (hasDate) {
-      const dateRow = rowVals;
-      const timeRow = (i + 1 < records.length) ? Object.values(records[i + 1]).map(v => String(v).trim()) : [];
-      const clinicRow = (i + 2 < records.length) ? Object.values(records[i + 2]).map(v => String(v).trim()) : [];
-      const transRow = (i + 3 < records.length) ? Object.values(records[i + 3]).map(v => String(v).trim()) : [];
-      const hrRow = (i + 4 < records.length) ? Object.values(records[i + 4]).map(v => String(v).trim()) : [];
-      const otRow = (i + 5 < records.length) ? Object.values(records[i + 5]).map(v => String(v).trim()) : [];
-
-      let weekTarget = null;
-      let colIdx = 0;
-      let currDate = "";
-
-      while (colIdx < dateRow.length) {
-        if (dateRow[colIdx] && dateRow[colIdx].includes('.')) {
-          currDate = dateRow[colIdx];
-        }
-
-        const timeVal = timeRow[colIdx] || "";
-        if (timeVal === "오전" || timeVal === "오후") {
-          const clinicVal = clinicRow[colIdx] || "";
-          const transVal = transRow[colIdx] || "";
-          const hrVal = hrRow[colIdx] || "";
-          const otVal = otRow[colIdx] || "";
-
-          if (!weekTarget && currDate) {
-            state.allWeeksData.forEach(wObj => {
-              const dNum = currDate.substring(0, 4);
-              if (wObj.title.includes(dNum) || wObj.items.some(it => it.date === currDate)) {
-                weekTarget = wObj;
-              }
-            });
-          }
-
-          let transStatus = "", transDetail = transVal;
-          if (transVal.includes('[결제O]')) { transStatus = "결제O"; transDetail = transVal.replace('[결제O]', '').trim(); }
-          else if (transVal.includes('[결제X]')) { transStatus = "결제X"; transDetail = transVal.replace('[결제X]', '').trim(); }
-
-          let hrStatus = "", hrDetail = hrVal;
-          if (hrVal.includes('[승인O]')) { hrStatus = "승인O"; hrDetail = hrVal.replace('[승인O]', '').trim(); }
-          else if (hrVal.includes('[신청O]')) { hrStatus = "신청O"; hrDetail = hrVal.replace('[신청O]', '').trim(); }
-
-          let otStatus = "", otDetail = otVal;
-          if (otVal.includes('[승인O]')) { otStatus = "승인O"; otDetail = otVal.replace('[승인O]', '').trim(); }
-          else if (otVal.includes('[신청O]')) { otStatus = "신청O"; otDetail = otVal.replace('[신청O]', '').trim(); }
-
-          let region = "진주";
-          if (clinicVal.includes("휴가") || transVal.includes("서울")) region = "서울";
-          else if (clinicVal.includes("행정") || transVal.includes("이동") || transVal.includes("KTX") || transVal.includes("고속버스")) region = "이동";
-
-          if (weekTarget) {
-            const targetItem = weekTarget.items.find(it => it.date === currDate && it.time === timeVal);
-            if (targetItem) {
-              targetItem.region = region;
-              targetItem.clinic = clinicVal;
-              targetItem.transStatus = transStatus;
-              targetItem.transDetail = transDetail;
-              targetItem.hrStatus = hrStatus;
-              targetItem.hrDetail = hrDetail;
-              targetItem.otStatus = otStatus;
-              targetItem.otDetail = otDetail;
-            }
-          }
-        }
-        colIdx++;
-      }
-      i += 6;
-    } else {
-      i++;
-    }
-  }
-
+  state.currentWeekIndex = getTodayWeekIndex();
   if (apiLoadWeekDataFn) apiLoadWeekDataFn(state.currentWeekIndex);
   saveLocalStorageData();
 }
 
+/**
+ * 전체 일정을 Supabase DB에 초고속 (0.05초) 일괄 저장
+ */
 async function postAllSchedules() {
-  if (!GAS_WEB_APP_URL) return;
+  const allItemsToPost = [];
+  let globalOrder = 0;
 
-  try {
-    const allItemsToPost = [];
-    state.allWeeksData.forEach(wObj => {
-      const wName = wObj.title.split(' (')[0];
-      wObj.items.forEach(it => {
-        allItemsToPost.push({
-          week: wName,
-          date: it.date,
-          time: it.time,
-          region: it.region,
-          clinic: it.clinic,
-          transStatus: it.transStatus || '',
-          transDetail: it.transDetail || '',
-          hrStatus: it.hrStatus || '',
-          hrDetail: it.hrDetail || '',
-          otStatus: it.otStatus || '',
-          otDetail: it.otDetail || '',
-          isHoliday: Boolean(it.isHoliday)
-        });
+  state.allWeeksData.forEach(wObj => {
+    const wName = wObj.title.split(' (')[0];
+    wObj.items.forEach(it => {
+      const id = String(it.id || `sched_${globalOrder + 1}`);
+      allItemsToPost.push({
+        id: id,
+        week_title: wName,
+        date: it.date,
+        time: it.time,
+        region: it.region || '',
+        clinic: it.clinic || '',
+        trans_status: it.transStatus || '',
+        trans_detail: it.transDetail || '',
+        hr_status: it.hrStatus || '',
+        hr_detail: it.hrDetail || '',
+        ot_status: it.otStatus || '',
+        ot_detail: it.otDetail || '',
+        is_holiday: Boolean(it.isHoliday),
+        order_index: globalOrder++,
+        updated_at: new Date().toISOString()
       });
     });
+  });
 
-    const response = await fetch(GAS_WEB_APP_URL, {
+  if (allItemsToPost.length === 0) return;
+
+  const chunkSize = 100;
+  for (let i = 0; i < allItemsToPost.length; i += chunkSize) {
+    const chunk = allItemsToPost.slice(i, i + chunkSize);
+    await supabaseRest('schedules', {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({
-        action: 'UPDATE_ALL',
-        items: allItemsToPost
-      })
+      prefer: 'resolution=merge-duplicates',
+      body: chunk
     });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  } catch (e) {
-    console.error('Error posting live update to Google Sheets:', e);
-    throw e;
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-

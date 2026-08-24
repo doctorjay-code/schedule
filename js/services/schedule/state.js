@@ -1,5 +1,5 @@
-// Google Apps Script Live Sync URL
-export const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzjnIdn0O3TcAav5sshkKDB_B6zP8Nw9woJ00OFw9pMIYyK8p75G8yW3A8KRpgYRnR5YA/exec";
+// Supabase PostgreSQL Realtime Backend
+export const GAS_WEB_APP_URL = "";
 // Standard Preset Categories
 export const standardTransCategories = ['KTX', '고속버스'];
 export const standardHrCategories = ['연가', '청원휴가', '위로휴가', '당직OFF'];

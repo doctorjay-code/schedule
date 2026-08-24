@@ -34,5 +34,7 @@ export async function supabaseRest(endpoint, options = {}) {
   }
 
   if (response.status === 204) return null;
-  return await response.json();
+  const text = await response.text();
+  if (!text || !text.trim()) return null;
+  return JSON.parse(text);
 }
