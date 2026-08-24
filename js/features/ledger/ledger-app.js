@@ -11,7 +11,7 @@ import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20
 import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_33';
 import { bindLedgerListActions } from './ledger-events.js?v=20260824_33';
 import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_33';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord, reorderLedgerSheetRecords } from '../../services/ledger/ledger-api.js?v=20260824_38';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord, reorderLedgerSheetRecords } from '../../services/ledger/ledger-api.js?v=20260824_42';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];

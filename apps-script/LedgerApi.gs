@@ -62,6 +62,7 @@ function repairAllSheetColumns() {
     var newExpenses = [];
     var newIds = [];
     var hasIdChange = false;
+    var dateSeqMap = {};
 
     for (var r = 0; r < rows; r++) {
       var d = dateVals[r] ? cleanText(dateVals[r][0]) : '';
@@ -88,13 +89,25 @@ function repairAllSheetColumns() {
         else t = 'expense';
       }
 
-      // ID 표준화 (2026 -> 26 등 수정)
-      var fixedId = curId;
-      if (fixedId.indexOf('-2026') !== -1) {
-        fixedId = fixedId.replace('-2026', '-26');
-        hasIdChange = true;
+      var autoPrefix = 'cash';
+      if (sheetName === '기업카드') autoPrefix = 'ibkcard';
+      else if (sheetName === '토스은행') autoPrefix = 'tossbank';
+      else if (sheetName === '기업은행') autoPrefix = 'ibkbank';
+
+      var dateDigits = formatIsoDate(d).replace(/[^0-9]/g, '').slice(2);
+      if (dateDigits.length === 6) {
+        if (!dateSeqMap[dateDigits]) {
+          dateSeqMap[dateDigits] = 1;
+        } else {
+          dateSeqMap[dateDigits]++;
+        }
+        var seq = dateSeqMap[dateDigits];
+        var fixedId = autoPrefix + '-' + dateDigits + (seq < 10 ? '0' + seq : String(seq));
+        if (fixedId !== curId) hasIdChange = true;
+        newIds.push([fixedId]);
+      } else {
+        newIds.push([curId]);
       }
-      newIds.push([fixedId]);
 
       newTypes.push([t]);
       newAmounts.push([num]);
@@ -106,7 +119,7 @@ function repairAllSheetColumns() {
     if (colMap['amount']) sheet.getRange(2, colMap['amount'], rows, 1).setValues(newAmounts);
     if (colMap['수입']) sheet.getRange(2, colMap['수입'], rows, 1).setValues(newIncomes);
     if (colMap['지출']) sheet.getRange(2, colMap['지출'], rows, 1).setValues(newExpenses);
-    if (hasIdChange && index['id'] !== undefined) {
+    if (index['id'] !== undefined) {
       sheet.getRange(2, index['id'] + 1, rows, 1).setValues(newIds);
     }
 
@@ -119,9 +132,8 @@ function repairAllSheetColumns() {
     results[sheetName] = rows;
   });
 
-  var forecastReconcile = reconcileBalanceForecast();
-
-  return { ok: true, results: results, forecastReconcile: forecastReconcile };
+  SpreadsheetApp.flush();
+  return { ok: true, results: results };
 }
 
 /**
