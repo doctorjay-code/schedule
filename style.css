@@ -2535,19 +2535,27 @@ body.ledger-dragging-locked {
   user-select: none !important;
   -webkit-user-select: none !important;
 }
-/* 잡은 거래: 둥실 떠오르고 선명한 연보라 하이라이트 + 내부 칸 구분선 완벽 보존 */
+/* 잡은 거래: 위아래 파란 굵은선 동반 이동 + 내부 칸 구분선 선명하게 보존 */
 .schedule-row.dragging {
   background-color: #EEF2FF !important;
-  box-shadow: 0 8px 24px rgba(79, 70, 229, 0.28) !important;
   position: relative;
   z-index: 50;
-  transform: scale(1.015);
 }
+/* 내부 칸 기본 세로/가로 구분선 */
 .schedule-row.dragging td {
-  border: 1px solid #C7D2FE !important;
+  border: 1px solid #CBD5E1 !important;
 }
+/* 잡은 블록의 맨 위 파란 굵은선 (같이 따라감) */
+.schedule-row.dragging.schedule-row-detail td {
+  border-top: 2.5px solid #4F46E5 !important;
+}
+/* 잡은 블록 상세-태그 중간 가로 점선 */
 .schedule-row.dragging.schedule-row-detail td:not(.cell-date) {
-  border-bottom: 1px dashed #C7D2FE !important;
+  border-bottom: 1px dashed #94A3B8 !important;
+}
+/* 잡은 블록의 맨 아래 파란 굵은선 (같이 따라감) */
+.schedule-row.dragging.schedule-row-tag td {
+  border-bottom: 2.5px solid #4F46E5 !important;
 }
 
 
