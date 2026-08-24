@@ -1,5 +1,5 @@
-import { toIso, formatMoney, recalculateRunningBalances, normalizeLedgerDate } from './ledger-utils.js?v=20260824_45';
-import { createLedgerTableHead, renderTransactionRow } from './transaction-view.js?v=20260824_45';
+import { toIso, formatMoney, recalculateRunningBalances, normalizeLedgerDate, compareLedgerRecords } from './ledger-utils.js?v=20260824_49';
+import { createLedgerTableHead, renderTransactionRow } from './transaction-view.js?v=20260824_49';
 
 export function getRecordMonthGroup(record, isCompanyCard) {
   const dStr = normalizeLedgerDate(record.date);
@@ -180,7 +180,7 @@ export function createFundplanView({ ledgerState, colorSettings, getActiveSource
     }
 
     months.forEach(month => {
-      const monthRecords = grouped[month];
+      const monthRecords = (grouped[month] || []).sort(compareLedgerRecords);
       const isExpanded = monthExpandedState[month] !== false;
       const monthRowElements = [];
 

@@ -86,3 +86,17 @@ export function getLedgerTagColor(colorSettings, field, value) {
   const colors = colorSettings?.[key] || {};
   return colors[value] || '#F1F5F9';
 }
+
+/**
+ * Supabase DB orderIndex를 100% 신뢰하는 표준 정렬 헬퍼
+ */
+export function compareLedgerRecords(a, b) {
+  const dateDiff = (a.date || '').localeCompare(b.date || '');
+  if (dateDiff !== 0) return dateDiff;
+  const orderDiff = (Number(a.orderIndex ?? 0)) - (Number(b.orderIndex ?? 0));
+  if (orderDiff !== 0) return orderDiff;
+  const createdDiff = (Number(a.createdAt ?? 0)) - (Number(b.createdAt ?? 0));
+  if (createdDiff !== 0) return createdDiff;
+  return (a.id || '').localeCompare(b.id || '');
+}
+

@@ -2,7 +2,7 @@ import { state, pastelPalette, saveColorSettings, defaultColorSettings } from '.
 import { switchViewModeUI } from '../schedule/render.js';
 import { openWeekSelectModal } from '../schedule/modals/week-picker.js';
 import { openMonthSelectModal } from '../schedule/modals/month-picker.js';
-import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor, recalculateRunningBalances, normalizeLedgerDate } from './ledger-utils.js?v=20260824_45';
+import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor, recalculateRunningBalances, normalizeLedgerDate, compareLedgerRecords } from './ledger-utils.js?v=20260824_49';
 import { filterLedgerRecords } from './card.js?v=20260824_45';
 import { normalizeFundplanRows } from './fundplan.js?v=20260824_45';
 import { groupExpenses, renderStatList } from './stats.js?v=20260824_45';
@@ -381,14 +381,14 @@ function inCurrentWeek(record) {
 function getWeeklyRecords() {
   return getSelectedCardRecords()
     .filter(inCurrentWeek)
-    .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+    .sort(compareLedgerRecords);
 }
 function setText(id, value) {
   const el = document.getElementById(id);
   if (el) el.textContent = value;
 }
 function renderWeekly() {
-  const items = ledgerState.period === 'all' ? [...getSelectedCardRecords()].sort((a,b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)) : getWeeklyRecords();
+  const items = ledgerState.period === 'all' ? [...getSelectedCardRecords()].sort(compareLedgerRecords) : getWeeklyRecords();
   const income = items.filter(x => x.type === 'income').reduce((sum,x) => sum + x.amount, 0);
   const expense = items.filter(x => x.type === 'expense').reduce((sum,x) => sum + x.amount, 0);
   const start = ledgerState.weekStart;
@@ -504,20 +504,35 @@ function reorderLedgerRecord(orderedIds) {
   const currentSheetName = getCurrentLedgerSheetName();
   showLedgerToast('↕️ 거래 순서가 저장되었습니다.');
 
-  if (currentSheetName && currentSheetName !== '잔액전망') {
-    enqueueLedgerTask(async () => {
-      try {
-        await reorderLedgerSheetRecords(currentSheetName, orderedIds);
-        refreshLedgerInBackground({ sheetName: currentSheetName });
-      } catch (error) {
-        console.error('Background reorder sync error:', error);
+  // 1. 메모리 리스트에서 orderIndex 즉시 갱신
+  const updateOrderInList = (list) => {
+    if (!Array.isArray(list)) return list;
+    const idMap = new Map();
+    orderedIds.forEach((id, idx) => idMap.set(String(id), idx));
+    return list.map(item => {
+      if (idMap.has(String(item.id))) {
+        return { ...item, orderIndex: idMap.get(String(item.id)) };
       }
+      return item;
+    }).sort(compareLedgerRecords);
+  };
+
+  if (sheetLedgerRecords) sheetLedgerRecords = updateOrderInList(sheetLedgerRecords);
+  if (sheetBankRecords) sheetBankRecords = updateOrderInList(sheetBankRecords);
+  if (sheetCashRecords) sheetCashRecords = updateOrderInList(sheetCashRecords);
+
+  applyLedgerDataSources();
+
+  // 2. Supabase DB 비동기 영구 저장
+  if (currentSheetName && currentSheetName !== '잔액전망') {
+    reorderLedgerSheetRecords(currentSheetName, orderedIds).catch(err => {
+      console.error('Supabase reorder sync error:', err);
     });
   }
 }
 
 function upsertLocalRecord(records, record) {
-  const nextRecord = { ...record, sheetName: ledgerSheetNameForRecord(record), source: 'google-sheets' };
+  const nextRecord = { ...record, sheetName: ledgerSheetNameForRecord(record), source: 'supabase' };
   const list = records || [];
   const index = list.findIndex(item => String(item.id) === String(nextRecord.id));
   let updatedList;
@@ -525,9 +540,9 @@ function upsertLocalRecord(records, record) {
     updatedList = list.map(item => String(item.id) === String(nextRecord.id) ? nextRecord : item);
   } else {
     const nextList = [...list, nextRecord];
-    updatedList = nextList.sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.createdAt || 0) - (b.createdAt || 0));
+    updatedList = nextList.sort(compareLedgerRecords);
   }
-  return recalculateLedgerBalances(updatedList);
+  return updatedList;
 }
 
 function applyOptimisticSave(record) {
@@ -1149,7 +1164,7 @@ function getMonthlyRecords() {
 
 
 function renderMonthlyList(items) {
-  const sorted = [...items].sort((a,b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  const sorted = [...items].sort(compareLedgerRecords);
   setText('ledgerMonthlyTransactionCount', sorted.length + '\uAC74');
 
   const isCompanyCard = ledgerState.source === 'card' && ledgerState.payment === '\uAE30\uC5C5\uCE74\uB4DC';
