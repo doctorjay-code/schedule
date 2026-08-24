@@ -2,16 +2,16 @@ import { state, pastelPalette, saveColorSettings, defaultColorSettings } from '.
 import { switchViewModeUI } from '../schedule/render.js';
 import { openWeekSelectModal } from '../schedule/modals/week-picker.js';
 import { openMonthSelectModal } from '../schedule/modals/month-picker.js';
-import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor } from './ledger-utils.js';
+import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor, recalculateRunningBalances } from './ledger-utils.js';
 import { filterLedgerRecords } from './card.js';
 import { normalizeFundplanRows } from './fundplan.js';
 import { groupExpenses, renderStatList } from './stats.js';
-import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_21';
-import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_21';
-import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_21';
-import { bindLedgerListActions } from './ledger-events.js?v=20260824_21';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_21';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_21';
+import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_22';
+import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_22';
+import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_22';
+import { bindLedgerListActions } from './ledger-events.js?v=20260824_22';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_22';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_22';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -444,7 +444,9 @@ function renderWeekly() {
     appendLedgerEmptyRow(list, message);
     return;
   }
-  items.forEach(item => renderTransactionRow(item, 'ledgerTransactionList', { source: ledgerState.source, colorSettings: state.colorSettings }));
+  const isCompanyCard = ledgerState.source === 'card' && ledgerState.payment === '기업카드';
+  const calculatedItems = recalculateRunningBalances(items, isCompanyCard);
+  calculatedItems.forEach(item => renderTransactionRow(item, 'ledgerTransactionList', { source: ledgerState.source, colorSettings: state.colorSettings }));
 }
 
 function findLedgerTransaction(id) {
@@ -1179,7 +1181,8 @@ function renderMonthlyList(items) {
   });
   list.appendChild(dividerRow);
 
-  sorted.forEach(item => {
+  const calculatedSorted = recalculateRunningBalances(sorted, isCompanyCard);
+  calculatedSorted.forEach(item => {
     const prevCount = list.children.length;
     renderTransactionRow(item, 'ledgerMonthlyTransactionList', { source: ledgerState.source, colorSettings: state.colorSettings });
     const newCount = list.children.length;

@@ -1,5 +1,5 @@
-import { toIso, formatMoney } from './ledger-utils.js';
-import { createLedgerTableHead, renderTransactionRow } from './transaction-view.js?v=20260824_21';
+import { toIso, formatMoney, recalculateRunningBalances } from './ledger-utils.js';
+import { createLedgerTableHead, renderTransactionRow } from './transaction-view.js?v=20260824_22';
 
 export function getRecordMonthGroup(record, isCompanyCard) {
   if (!isCompanyCard) {
@@ -198,7 +198,8 @@ export function createFundplanView({ ledgerState, colorSettings, getActiveSource
       list.appendChild(dividerRow);
 
       // 2. Month Transaction Rows
-      monthRecords.forEach(record => {
+      const calculatedMonthRecords = recalculateRunningBalances(monthRecords, isCompanyCard);
+      calculatedMonthRecords.forEach(record => {
         const prevCount = list.children.length;
         renderTransactionRow(record, 'fundplanAllTimeList', { source, colorSettings });
         const newCount = list.children.length;

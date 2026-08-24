@@ -21,9 +21,29 @@ export function formatMoney(value) {
   return Math.abs(Number(value) || 0).toLocaleString('ko-KR');
 }
 
-export function getLedgerTagColor(colorSettings, field, value) {
-  const key = field === 'person' ? 'ledgerPersonColors' : 'ledgerCategoryColors';
-  const colors = colorSettings?.[key] || {};
-  return colors[value] || '#F1F5F9';
-}
+export function recalculateRunningBalances(items, isCompanyCard = false) {
+  if (!Array.isArray(items) || items.length === 0) return items;
 
+  const firstWithBalanceIndex = items.findIndex(item => Number.isFinite(Number(item.balance)));
+  if (firstWithBalanceIndex === -1) return items;
+
+  const firstItem = items[firstWithBalanceIndex];
+  const firstBal = Number(firstItem.balance);
+
+  let runningBalance = isCompanyCard
+    ? firstBal - (firstItem.type === 'expense' ? firstItem.amount : -firstItem.amount)
+    : firstBal - (firstItem.type === 'income' ? firstItem.amount : -firstItem.amount);
+
+  return items.map((item, idx) => {
+    if (idx < firstWithBalanceIndex) return item;
+    if (isCompanyCard) {
+      runningBalance += (item.type === 'expense' ? item.amount : -item.amount);
+    } else {
+      runningBalance += (item.type === 'income' ? item.amount : -item.amount);
+    }
+    return {
+      ...item,
+      balance: runningBalance
+    };
+  });
+}
