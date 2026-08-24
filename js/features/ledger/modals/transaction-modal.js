@@ -24,18 +24,25 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
     if (input) input.value = value || '';
   }
 
-  function splitMemo(value) {
-    const memo = String(value || '').trim();
-    const personMatch = memo.match(/콩콩|쥬쥬|지니/);
-    const person = personMatch ? personMatch[0] : '';
-    const detail = person ? memo.replace(person, '').trim().replace(/\s{2,}/g, ' ') : memo;
+  function splitMemo(memoValue, personValue) {
+    const rawMemo = String(memoValue || '').trim();
+    let person = String(personValue || '').trim();
+    const personMatch = rawMemo.match(/콩콩|쥬쥬|지니/);
+    if (!person && personMatch) {
+      person = personMatch[0];
+    }
+    const detail = rawMemo.replace(/콩콩|쥬쥬|지니/g, '').trim().replace(/\s{2,}/g, ' ');
     return { person, detail };
   }
 
-  function composeMemo() {
-    const person = String(document.getElementById('ledgerModalPerson')?.value || '').trim();
-    const detail = String(document.getElementById('ledgerModalMemo')?.value || '').trim();
-    return [person, detail].filter(Boolean).join(' ');
+  function composeMemoAndPerson() {
+    const selectedPerson = String(document.getElementById('ledgerModalPerson')?.value || '').trim();
+    const rawDetail = String(document.getElementById('ledgerModalMemo')?.value || '').trim();
+    const personMatch = rawDetail.match(/콩콩|쥬쥬|지니/);
+    const finalPerson = selectedPerson || (personMatch ? personMatch[0] : '');
+    const cleanedDetail = rawDetail.replace(/콩콩|쥬쥬|지니/g, '').trim().replace(/\s{2,}/g, ' ');
+    const finalMemo = [finalPerson, cleanedDetail].filter(Boolean).join(' ');
+    return { person: finalPerson, memo: finalMemo, detail: cleanedDetail };
   }
 
   function setReadOnly(readOnly) {
@@ -61,7 +68,7 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
       amount: '',
       payment: ledgerState.payment,
       item: '',
-      category: modalText(0xC2DD, 0xBE44),
+      category: '식비',
       memo: '',
       fixedCost: ''
     };
@@ -70,7 +77,7 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
     document.getElementById('ledgerTransactionModalTitle').textContent = record
       ? formatLedgerScheduleDate(value.date) + ' ' + modalText(0xAC70, 0xB798, 0x20, 0xC0C1, 0xC138)
       : modalText(0xC0C8, 0x20, 0xAC70, 0xB798);
-    const memoParts = splitMemo(value.memo);
+    const memoParts = splitMemo(value.memo, value.person);
     const fields = {
       ledgerModalEditId: 'id',
       ledgerModalDate: 'date',
@@ -87,8 +94,8 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
     if (selectedPayment === '기업' || selectedPayment === '신용카드' || selectedPayment === '카드') selectedPayment = '기업카드';
     if (selectedPayment === '통장' || selectedPayment === '은행') selectedPayment = '기업은행';
     document.getElementById('ledgerModalPayment').value = selectedPayment || '현금';
-    document.getElementById('ledgerModalPerson').value = memoParts.person;
-    document.getElementById('ledgerModalMemo').value = memoParts.detail;
+    document.getElementById('ledgerModalPerson').value = memoParts.person || '';
+    document.getElementById('ledgerModalMemo').value = memoParts.detail || '';
     setGroup('ledgerModalCategoryGroup', 'ledgerModalCategory', value.category);
     setGroup('ledgerModalFixedCostGroup', 'ledgerModalFixedCost', value.fixedCost === '\uACE0\uC815\uBE44' ? value.fixedCost : '');
     setReadOnly(isReadOnly);
@@ -109,7 +116,8 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
     const form = document.getElementById('ledgerTransactionForm');
     form?.addEventListener('submit', event => {
       event.preventDefault();
-      onSave(form, { memo: composeMemo() });
+      const { person, memo } = composeMemoAndPerson();
+      onSave(form, { memo, person });
     });
     bindModalDismiss({
       overlay: document.getElementById('ledgerTransactionModalOverlay'),

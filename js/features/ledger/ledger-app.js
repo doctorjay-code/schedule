@@ -507,8 +507,14 @@ function saveLedgerRecord(form, overrides = {}) {
 
   const isEdit = Boolean(values.ledgerEditId);
   const existing = ledgerState.records.find(record => record.id === values.ledgerEditId);
-  const memo = (values.memo || '').trim();
-  const personMatch = memo.match(/콩콩|쥬쥬|지니/);
+  
+  // 스마트 사용자 추출 & 비고 중복 방지
+  const rawMemo = String(values.memo || '').trim();
+  const personMatch = rawMemo.match(/콩콩|쥬쥬|지니/);
+  const finalPerson = String(values.person || (personMatch ? personMatch[0] : '')).trim();
+  const cleanedDetail = rawMemo.replace(/콩콩|쥬쥬|지니/g, '').trim().replace(/\s{2,}/g, ' ');
+  const finalMemo = [finalPerson, cleanedDetail].filter(Boolean).join(' ');
+
   const payment = values.payment || ledgerState.payment || '토스은행';
   const record = {
     ...(existing || {}),
@@ -518,10 +524,10 @@ function saveLedgerRecord(form, overrides = {}) {
     amount,
     payment,
     item: values.item.trim(),
-    person: personMatch ? personMatch[0] : '',
+    person: finalPerson,
     category: values.category || '',
-    fixedCost: values.fixedCost === '\uACE0\uC815\uBE44' ? values.fixedCost : '',
-    memo,
+    fixedCost: values.fixedCost === '고정비' ? values.fixedCost : '',
+    memo: finalMemo,
     createdAt: existing?.createdAt ?? Date.now()
   };
   record.sheetName = ledgerSheetNameForRecord(record);
