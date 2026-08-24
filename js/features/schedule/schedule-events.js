@@ -1,11 +1,12 @@
 import { state, getTodayWeekIndex, loadLastScheduleSheetSnapshot, loadColorSettings, updateSummaryCounts } from '../../services/schedule/state.js';
 import { syncFromGoogleSheets, syncToGoogleSheets, setApiLoadWeekDataCallback } from '../../services/schedule/api.js';
 import { loadWeekData, renderTable, isCellSelected, renderMonthlyCalendar, switchViewModeUI } from './render.js';
-import { initAverageBalanceModal } from '../ledger/modals/average-balance.js?v=20260825_02';
+import { initAverageBalanceModal } from '../ledger/modals/average-balance.js?v=20260825_05';
 import { openModal, closeModal, openSummaryModal, closeSummaryModal, openWeekSelectModal, closeWeekSelectModal, saveModalToActiveItem, setupBtnGroupEvents, setupToggleEvents, setModalRenderCallback, setModalLoadWeekDataCallback } from './modals/index.js';
 import { openMonthSelectModal, closeMonthSelectModal } from './modals/month-picker.js';
 import { bindScheduleNavigation } from './events/navigation.js';
 import { bindScheduleModalCloseEvents, bindScheduleFilterEvents } from './events/modal-filter-events.js';
+import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js?v=20260825_05';
 
 // App-core callbacks are registered only after authentication succeeds.
 setApiLoadWeekDataCallback(loadWeekData);
@@ -105,6 +106,11 @@ export function initializeScheduleApp() {
   initAverageBalanceModal();
   updateSummaryCounts();
   syncFromGoogleSheets();
+  registerRealtimeCallbacks({
+    onScheduleChange: () => {
+      syncFromGoogleSheets();
+    }
+  });
   preloadLedgerFeature();
 }
 

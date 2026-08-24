@@ -11,7 +11,8 @@ import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20
 import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_45';
 import { bindLedgerListActions } from './ledger-events.js?v=20260824_45';
 import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_45';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord, reorderLedgerSheetRecords } from '../../services/ledger/ledger-api.js?v=20260824_45';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord, reorderLedgerSheetRecords } from '../../services/ledger/ledger-api.js?v=20260825_05';
+import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js?v=20260825_05';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -978,6 +979,11 @@ export function initLedgerView() {
   try {
     loadLedgerSheetSnapshot();
     refreshLedgerSheetData().catch(e => console.warn('refreshLedgerSheetData warn:', e));
+    registerRealtimeCallbacks({
+      onLedgerChange: () => {
+        refreshLedgerSheetData().catch(e => console.warn('Realtime refresh warn:', e));
+      }
+    });
   } catch (e) {
     console.warn('initLedgerView data load warn:', e);
   }

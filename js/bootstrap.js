@@ -1,4 +1,5 @@
 import { initSecurityAuth, setAuthSuccessCallback } from './auth/auth.js';
+import { initSupabaseRealtime } from './services/shared/supabase-realtime.js?v=20260825_05';
 
 let appLoadPromise = null;
 
@@ -16,8 +17,12 @@ function showAppLoadError() {
 
 async function loadAuthenticatedApp() {
   if (appLoadPromise) return appLoadPromise;
-  appLoadPromise = import('./app.js?v=20260824_33')
-    .then(module => module.initializeAppLogic())
+  appLoadPromise = import('./app.js?v=20260825_05')
+    .then(module => {
+      const res = module.initializeAppLogic();
+      initSupabaseRealtime();
+      return res;
+    })
     .catch(error => {
       console.error('Authenticated application module failed:', error);
       appLoadPromise = null;
