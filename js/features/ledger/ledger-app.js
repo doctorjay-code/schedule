@@ -865,24 +865,17 @@ function pasteCopiedLedgerRecords() {
     return;
   }
 
-  const targetYear = ledgerState.monthCursor.getFullYear();
-  const targetMonth = ledgerState.monthCursor.getMonth();
-  const maxDays = new Date(targetYear, targetMonth + 1, 0).getDate();
-
   const newRecords = [];
   const recordsToSave = [...copiedLedgerRecords];
 
   for (let i = 0; i < recordsToSave.length; i++) {
     const item = recordsToSave[i];
-    const origDay = parseInt(String(item.date || '').split('-')[2], 10) || 1;
-    const day = Math.min(origDay, maxDays);
-    const newDate = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const newId = 'cp_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 6);
 
     const newRecord = {
       ...item,
       id: newId,
-      date: newDate,
+      date: item.date || toIso(new Date()), // 원본 날짜 100% 그대로 보존!
       balance: '',
       sheetRow: null,
       createdAt: Date.now() + i
@@ -897,7 +890,7 @@ function pasteCopiedLedgerRecords() {
   }
 
   clearLedgerCopyBuffer();
-  showLedgerToast(`📋 ${newRecords.length}건의 거래가 ${targetYear}년 ${targetMonth + 1}월로 복사되었습니다.`);
+  showLedgerToast(`📋 ${newRecords.length}건의 거래가 복사되었습니다.`);
 
   enqueueLedgerTask(async () => {
     try {

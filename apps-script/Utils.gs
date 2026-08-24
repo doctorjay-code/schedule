@@ -81,6 +81,21 @@ function parseIsoDate(value) {
   return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
 }
 
+function getCardCycleKey(dateStr) {
+  var iso = formatIsoDate(dateStr);
+  if (!iso || iso.length < 10) return '';
+  var parts = iso.split('-').map(Number);
+  var y = parts[0];
+  var m = parts[1];
+  var d = parts[2];
+  if (d >= 13) {
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  if (m === 1) m = 2;
+  return y + '-' + (m < 10 ? '0' + m : '' + m);
+}
+
 function valuesEqual(left, right) {
   return cleanText(left) === cleanText(right);
 }

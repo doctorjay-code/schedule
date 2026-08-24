@@ -158,7 +158,7 @@ function recalculateSheetBalances(sheet, sheetName, headers, index) {
   var prevCycle = '';
 
   for (var r = 0; r < rows; r++) {
-    var d = dateVals[r] ? cleanText(dateVals[r][0]) : '';
+    var d = dateVals[r] ? formatIsoDate(dateVals[r][0]) : '';
     var inc = Number(incVals[r] ? incVals[r][0] : 0) || 0;
     var exp = Number(expVals[r] ? expVals[r][0] : 0) || 0;
 
@@ -169,10 +169,10 @@ function recalculateSheetBalances(sheet, sheetName, headers, index) {
 
     if (sheetName === '기업카드') {
       var cycle = getCardCycleKey(d);
-      if (cycle !== prevCycle) {
+      if (prevCycle && cycle !== prevCycle) {
         runningBalance = 0;
-        prevCycle = cycle;
       }
+      prevCycle = cycle;
       runningBalance += (exp - inc);
       newBalances.push([runningBalance]);
     } else {
@@ -254,8 +254,7 @@ function batchUpsertLedgerRecords(records, options) {
     throw new Error('저장할 거래 목록이 비어있습니다.');
   }
 
-  // 캡처 목록(최신순)을 가계부 순서(과거순 -> 최신순)로 정렬
-  // 1) 캡처 위(최신)->아래(과거) 순서를 뒤집고, 2) 날짜순 오름차순 안정 정렬
+  // 1. 캡처 위(최신)->아래(과거) 순서 뒤집고 날짜 오름차순 안정 정렬
   records = records.slice().reverse().sort(function(a, b) {
     var dateA = formatIsoDate(a && a.date);
     var dateB = formatIsoDate(b && b.date);
@@ -263,27 +262,110 @@ function batchUpsertLedgerRecords(records, options) {
   });
 
   var allowDuplicates = Boolean(options && options.allowDuplicates);
+  var recordsBySheet = {};
+  for (var i = 0; i < records.length; i++) {
+    var rec = records[i];
+    if (!rec || typeof rec !== 'object') continue;
+    var target = getWriteTarget(rec);
+    var sName = target.sheetName;
+    if (!recordsBySheet[sName]) recordsBySheet[sName] = { target: target, items: [] };
+    recordsBySheet[sName].items.push(rec);
+  }
+
   var results = [];
   var savedCount = 0;
   var skippedCount = 0;
+  var savedIdsToSync = [];
 
-  for (var i = 0; i < records.length; i++) {
-    var item = records[i];
-    if (!item || typeof item !== 'object') continue;
+  for (var sName in recordsBySheet) {
+    var group = recordsBySheet[sName];
+    var target = group.target;
+    var items = group.items;
+    var sheet = target.sheet;
+    var lastRow = sheet.getLastRow();
+    var lastCol = Math.max(sheet.getLastColumn(), target.headers.length, 13);
+    var headers = target.headers;
+    var index = target.index;
 
-    // 중복 검사: allowDuplicates가 false인 경우 같은 날짜/항목/금액이 최근 행에 이미 존재하는지 검사
-    if (!allowDuplicates && !item.id && isDuplicateRecord(item)) {
-      results.push({ ok: true, action: 'skipped-duplicate', item: item.item, amount: item.amount, date: item.date });
-      skippedCount++;
-      continue;
+    // 기존 데이터 읽기 (중복 검사용)
+    var existingKeys = {};
+    var existingIds = {};
+    if (lastRow >= 2) {
+      var checkCount = Math.min(lastRow - 1, 100);
+      var startCheck = Math.max(2, lastRow - checkCount + 1);
+      var recentData = sheet.getRange(startCheck, 1, checkCount, lastCol).getValues();
+      for (var r = 0; r < recentData.length; r++) {
+        var row = recentData[r];
+        var rDate = index['날짜'] !== undefined ? formatIsoDate(row[index['날짜']]) : '';
+        var rAmt = index['amount'] !== undefined ? requiredAmount(row[index['amount']]) : (index['지출'] !== undefined ? requiredAmount(row[index['지출']]) : requiredAmount(row[index['수입']]));
+        var rItem = index['항목'] !== undefined ? cleanText(row[index['항목']]).toLowerCase().replace(/\\s+/g, '') : '';
+        var rId = index['id'] !== undefined ? cleanText(row[index['id']]) : '';
+        if (rId) existingIds[rId] = true;
+        if (rDate && rAmt) existingKeys[rDate + '_' + rAmt + '_' + rItem] = true;
+      }
     }
 
-    try {
-      var res = upsertLedgerRecord(item);
-      results.push(res);
+    // 직전 마지막 행의 사용액 및 결제 주기 읽기 (0.05초)
+    var lastBal = 0;
+    var lastDate = '';
+    var balColIdx = index['사용액'] !== undefined ? index['사용액'] : (index['잔액'] !== undefined ? index['잔액'] : index['총잔액']);
+    if (lastRow >= 2 && balColIdx !== undefined) {
+      var prevRowData = sheet.getRange(lastRow, 1, 1, lastCol).getValues()[0];
+      lastBal = Number(prevRowData[balColIdx]) || 0;
+      lastDate = index['날짜'] !== undefined ? formatIsoDate(prevRowData[index['날짜']]) : '';
+    }
+
+    var runningBal = lastBal;
+    var prevCycle = lastDate ? getCardCycleKey(lastDate) : '';
+
+    var rowsToInsert = [];
+
+    for (var k = 0; k < items.length; k++) {
+      var item = items[k];
+      var numAmount = requiredAmount(item.amount);
+      var itemText = requiredText(item.item || item.detail, '항목 없음');
+      var rawDate = formatIsoDate(item.date);
+      var isIncome = normalizeType(item.type) === 'income';
+
+      // 사용액/잔액 즉시 메모리 계산
+      if (sName === '기업카드') {
+        var cycle = getCardCycleKey(rawDate);
+        if (prevCycle && cycle !== prevCycle) {
+          runningBal = 0; // 새 주기 리셋
+        }
+        prevCycle = cycle;
+        runningBal = isIncome ? (runningBal - numAmount) : (runningBal + numAmount);
+      } else {
+        runningBal = isIncome ? (runningBal + numAmount) : (runningBal - numAmount);
+      }
+
+      var nextRowNum = lastRow + rowsToInsert.length + 1;
+      var savedId = usableRecordId(item.id) ? cleanText(item.id) : generateLedgerId(target, item, nextRowNum);
+
+      var newRow = blankRow(lastCol);
+      if (index['날짜'] !== undefined) setCell(newRow, index, '날짜', rawDate);
+      if (index['수단'] !== undefined) setCell(newRow, index, '수단', sName);
+      if (index['사용자'] !== undefined) setCell(newRow, index, '사용자', cleanText(item.person));
+      if (index['사용처'] !== undefined) setCell(newRow, index, '사용처', cleanText(item.category || item.usage));
+      if (index['항목'] !== undefined) setCell(newRow, index, '항목', itemText);
+      if (index['비고'] !== undefined) setCell(newRow, index, '비고', cleanText(item.memo));
+      if (index['고정비'] !== undefined) setCell(newRow, index, '고정비', cleanText(item.fixedCost) === '고정비' ? '고정비' : '');
+      if (index['type'] !== undefined) setCell(newRow, index, 'type', isIncome ? 'income' : 'expense');
+      if (index['amount'] !== undefined) setCell(newRow, index, 'amount', numAmount);
+      if (index['수입'] !== undefined) setCell(newRow, index, '수입', isIncome ? numAmount : '');
+      if (index['지출'] !== undefined) setCell(newRow, index, '지출', isIncome ? '' : numAmount);
+      if (balColIdx !== undefined) newRow[balColIdx] = runningBal;
+      if (index['id'] !== undefined) setCell(newRow, index, 'id', savedId);
+
+      rowsToInsert.push(newRow);
       savedCount++;
-    } catch (saveError) {
-      results.push({ ok: false, error: String(saveError && saveError.message ? saveError.message : saveError), item: item.item });
+      savedIdsToSync.push({ id: savedId, sheetName: sName });
+      results.push({ ok: true, action: 'created', sheetName: sName, sheetRow: nextRowNum, id: savedId });
+    }
+
+    // ⚡ 단 1번의 RPC로 전체 일괄 삽입! (0.2초)
+    if (rowsToInsert.length > 0) {
+      sheet.getRange(lastRow + 1, 1, rowsToInsert.length, rowsToInsert[0].length).setValues(rowsToInsert);
     }
   }
 
@@ -502,14 +584,22 @@ function findExistingRow(target, record) {
 }
 
 function findFirstBlankTransactionRow(sheet, index) {
+  var lastRow = sheet.getLastRow();
   var maxRows = sheet.getMaxRows();
   var dateCol = index['날짜'] !== undefined ? index['날짜'] + 1 : 1;
-  var dates = sheet.getRange(2, dateCol, Math.max(maxRows - 1, 1), 1).getDisplayValues();
-  for (var i = 0; i < dates.length; i += 1) {
-    if (!cleanText(dates[i][0])) return i + 2;
+
+  if (lastRow >= 2) {
+    var dates = sheet.getRange(2, dateCol, lastRow - 1, 1).getDisplayValues();
+    for (var i = 0; i < dates.length; i += 1) {
+      if (!cleanText(dates[i][0])) return i + 2;
+    }
   }
-  sheet.insertRowAfter(maxRows);
-  return maxRows + 1;
+
+  var nextRow = lastRow + 1;
+  if (nextRow > maxRows) {
+    sheet.insertRowAfter(maxRows);
+  }
+  return nextRow;
 }
 
 function readSheetRows(sheet) {
