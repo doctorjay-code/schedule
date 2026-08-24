@@ -128,20 +128,16 @@ export const deleteLedgerSheetRecord = deleteLedgerRecord;
 export async function reorderLedgerRecords(sheetName, orderedIds, fetchImpl = fetch) {
   if (!Array.isArray(orderedIds) || !orderedIds.length) return { ok: true };
 
-  const updates = orderedIds.map((id, index) => ({
-    id: String(id),
-    order_index: index,
-    updated_at: new Date().toISOString()
-  }));
-
-  for (const item of updates) {
-    await supabaseRest(`ledger_transactions?id=eq.${encodeURIComponent(item.id)}`, {
+  const now = new Date().toISOString();
+  const tasks = orderedIds.map((id, index) =>
+    supabaseRest(`ledger_transactions?id=eq.${encodeURIComponent(String(id))}`, {
       method: 'PATCH',
       fetchImpl,
-      body: { order_index: item.order_index, updated_at: item.updated_at }
-    }).catch(() => {});
-  }
+      body: { order_index: index, updated_at: now }
+    }).catch(err => console.warn(`Reorder item ${id} warn:`, err))
+  );
 
+  await Promise.all(tasks);
   return { ok: true };
 }
 export const reorderLedgerSheetRecords = reorderLedgerRecords;
