@@ -6,12 +6,12 @@ import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor } from '
 import { filterLedgerRecords } from './card.js';
 import { normalizeFundplanRows } from './fundplan.js';
 import { groupExpenses, renderStatList } from './stats.js';
-import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_11';
-import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_11';
-import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_11';
-import { bindLedgerListActions } from './ledger-events.js?v=20260824_11';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_11';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_11';
+import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_12';
+import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_12';
+import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_12';
+import { bindLedgerListActions } from './ledger-events.js?v=20260824_12';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_12';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_12';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -527,46 +527,13 @@ function recalculateLedgerBalances(records) {
   });
 }
 
-function reorderLedgerRecord(orderedIdsOrDraggedId, targetId, insertAfter = false) {
+function reorderLedgerRecord(orderedIds) {
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) return;
   const orderMap = getCustomOrderMap();
-
-  if (Array.isArray(orderedIdsOrDraggedId)) {
-    orderedIdsOrDraggedId.forEach((id, idx) => {
-      if (id) orderMap[String(id)] = idx;
-    });
-    saveCustomOrderMap(orderMap);
-    applyLedgerDataSources();
-    showLedgerToast('↕️ 거래 순서가 저장되었습니다.');
-    return;
-  }
-
-  const draggedId = orderedIdsOrDraggedId;
-  if (!draggedId || !targetId || draggedId === targetId) return;
-
-  const reorderList = list => {
-    if (!list || list.length === 0) return list;
-    const draggedIdx = list.findIndex(r => String(r.id) === String(draggedId));
-    const targetIdx = list.findIndex(r => String(r.id) === String(targetId));
-    if (draggedIdx === -1 || targetIdx === -1) return list;
-
-    const next = [...list];
-    const [draggedItem] = next.splice(draggedIdx, 1);
-    const finalTargetIdx = next.findIndex(r => String(r.id) === String(targetId));
-    const insertIdx = insertAfter ? finalTargetIdx + 1 : finalTargetIdx;
-    next.splice(insertIdx, 0, draggedItem);
-
-    next.forEach((rec, idx) => {
-      if (rec && rec.id) orderMap[String(rec.id)] = idx;
-    });
-    saveCustomOrderMap(orderMap);
-
-    return next;
-  };
-
-  if (sheetLedgerRecords) sheetLedgerRecords = reorderList(sheetLedgerRecords);
-  if (sheetCashRecords) sheetCashRecords = reorderList(sheetCashRecords);
-  if (sheetBankRecords) sheetBankRecords = reorderList(sheetBankRecords);
-
+  orderedIds.forEach((id, idx) => {
+    if (id) orderMap[String(id)] = idx;
+  });
+  saveCustomOrderMap(orderMap);
   applyLedgerDataSources();
   showLedgerToast('↕️ 거래 순서가 저장되었습니다.');
 }

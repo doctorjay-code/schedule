@@ -2546,13 +2546,6 @@ body.ledger-dragging-locked {
 .schedule-row.dragging td {
   border-color: #818CF8 !important;
 }
-/* 들어갈 위치 실시간 인디케이터 라인 */
-.schedule-row.drag-target-above td {
-  border-top: 3px solid #4F46E5 !important;
-}
-.schedule-row.drag-target-below td {
-  border-bottom: 3px solid #4F46E5 !important;
-}
 
 
 
