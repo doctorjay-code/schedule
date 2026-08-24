@@ -2537,7 +2537,20 @@ body.ledger-is-dragging .schedule-row {
 .schedule-row.touch-holding {
   background-color: #EEF2FF !important;
   box-shadow: 0 4px 16px rgba(79, 70, 229, 0.2);
-  transform: scale(1.01);
+/* 실시간 자리 비켜주기 빈 슬롯 (Displacement Spacer Slot) */
+.ledger-drag-placeholder {
+  background-color: #EEF2FF !important;
+  animation: slotFadeIn 0.2s ease-out;
+}
+.ledger-drag-placeholder td {
+  height: 52px !important;
+  background: repeating-linear-gradient(45deg, #EEF2FF, #EEF2FF 8px, #E0E7FF 8px, #E0E7FF 16px) !important;
+  border: 2px dashed #818CF8 !important;
+  padding: 0 !important;
+}
+@keyframes slotFadeIn {
+  from { opacity: 0; transform: scaleY(0.5); }
+  to { opacity: 1; transform: scaleY(1); }
 }
 
 

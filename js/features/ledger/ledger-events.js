@@ -32,7 +32,17 @@ function bindPointerDragEngine(listEl, onReorder, onDragFinished) {
   let startY = 0;
   let isDragging = false;
   let draggedRows = [];
+  let placeholderRow = null;
   let longTouchTimer = null;
+
+  function createPlaceholder() {
+    const tr = document.createElement('tr');
+    tr.className = 'ledger-drag-placeholder';
+    const td = document.createElement('td');
+    td.colSpan = 7;
+    tr.appendChild(td);
+    return tr;
+  }
 
   function startDrag() {
     if (isDragging || !draggedId) return;
@@ -40,6 +50,11 @@ function bindPointerDragEngine(listEl, onReorder, onDragFinished) {
     document.body.classList.add('ledger-is-dragging');
     draggedRows = Array.from(listEl.querySelectorAll(`tr[data-ledger-id="${draggedId}"]`));
     draggedRows.forEach(r => r.classList.add('dragging', 'touch-holding'));
+
+    placeholderRow = createPlaceholder();
+    if (draggedRows.length > 0 && draggedRows[0].parentNode) {
+      draggedRows[0].parentNode.insertBefore(placeholderRow, draggedRows[0]);
+    }
     if (navigator.vibrate) navigator.vibrate(35);
   }
 
@@ -72,18 +87,17 @@ function bindPointerDragEngine(listEl, onReorder, onDragFinished) {
     if (!isDragging && e.pointerType !== 'touch' && moveDist > 5) {
       startDrag();
     } else if (!isDragging && e.pointerType === 'touch' && moveDist > 10) {
-      // 터치 중 손가락이 많이 움직이면 스크롤로 간주하여 롱터치 취소
       if (longTouchTimer) {
         clearTimeout(longTouchTimer);
         longTouchTimer = null;
       }
     }
 
-    if (!isDragging) return;
+    if (!isDragging || !placeholderRow) return;
 
     if (e.cancelable) e.preventDefault();
 
-    // 실시간 자리 비켜주기 (Live DOM Displacement)
+    // 마우스/터치 지점의 타겟 행 탐색
     const el = document.elementFromPoint(e.clientX, e.clientY);
     const targetRow = el ? el.closest('tr[data-ledger-id]') : null;
     if (!targetRow || targetRow.dataset.ledgerId === draggedId) return;
@@ -100,13 +114,13 @@ function bindPointerDragEngine(listEl, onReorder, onDragFinished) {
 
     if (e.clientY < targetCenterY) {
       const firstTarget = targetRows[0];
-      if (draggedRows[draggedRows.length - 1]?.nextSibling !== firstTarget) {
-        draggedRows.forEach(r => parent.insertBefore(r, firstTarget));
+      if (placeholderRow.nextSibling !== firstTarget) {
+        parent.insertBefore(placeholderRow, firstTarget);
       }
     } else {
       const nextSibling = targetRows[targetRows.length - 1]?.nextSibling;
-      if (draggedRows[0] !== nextSibling) {
-        draggedRows.forEach(r => parent.insertBefore(r, nextSibling));
+      if (placeholderRow !== nextSibling && placeholderRow.nextSibling !== nextSibling) {
+        parent.insertBefore(placeholderRow, nextSibling);
       }
     }
   });
@@ -118,8 +132,14 @@ function bindPointerDragEngine(listEl, onReorder, onDragFinished) {
     }
     if (e && e.pointerId !== activePointerId) return;
 
-    if (isDragging && draggedId) {
+    if (isDragging && draggedId && placeholderRow && placeholderRow.parentNode) {
       onDragFinished();
+      const parent = placeholderRow.parentNode;
+      // placeholder 자리에 draggedRows를 촥! 안착시킴
+      draggedRows.forEach(r => parent.insertBefore(r, placeholderRow));
+      placeholderRow.remove();
+      placeholderRow = null;
+
       const orderedIds = [];
       const seen = new Set();
       listEl.querySelectorAll('tr[data-ledger-id]').forEach(r => {
@@ -132,6 +152,9 @@ function bindPointerDragEngine(listEl, onReorder, onDragFinished) {
       if (orderedIds.length > 0) {
         onReorder(orderedIds);
       }
+    } else if (placeholderRow) {
+      placeholderRow.remove();
+      placeholderRow = null;
     }
 
     document.body.classList.remove('ledger-is-dragging');
