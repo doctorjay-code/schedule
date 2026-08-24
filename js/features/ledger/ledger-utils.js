@@ -51,14 +51,14 @@ export function recalculateRunningBalances(items, isCompanyCard = false) {
   }
 
   // 🏦 일반 계좌 (토스은행 / 현금 / 기업은행):
-  // 각 행에 저장된 실제 잔액을 100% 보존하며, 비어있는 행만 직전 행 잔액에서 입출금 계산!
+  // 각 행에 저장된 실제 유효 잔액(> 0)을 기준으로 유지하며, 0이거나 비어있는 행은 직전 잔액에서 자동 연속 계산!
   let currentBalance = null;
 
   return items.map((item, idx) => {
     const rawBal = Number(item.balance);
-    const hasValidBal = Number.isFinite(rawBal) && item.balance !== '' && item.balance !== null;
+    const hasExplicitPositiveBal = Number.isFinite(rawBal) && rawBal > 0 && item.balance !== '' && item.balance !== null;
 
-    if (hasValidBal) {
+    if (hasExplicitPositiveBal) {
       currentBalance = rawBal;
       return item;
     }
