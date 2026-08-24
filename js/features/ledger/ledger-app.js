@@ -2,16 +2,16 @@ import { state, pastelPalette, saveColorSettings, defaultColorSettings } from '.
 import { switchViewModeUI } from '../schedule/render.js';
 import { openWeekSelectModal } from '../schedule/modals/week-picker.js';
 import { openMonthSelectModal } from '../schedule/modals/month-picker.js';
-import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor, recalculateRunningBalances, normalizeLedgerDate } from './ledger-utils.js?v=20260824_33';
-import { filterLedgerRecords } from './card.js';
-import { normalizeFundplanRows } from './fundplan.js';
-import { groupExpenses, renderStatList } from './stats.js';
-import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_33';
-import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_33';
-import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_33';
-import { bindLedgerListActions } from './ledger-events.js?v=20260824_33';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_33';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord, reorderLedgerSheetRecords } from '../../services/ledger/ledger-api.js?v=20260824_42';
+import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor, recalculateRunningBalances, normalizeLedgerDate } from './ledger-utils.js?v=20260824_45';
+import { filterLedgerRecords } from './card.js?v=20260824_45';
+import { normalizeFundplanRows } from './fundplan.js?v=20260824_45';
+import { groupExpenses, renderStatList } from './stats.js?v=20260824_45';
+import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_45';
+import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_45';
+import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_45';
+import { bindLedgerListActions } from './ledger-events.js?v=20260824_45';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_45';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord, reorderLedgerSheetRecords } from '../../services/ledger/ledger-api.js?v=20260824_45';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
