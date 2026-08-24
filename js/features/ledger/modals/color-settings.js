@@ -1,4 +1,5 @@
 import { getLedgerTagColor } from '../ledger-utils.js';
+import { syncColorSettingsToSupabase } from '../../../services/schedule/api.js';
 
 // Ledger tag-color settings and word-rule UI responsibility.
 export function createLedgerColorSettings({ state, pastelPalette, defaultColorSettings, saveColorSettings, renderLedgerViews }) {
@@ -147,6 +148,7 @@ export function createLedgerColorSettings({ state, pastelPalette, defaultColorSe
       state.colorSettings.ledgerCategoryColors = { ...defaultColorSettings.ledgerCategoryColors };
       state.colorSettings.ledgerWordRules = [];
       saveColorSettings();
+      syncColorSettingsToSupabase();
       renderModalContent();
       renderLedgerViews();
     });
@@ -160,6 +162,7 @@ export function createLedgerColorSettings({ state, pastelPalette, defaultColorSe
     });
     document.getElementById('ledgerColorSaveBtn')?.addEventListener('click', () => {
       saveColorSettings();
+      syncColorSettingsToSupabase();
       renderLedgerViews();
       document.getElementById('ledgerColorOverlay')?.classList.remove('active');
     });
