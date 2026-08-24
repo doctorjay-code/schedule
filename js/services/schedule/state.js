@@ -1,5 +1,4 @@
 // Supabase PostgreSQL Realtime Backend
-export const GAS_WEB_APP_URL = "";
 // Standard Preset Categories
 export const standardTransCategories = ['KTX', '고속버스'];
 export const standardHrCategories = ['연가', '청원휴가', '위로휴가', '당직OFF'];

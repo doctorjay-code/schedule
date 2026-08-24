@@ -11,13 +11,14 @@ export function setApiLoadWeekDataCallback(fn) {
   apiLoadWeekDataFn = fn;
 }
 
-export function syncToGoogleSheets() {
+export function syncScheduleToSupabase() {
   saveLocalStorageData();
   saveQueued = true;
   setSyncStatus('saving');
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(flushScheduledSave, 300);
 }
+export const syncToGoogleSheets = syncScheduleToSupabase;
 
 async function flushScheduledSave() {
   if (saveInProgress || !saveQueued) return;
@@ -38,7 +39,7 @@ async function flushScheduledSave() {
 /**
  * Supabase DB에서 초고속 (0.05초) 일정 및 색상 설정 동기화
  */
-export async function syncFromGoogleSheets() {
+export async function syncScheduleFromSupabase() {
   let fetched = false;
   setSyncStatus('loading');
   try {
@@ -76,6 +77,7 @@ export async function syncFromGoogleSheets() {
   }
   return fetched;
 }
+export const syncFromGoogleSheets = syncScheduleFromSupabase;
 
 export async function syncColorSettingsFromSheets() {
   try {
