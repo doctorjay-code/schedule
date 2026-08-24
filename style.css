@@ -2511,7 +2511,7 @@ body {
 /* Google Sheets 읽기 전용 연결 단계 */
 #ledgerToggleEntryBtn:disabled { opacity: 0.55; cursor: not-allowed; filter: grayscale(0.3); }
 
-/* 가계부 행 드래그 앤 드롭 (Live Space Displacement & Ghost) */
+/* 가계부 행 드래그 앤 드롭 (Mobile Touch & PC Drag) */
 .ledger-schedule-table,
 .schedule-table,
 .schedule-row,
@@ -2522,45 +2522,37 @@ body {
 }
 .schedule-row {
   cursor: grab;
-  touch-action: pan-y;
-  transition: opacity 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+  transition: background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 .schedule-row:active,
-body.ledger-is-dragging .schedule-row {
+body.ledger-dragging-locked .schedule-row {
   cursor: grabbing !important;
 }
-/* 드래그 중인 행: 반투명하게 슥 연해짐 (Ghost 효과) */
+/* 드래그 활성화 중: 화면 스크롤 100% 완전 잠금 */
+body.ledger-dragging-locked {
+  overflow: hidden !important;
+  touch-action: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+/* 잡은 거래: 둥실 떠오르고 선명한 연보라 하이라이트 */
 .schedule-row.dragging {
-  opacity: 0.35 !important;
   background-color: #EEF2FF !important;
-  filter: grayscale(0.2);
+  box-shadow: 0 8px 24px rgba(79, 70, 229, 0.28) !important;
+  position: relative;
+  z-index: 50;
+  transform: scale(1.015);
 }
 .schedule-row.dragging td {
-  border-color: #C7D2FE !important;
-  color: #6366F1 !important;
+  border-color: #818CF8 !important;
 }
-/* 모바일 롱터치 시 집어 올림 효과 */
-.schedule-row.touch-holding {
-  background-color: #EEF2FF !important;
-  box-shadow: 0 4px 16px rgba(79, 70, 229, 0.2);
-  transform: scale(1.01);
+/* 들어갈 위치 실시간 인디케이터 라인 */
+.schedule-row.drag-target-above td {
+  border-top: 3px solid #4F46E5 !important;
 }
-/* 실시간 자리 비켜주기 빈 슬롯 (Displacement Spacer Slot) */
-.ledger-drag-placeholder {
-  pointer-events: none !important;
-  background-color: #EEF2FF !important;
-  animation: slotFadeIn 0.15s ease-out;
+.schedule-row.drag-target-below td {
+  border-bottom: 3px solid #4F46E5 !important;
 }
-.ledger-drag-placeholder td {
-  pointer-events: none !important;
-  height: 48px !important;
-  background: repeating-linear-gradient(45deg, #EEF2FF, #EEF2FF 8px, #E0E7FF 8px, #E0E7FF 16px) !important;
-  border: 2px dashed #818CF8 !important;
-  padding: 0 !important;
-}
-@keyframes slotFadeIn {
-  from { opacity: 0; transform: scaleY(0.4); }
-  to { opacity: 1; transform: scaleY(1); }
-}
+
 
 
