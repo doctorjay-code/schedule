@@ -458,6 +458,7 @@ function reorderLedgerRecord(orderedIds) {
   if (sheetCashRecords) sheetCashRecords = updateOrderInList(sheetCashRecords);
 
   applyLedgerDataSources();
+  saveLedgerSheetSnapshot();
 
   // 2. Supabase DB 비동기 영구 저장
   if (currentSheetName && currentSheetName !== '잔액전망') {
