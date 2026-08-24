@@ -6,7 +6,7 @@ import {
   setModalOpen,
   setOptionGroupValue
 } from '../../../shared/modal-form.js';
-import { toIso } from '../ledger-utils.js?v=20260824_33';
+import { toIso } from '../ledger-utils.js';
 import { formatLedgerScheduleDate } from '../transaction-view.js';
 
 // Transaction input, edit, delete, and modal event responsibility.

@@ -1,12 +1,13 @@
+import { getVersionedUrl } from '../../version.js';
 import { state, getTodayWeekIndex, loadLastScheduleSheetSnapshot, loadColorSettings, updateSummaryCounts } from '../../services/schedule/state.js';
 import { syncFromGoogleSheets, syncToGoogleSheets, setApiLoadWeekDataCallback } from '../../services/schedule/api.js';
 import { loadWeekData, renderTable, isCellSelected, renderMonthlyCalendar, switchViewModeUI } from './render.js';
-import { initAverageBalanceModal } from '../ledger/modals/average-balance.js?v=20260825_17';
+import { initAverageBalanceModal } from '../ledger/modals/average-balance.js';
 import { openModal, closeModal, openSummaryModal, closeSummaryModal, openWeekSelectModal, closeWeekSelectModal, saveModalToActiveItem, setupBtnGroupEvents, setupToggleEvents, setModalRenderCallback, setModalLoadWeekDataCallback } from './modals/index.js';
 import { openMonthSelectModal, closeMonthSelectModal } from './modals/month-picker.js';
 import { bindScheduleNavigation } from './events/navigation.js';
 import { bindScheduleModalCloseEvents, bindScheduleFilterEvents } from './events/modal-filter-events.js';
-import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js?v=20260825_17';
+import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js';
 
 // App-core callbacks are registered only after authentication succeeds.
 setApiLoadWeekDataCallback(loadWeekData);
@@ -21,7 +22,7 @@ let colorLoadPromise = null;
 
 function loadLedgerFeature() {
   if (!ledgerLoadPromise) {
-    ledgerLoadPromise = import('../ledger/index.js?v=20260825_17')
+    ledgerLoadPromise = import(getVersionedUrl('../ledger/index.js'))
       .then(module => {
         ledgerLifecycle = module.initLedgerView();
         return ledgerLifecycle;

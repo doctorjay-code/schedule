@@ -1,6 +1,6 @@
 import { state, getTodayWeekIndex, saveLocalStorageData, saveLastScheduleSheetSnapshot, saveColorSettings, defaultColorSettings, updateSummaryCounts } from './state.js';
 import { setSyncStatus } from '../../shared/sync-ui.js';
-import { supabaseRest } from '../ledger/supabase-client.js?v=20260824_48';
+import { supabaseRest } from '../ledger/supabase-client.js';
 
 let apiLoadWeekDataFn = null;
 let saveTimer = null;

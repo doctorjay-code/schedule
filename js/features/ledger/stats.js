@@ -1,4 +1,4 @@
-import { formatMoney } from './ledger-utils.js?v=20260824_33';
+import { formatMoney } from './ledger-utils.js';
 
 // Ledger statistics and report display responsibility.
 export const LEDGER_STATS_SCOPE = Object.freeze({

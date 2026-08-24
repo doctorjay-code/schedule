@@ -1,5 +1,5 @@
-import { normalizeLedgerDate } from '../../features/ledger/ledger-utils.js?v=20260824_47';
-import { supabaseRest } from './supabase-client.js?v=20260824_47';
+import { normalizeLedgerDate } from '../../features/ledger/ledger-utils.js';
+import { supabaseRest } from './supabase-client.js';
 
 function mapTransactionRow(row) {
   return {
