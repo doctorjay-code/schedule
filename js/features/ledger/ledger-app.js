@@ -11,7 +11,7 @@ import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20
 import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_33';
 import { bindLedgerListActions } from './ledger-events.js?v=20260824_33';
 import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_33';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_33';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord, reorderLedgerSheetRecords } from '../../services/ledger/ledger-api.js?v=20260824_38';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -553,7 +553,19 @@ function reorderLedgerRecord(orderedIds) {
   if (sheetCashRecords) sheetCashRecords = applyCustomOrderToList(sheetCashRecords);
   
   applyLedgerDataSources();
-  showLedgerToast('↕️ 거래 순서가 저장되었습니다.');
+  showLedgerToast('↕️ 거래 순서가 시트에 반영되었습니다.');
+
+  const currentSheetName = getCurrentLedgerSheetName();
+  if (currentSheetName && currentSheetName !== '잔액전망') {
+    enqueueLedgerTask(async () => {
+      try {
+        await reorderLedgerSheetRecords(currentSheetName, orderedIds);
+        refreshLedgerInBackground({ sheetName: currentSheetName });
+      } catch (error) {
+        console.error('Background reorder sync error:', error);
+      }
+    });
+  }
 }
 
 function upsertLocalRecord(records, record) {

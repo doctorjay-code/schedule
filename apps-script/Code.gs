@@ -18,6 +18,12 @@ function doGet(e) {
     if (action === 'REPAIR_SHEETS') {
       return jsonResponse(repairAllSheetColumns());
     }
+    if (action === 'SETUP_AUTOMATION') {
+      return jsonResponse(setupLedgerAutomation());
+    }
+    if (action === 'AUTO_FILL_METADATA') {
+      return jsonResponse(autoFillKnownMetadata());
+    }
     if (action === 'SYNC_BALANCE_FORECAST') {
       return jsonResponse(reconcileBalanceForecast());
     }
@@ -40,6 +46,14 @@ function doPost(e) {
     // 1. 삭제 요청 (최우선 정확 판정!)
     if (action === 'DELETE_LEDGER_RECORD') {
       response = deleteLedgerRecord(request.record || request);
+      return jsonResponse(response);
+    }
+
+    // 2. 순서 변경 요청 (REORDER_LEDGER_RECORDS)
+    if (action === 'REORDER_LEDGER_RECORDS' || Array.isArray(request.orderedIds)) {
+      var sheetName = request.sheetName || request.payment || '기업카드';
+      var orderedIds = request.orderedIds || [];
+      response = reorderLedgerRows(sheetName, orderedIds);
       return jsonResponse(response);
     }
 

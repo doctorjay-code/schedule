@@ -118,3 +118,7 @@ export function upsertLedgerSheetRecord(record, fetchImpl = fetch) {
 export function deleteLedgerSheetRecord(record, fetchImpl = fetch) {
   return postLedgerRequest('DELETE_LEDGER_RECORD', record, fetchImpl);
 }
+
+export function reorderLedgerSheetRecords(sheetName, orderedIds, fetchImpl = fetch) {
+  return postLedgerRequest('REORDER_LEDGER_RECORDS', { sheetName, orderedIds }, fetchImpl);
+}

@@ -124,6 +124,181 @@ function repairAllSheetColumns() {
   return { ok: true, results: results, forecastReconcile: forecastReconcile };
 }
 
+/**
+ * 1,2월 등 기존 작성된 동일 항목을 기반으로 다른 월의 사용처, 비고, 고정비, 사용자, 노란색 배경색 일괄 자동 완성
+ */
+function autoFillKnownMetadata() {
+  var spreadsheet = getLedgerSpreadsheet();
+  var sheets = ['기업카드', '토스은행', '현금', '기업은행'];
+  var totalUpdated = 0;
+  var details = {};
+
+  sheets.forEach(function(sheetName) {
+    var sheet = spreadsheet.getSheetByName(sheetName);
+    if (!sheet) return;
+    var lastRow = sheet.getLastRow();
+    var lastCol = sheet.getLastColumn();
+    if (lastRow < 2 || lastCol < 1) return;
+
+    var headers = sheet.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
+    var index = headerIndex(headers);
+    if (index['항목'] === undefined) return;
+
+    var allData = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+
+    // 1. 룰북 수집 (항목 -> { category, memo, fixedCost })
+    var ruleBook = {};
+    for (var r = 0; r < allData.length; r++) {
+      var row = allData[r];
+      var item = cleanText(row[index['항목']]);
+      var cat = index['사용처'] !== undefined ? cleanText(row[index['사용처']]) : '';
+      var memo = index['비고'] !== undefined ? cleanText(row[index['비고']]) : '';
+      var fixed = index['고정비'] !== undefined ? cleanText(row[index['고정비']]) : '';
+
+      if (item && (cat || memo || fixed)) {
+        if (!ruleBook[item]) {
+          ruleBook[item] = { category: cat, memo: memo, fixedCost: fixed };
+        } else {
+          if ((!ruleBook[item].category || ruleBook[item].category === '기타') && cat && cat !== '기타') {
+            ruleBook[item].category = cat;
+          }
+          if (!ruleBook[item].memo && memo) ruleBook[item].memo = memo;
+          if (!ruleBook[item].fixedCost && fixed) ruleBook[item].fixedCost = fixed;
+        }
+      }
+    }
+
+    // 2. 빈칸 채우기 및 사용자/노란색 서식 적용
+    var sheetUpdated = 0;
+    for (var i = 0; i < allData.length; i++) {
+      var curRow = allData[i];
+      var curItem = cleanText(curRow[index['항목']]);
+      var rule = ruleBook[curItem];
+
+      // 정확 일치가 없으면 주요 키워드(SKT, 쿠팡, 관리비, 넷플릭스, 예스코, 메리츠)로 2차 탐색
+      if (!rule) {
+        for (var key in ruleBook) {
+          if (curItem.indexOf(key) !== -1 || key.indexOf(curItem) !== -1 || (curItem.indexOf('SKT') !== -1 && key.indexOf('SKT') !== -1) || (curItem.indexOf('쿠팡') !== -1 && key.indexOf('쿠팡') !== -1)) {
+            rule = ruleBook[key];
+            break;
+          }
+        }
+      }
+
+      var changed = false;
+      if (rule) {
+        var curCat = index['사용처'] !== undefined ? cleanText(curRow[index['사용처']]) : '';
+        if (index['사용처'] !== undefined && (!curCat || curCat === '기타') && rule.category && rule.category !== '기타') {
+          curRow[index['사용처']] = rule.category;
+          changed = true;
+        }
+        if (index['비고'] !== undefined && !cleanText(curRow[index['비고']]) && rule.memo) {
+          curRow[index['비고']] = rule.memo;
+          changed = true;
+        }
+        if (index['고정비'] !== undefined && !cleanText(curRow[index['고정비']]) && rule.fixedCost) {
+          curRow[index['고정비']] = rule.fixedCost;
+          changed = true;
+        }
+      }
+
+      // 비고에 콩콩/쥬쥬/지니가 있으면 사용자 자동 기입 (유효성 검사: 콩콩, 쥬쥬, 지니, 기타)
+      if (index['사용자'] !== undefined) {
+        var curMemo = index['비고'] !== undefined ? cleanText(curRow[index['비고']]) : '';
+        var curItm = cleanText(curRow[index['항목']]);
+        var curPerson = cleanText(curRow[index['사용자']]);
+        var match = (curMemo + ' ' + curItm).match(/콩콩|쥬쥬|지니/);
+        var finalPerson = match ? match[0] : (curPerson || '기타');
+        if (['콩콩', '쥬쥬', '지니', '기타'].indexOf(finalPerson) === -1) {
+          finalPerson = '기타';
+        }
+        if (curPerson !== finalPerson) {
+          curRow[index['사용자']] = finalPerson;
+          changed = true;
+        }
+      }
+
+      // 고정비 노란색 배경색 (#FFF2CC) 적용
+      if (index['고정비'] !== undefined) {
+        var isFixed = cleanText(curRow[index['고정비']]) === '고정비';
+        var rowNum = i + 2;
+        if (isFixed) {
+          sheet.getRange(rowNum, 1, 1, lastCol).setBackground('#FFF2CC');
+        }
+      }
+
+      if (changed) {
+        sheetUpdated++;
+        totalUpdated++;
+      }
+    }
+
+    if (sheetUpdated > 0) {
+      sheet.getRange(2, 1, allData.length, lastCol).setValues(allData);
+    }
+    details[sheetName] = { updatedRows: sheetUpdated };
+  });
+
+  SpreadsheetApp.flush();
+  return { ok: true, totalUpdated: totalUpdated, details: details };
+}
+
+/**
+ * 웹 드래그앤드롭 순서 변경을 시트 행 순서에 즉시 물리적 반영 및 잔액/사용액 재계산
+ */
+function reorderLedgerRows(sheetName, orderedIds) {
+  if (!sheetName || !Array.isArray(orderedIds) || !orderedIds.length) {
+    throw new Error('순서 변경 파라미터가 올바르지 않습니다.');
+  }
+
+  var spreadsheet = getLedgerSpreadsheet();
+  var sheet = getRequiredSheet(spreadsheet, sheetName);
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return { ok: true, message: '데이터가 없습니다.' };
+
+  var headers = sheet.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
+  var index = headerIndex(headers);
+  if (index['id'] === undefined) throw new Error('시트에 ID 열이 없습니다.');
+
+  var allData = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+
+  var rowById = {};
+  var idColIdx = index['id'];
+  var nonOrderedRows = [];
+
+  for (var r = 0; r < allData.length; r++) {
+    var row = allData[r];
+    var rowId = cleanText(row[idColIdx]);
+    if (rowId && orderedIds.indexOf(rowId) !== -1) {
+      rowById[rowId] = row;
+    } else {
+      nonOrderedRows.push(row);
+    }
+  }
+
+  var reorderedRows = [];
+  for (var i = 0; i < orderedIds.length; i++) {
+    var targetId = cleanText(orderedIds[i]);
+    if (rowById[targetId]) {
+      reorderedRows.push(rowById[targetId]);
+    }
+  }
+
+  // 전체 행 병합: 순서 변경 대상 행 + 나머지 행
+  var finalRows = reorderedRows.concat(nonOrderedRows);
+
+  if (finalRows.length === allData.length) {
+    sheet.getRange(2, 1, finalRows.length, lastCol).setValues(finalRows);
+  }
+
+  // 누적 잔액/사용액 실시간 재계산
+  recalculateSheetBalances(sheet, sheetName, headers, index);
+  SpreadsheetApp.flush();
+
+  return { ok: true, action: 'reordered', sheetName: sheetName, count: orderedIds.length };
+}
+
 function getCardCycleKey(isoDate) {
   if (!isoDate) return '';
   var parts = String(isoDate).split('-');

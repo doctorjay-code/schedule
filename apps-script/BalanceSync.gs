@@ -32,6 +32,31 @@ function onLedgerSourceEdit(e) {
       }
     }
 
+    // 비고/항목에 콩콩/쥬쥬/지니가 있으면 사용자 열 자동 입력
+    if (index['사용자'] !== undefined && (index['비고'] !== undefined || index['항목'] !== undefined)) {
+      var memoVal = index['비고'] !== undefined ? getCellDisplayValue(sheet, row, index['비고']) : '';
+      var itemVal = index['항목'] !== undefined ? getCellDisplayValue(sheet, row, index['항목']) : '';
+      var personVal = getCellDisplayValue(sheet, row, index['사용자']);
+      var match = (memoVal + ' ' + itemVal).match(/콩콩|쥬쥬|지니/);
+      if (match && !personVal) {
+        sheet.getRange(row, index['사용자'] + 1).setValue(match[0]);
+      }
+    }
+
+    // 고정비 선택 시 해당 행 전체 노란색 배경색 (#FFF2CC) 자동 적용
+    if (index['고정비'] !== undefined) {
+      var fixedVal = cleanText(getCellDisplayValue(sheet, row, index['고정비']));
+      var rowRange = sheet.getRange(row, 1, 1, lastCol);
+      if (fixedVal === '고정비') {
+        rowRange.setBackground('#FFF2CC');
+      } else {
+        var curBg = rowRange.getBackground();
+        if (curBg.toLowerCase() === '#fff2cc') {
+          rowRange.setBackground(null);
+        }
+      }
+    }
+
     // 날짜순 오름차순 정렬
     sortSheetByDate(sheet, index);
 
