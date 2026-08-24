@@ -2535,7 +2535,7 @@ body.ledger-dragging-locked {
   user-select: none !important;
   -webkit-user-select: none !important;
 }
-/* 잡은 거래: 둥실 떠오르고 선명한 연보라 하이라이트 */
+/* 잡은 거래: 둥실 떠오르고 선명한 연보라 하이라이트 + 내부 칸 구분선 완벽 보존 */
 .schedule-row.dragging {
   background-color: #EEF2FF !important;
   box-shadow: 0 8px 24px rgba(79, 70, 229, 0.28) !important;
@@ -2544,7 +2544,10 @@ body.ledger-dragging-locked {
   transform: scale(1.015);
 }
 .schedule-row.dragging td {
-  border-color: #818CF8 !important;
+  border: 1px solid #C7D2FE !important;
+}
+.schedule-row.dragging.schedule-row-detail td:not(.cell-date) {
+  border-bottom: 1px dashed #C7D2FE !important;
 }
 
 
