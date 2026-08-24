@@ -37,22 +37,38 @@ export function formatMoney(value) {
 export function recalculateRunningBalances(items, isCompanyCard = false) {
   if (!Array.isArray(items) || items.length === 0) return items;
 
-  const firstWithBalanceIndex = items.findIndex(item => Number.isFinite(Number(item.balance)));
-  if (firstWithBalanceIndex === -1) return items;
+  if (isCompanyCard) {
+    // 기업카드: 1번째 행부터 시작하는 정확한 누적 사용액
+    let runningUsage = 0;
+    return items.map(item => {
+      const amt = Number(item.amount) || 0;
+      runningUsage += (item.type === 'income' ? -amt : amt);
+      return {
+        ...item,
+        balance: runningUsage
+      };
+    });
+  }
+
+  // 일반 계좌: 첫 번째 행의 잔액으로부터 입출금 누적
+  const firstWithBalanceIndex = items.findIndex(item => Number.isFinite(Number(item.balance)) && Number(item.balance) !== 0);
+  if (firstWithBalanceIndex === -1) {
+    let runningBal = 0;
+    return items.map(item => {
+      const amt = Number(item.amount) || 0;
+      runningBal += (item.type === 'income' ? amt : -amt);
+      return { ...item, balance: runningBal };
+    });
+  }
 
   const firstItem = items[firstWithBalanceIndex];
-  const firstBal = Number(firstItem.balance);
-
-  let runningBalance = isCompanyCard
-    ? firstBal - (firstItem.type === 'expense' ? firstItem.amount : -firstItem.amount)
-    : firstBal - (firstItem.type === 'income' ? firstItem.amount : -firstItem.amount);
+  let runningBalance = Number(firstItem.balance);
 
   return items.map((item, idx) => {
     if (idx < firstWithBalanceIndex) return item;
-    if (isCompanyCard) {
-      runningBalance += (item.type === 'expense' ? item.amount : -item.amount);
-    } else {
-      runningBalance += (item.type === 'income' ? item.amount : -item.amount);
+    if (idx > firstWithBalanceIndex) {
+      const amt = Number(item.amount) || 0;
+      runningBalance += (item.type === 'income' ? amt : -amt);
     }
     return {
       ...item,

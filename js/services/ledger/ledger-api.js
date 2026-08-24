@@ -17,7 +17,7 @@ function mapTransactionRow(row) {
     date: normalizeLedgerDate(row.date),
     type: row.type || 'expense',
     amount: Number(row.amount || 0),
-    balance: 0,
+    balance: Number(row.balance || 0),
     payment: row.payment_method || '기업카드',
     item: row.item || '항목 없음',
     person: row.user_name || '기타',
