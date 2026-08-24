@@ -6,12 +6,12 @@ import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor } from '
 import { filterLedgerRecords } from './card.js';
 import { normalizeFundplanRows } from './fundplan.js';
 import { groupExpenses, renderStatList } from './stats.js';
-import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_05';
-import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_05';
-import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_05';
-import { bindLedgerListActions } from './ledger-events.js?v=20260824_05';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_05';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_05';
+import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_06';
+import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_06';
+import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_06';
+import { bindLedgerListActions } from './ledger-events.js?v=20260824_06';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_06';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_06';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -527,7 +527,20 @@ function recalculateLedgerBalances(records) {
   });
 }
 
-function reorderLedgerRecord(draggedId, targetId, insertAfter = false) {
+function reorderLedgerRecord(orderedIdsOrDraggedId, targetId, insertAfter = false) {
+  const orderMap = getCustomOrderMap();
+
+  if (Array.isArray(orderedIdsOrDraggedId)) {
+    orderedIdsOrDraggedId.forEach((id, idx) => {
+      if (id) orderMap[String(id)] = idx;
+    });
+    saveCustomOrderMap(orderMap);
+    applyLedgerDataSources();
+    showLedgerToast('↕️ 거래 순서가 저장되었습니다.');
+    return;
+  }
+
+  const draggedId = orderedIdsOrDraggedId;
   if (!draggedId || !targetId || draggedId === targetId) return;
 
   const reorderList = list => {
@@ -542,7 +555,6 @@ function reorderLedgerRecord(draggedId, targetId, insertAfter = false) {
     const insertIdx = insertAfter ? finalTargetIdx + 1 : finalTargetIdx;
     next.splice(insertIdx, 0, draggedItem);
 
-    const orderMap = getCustomOrderMap();
     next.forEach((rec, idx) => {
       if (rec && rec.id) orderMap[String(rec.id)] = idx;
     });
@@ -556,7 +568,7 @@ function reorderLedgerRecord(draggedId, targetId, insertAfter = false) {
   if (sheetBankRecords) sheetBankRecords = reorderList(sheetBankRecords);
 
   applyLedgerDataSources();
-  showLedgerToast('↕️ 거래 순서가 영구 저장되었습니다.');
+  showLedgerToast('↕️ 거래 순서가 저장되었습니다.');
 }
 
 function upsertLocalRecord(records, record) {

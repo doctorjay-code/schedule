@@ -26,42 +26,57 @@ export function bindLedgerListActions({ onRowClick, onOpen, onReorder }) {
 
 function bindDragAndDropEvents(listEl, onReorder) {
   let draggedId = null;
-  let activeDropTarget = null;
-  let insertAfter = false;
+  let hasMoved = false;
 
-  function updateSlotFeedback(targetId, clientY) {
-    if (!targetId || targetId === draggedId) return;
+  function shiftDraggedRowsTo(targetId, clientY) {
+    if (!draggedId || !targetId || targetId === draggedId) return;
 
-    const relatedRows = Array.from(listEl.querySelectorAll(`tr[data-ledger-id="${targetId}"]`));
-    if (relatedRows.length === 0) return;
+    const draggedRows = Array.from(listEl.querySelectorAll(`tr[data-ledger-id="${draggedId}"]`));
+    const targetRows = Array.from(listEl.querySelectorAll(`tr[data-ledger-id="${targetId}"]`));
+    if (draggedRows.length === 0 || targetRows.length === 0) return;
 
-    const topRect = relatedRows[0].getBoundingClientRect();
-    const bottomRect = relatedRows[relatedRows.length - 1].getBoundingClientRect();
-    const groupTop = topRect.top;
-    const groupBottom = bottomRect.bottom;
-    const groupHeight = Math.max(groupBottom - groupTop, 40);
+    const topRect = targetRows[0].getBoundingClientRect();
+    const bottomRect = targetRows[targetRows.length - 1].getBoundingClientRect();
+    const targetCenterY = (topRect.top + bottomRect.bottom) / 2;
 
-    const relativeY = (clientY - groupTop) / groupHeight;
+    const parent = targetRows[0].parentNode;
+    if (!parent) return;
 
-    // 35% 상단 / 30% 중앙 완충지대(이전 상태 유지) / 35% 하단
-    if (relativeY < 0.4) {
-      insertAfter = false;
-    } else if (relativeY > 0.6) {
-      insertAfter = true;
-    }
-
-    listEl.querySelectorAll('.drag-slot-above, .drag-slot-below, .drag-group-active').forEach(el => {
-      el.classList.remove('drag-slot-above', 'drag-slot-below', 'drag-group-active');
-    });
-
-    relatedRows.forEach(r => r.classList.add('drag-group-active'));
-    if (insertAfter) {
-      relatedRows[relatedRows.length - 1].classList.add('drag-slot-below');
+    if (clientY < targetCenterY) {
+      // 타겟 묶음 위로 즉시 이동
+      const firstTarget = targetRows[0];
+      if (draggedRows[draggedRows.length - 1].nextSibling !== firstTarget) {
+        draggedRows.forEach(r => parent.insertBefore(r, firstTarget));
+        hasMoved = true;
+      }
     } else {
-      relatedRows[0].classList.add('drag-slot-above');
+      // 타겟 묶음 아래로 즉시 이동
+      const nextSibling = targetRows[targetRows.length - 1].nextSibling;
+      if (draggedRows[0] !== nextSibling) {
+        draggedRows.forEach(r => parent.insertBefore(r, nextSibling));
+        hasMoved = true;
+      }
     }
+  }
 
-    activeDropTarget = targetId;
+  function commitFinalOrder() {
+    if (draggedId && hasMoved) {
+      const orderedIds = [];
+      const seen = new Set();
+      listEl.querySelectorAll('tr[data-ledger-id]').forEach(r => {
+        const id = r.dataset.ledgerId;
+        if (id && !seen.has(id)) {
+          seen.add(id);
+          orderedIds.push(id);
+        }
+      });
+      if (orderedIds.length > 0) {
+        onReorder(orderedIds);
+      }
+    }
+    cleanupDragState(listEl);
+    draggedId = null;
+    hasMoved = false;
   }
 
   // 1. PC Drag & Drop
@@ -69,6 +84,7 @@ function bindDragAndDropEvents(listEl, onReorder) {
     const row = e.target.closest('tr[data-ledger-id]');
     if (!row || row.dataset.ledgerReadOnly === 'true') return;
     draggedId = row.dataset.ledgerId;
+    hasMoved = false;
     if (e.dataTransfer) {
       e.dataTransfer.setData('text/plain', draggedId);
       e.dataTransfer.effectAllowed = 'move';
@@ -84,28 +100,16 @@ function bindDragAndDropEvents(listEl, onReorder) {
     const targetRow = e.target.closest('tr[data-ledger-id]');
     if (!targetRow || targetRow.dataset.ledgerId === draggedId) return;
 
-    updateSlotFeedback(targetRow.dataset.ledgerId, e.clientY);
-  });
-
-  listEl.addEventListener('dragleave', e => {
-    const related = e.relatedTarget;
-    if (!related || !listEl.contains(related)) {
-      listEl.querySelectorAll('.drag-slot-above, .drag-slot-below, .drag-group-active').forEach(el => {
-        el.classList.remove('drag-slot-above', 'drag-slot-below', 'drag-group-active');
-      });
-    }
+    shiftDraggedRowsTo(targetRow.dataset.ledgerId, e.clientY);
   });
 
   listEl.addEventListener('drop', e => {
     if (e.preventDefault) e.preventDefault();
-    if (draggedId && activeDropTarget && draggedId !== activeDropTarget) {
-      onReorder(draggedId, activeDropTarget, insertAfter);
-    }
-    cleanupDragState(listEl);
+    commitFinalOrder();
   });
 
   listEl.addEventListener('dragend', () => {
-    cleanupDragState(listEl);
+    commitFinalOrder();
   });
 
   // 2. 모바일 Touch Drag & Drop (롱터치 지원)
@@ -122,8 +126,9 @@ function bindDragAndDropEvents(listEl, onReorder) {
     touchTimer = setTimeout(() => {
       if (touchTargetRow) {
         draggedId = touchTargetRow.dataset.ledgerId;
+        hasMoved = false;
         listEl.querySelectorAll(`tr[data-ledger-id="${draggedId}"]`).forEach(r => r.classList.add('touch-holding', 'dragging'));
-        if (navigator.vibrate) navigator.vibrate(40);
+        if (navigator.vibrate) navigator.vibrate(35);
       }
     }, 220);
   }, { passive: true });
@@ -143,7 +148,7 @@ function bindDragAndDropEvents(listEl, onReorder) {
     const targetRow = el ? el.closest('tr[data-ledger-id]') : null;
 
     if (targetRow && targetRow.dataset.ledgerId !== draggedId) {
-      updateSlotFeedback(targetRow.dataset.ledgerId, touchY);
+      shiftDraggedRowsTo(targetRow.dataset.ledgerId, touchY);
     }
   }, { passive: false });
 
@@ -152,24 +157,19 @@ function bindDragAndDropEvents(listEl, onReorder) {
       clearTimeout(touchTimer);
       touchTimer = null;
     }
-    if (draggedId && activeDropTarget && draggedId !== activeDropTarget) {
-      onReorder(draggedId, activeDropTarget, insertAfter);
-    }
-    cleanupDragState(listEl);
-    draggedId = null;
+    commitFinalOrder();
     touchTargetRow = null;
   });
 
   listEl.addEventListener('touchcancel', () => {
     if (touchTimer) clearTimeout(touchTimer);
-    cleanupDragState(listEl);
-    draggedId = null;
+    commitFinalOrder();
     touchTargetRow = null;
   });
 }
 
 function cleanupDragState(listEl) {
-  listEl.querySelectorAll('.dragging, .drag-slot-above, .drag-slot-below, .drag-group-active, .touch-holding').forEach(el => {
-    el.classList.remove('dragging', 'drag-slot-above', 'drag-slot-below', 'drag-group-active', 'touch-holding');
+  listEl.querySelectorAll('.dragging, .touch-holding').forEach(el => {
+    el.classList.remove('dragging', 'touch-holding');
   });
 }
