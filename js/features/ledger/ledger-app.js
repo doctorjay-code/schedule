@@ -27,7 +27,10 @@ let ledgerSheetCounts = null;
 let ledgerLiveConnected = false;
 let ledgerSnapshotFetchedAt = null;
 let ledgerDataState = 'loading';
-const LEDGER_SHEET_SNAPSHOT_KEY = 'schedule_ledger_last_sheet_snapshot_v1';
+const LEDGER_SHEET_SNAPSHOT_KEY = 'schedule_ledger_snapshot_v3';
+try {
+  localStorage.removeItem('schedule_ledger_last_sheet_snapshot_v1');
+} catch {}
 const ledgerSyncMessages = {
   loading: '가계부 불러오는 중',
   saved: '최신 내역 반영',
