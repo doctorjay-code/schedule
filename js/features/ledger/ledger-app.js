@@ -62,15 +62,10 @@ const ledgerState = {
 };
 function syncLedgerWriteControls() {
   const entryButton = document.getElementById('ledgerToggleEntryBtn');
-  const isSheetConnected = ledgerLiveConnected;
   const isWritableTab = ['card', 'cash', 'bank'].includes(ledgerState.source);
   if (!entryButton) return;
-  entryButton.disabled = !isSheetConnected || !isWritableTab;
-  entryButton.title = !isWritableTab
-    ? '잔액전망은 원본 시트 기준 읽기 전용입니다.'
-    : isSheetConnected
-      ? 'Google Sheets에 새 거래를 저장합니다.'
-      : '시트 연결 후 거래를 입력할 수 있습니다.';
+  entryButton.disabled = !isWritableTab;
+  entryButton.title = isWritableTab ? '새 거래를 등록합니다.' : '잔액전망은 읽기 전용입니다.';
 }
 
 function applyLedgerDataSources() {
@@ -153,8 +148,8 @@ async function refreshLedgerSheetData() {
 function loadRecords() {
   ledgerState.records = [...importedLedgerRecords, ...importedCashRecords, ...importedBankRecords];
   const sheetTotal = ledgerSheetCounts ? Object.values(ledgerSheetCounts).reduce((sum, count) => sum + count, 0) : 0;
-  const snapshotLabel = ledgerSnapshotFetchedAt ? ` · 마지막 동기화 ${new Date(ledgerSnapshotFetchedAt).toLocaleString('ko-KR')}` : '';
-  setText('ledgerDataBadge', ledgerSheetCounts ? `시트 ${sheetTotal}건${snapshotLabel}` : '시트 불러오는 중');
+  const snapshotLabel = ledgerSnapshotFetchedAt ? ` · ${new Date(ledgerSnapshotFetchedAt).toLocaleTimeString('ko-KR')}` : '';
+  setText('ledgerDataBadge', ledgerSheetCounts ? `실시간 DB ${sheetTotal}건${snapshotLabel}` : 'DB 연결 중');
   if (ledgerState.source === 'card') {
     setLedgerPayment(ledgerState.payment, false);
   } else {
