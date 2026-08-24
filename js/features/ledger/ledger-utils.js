@@ -26,9 +26,8 @@ export function toIso(date) {
   return normalizeLedgerDate(date);
 }
 
-export function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
-}
+import { escapeHtml } from '../../shared/safe.js';
+export { escapeHtml };
 
 export function formatMoney(value) {
   return Math.abs(Number(value) || 0).toLocaleString('ko-KR');
