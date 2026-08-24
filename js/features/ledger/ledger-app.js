@@ -622,14 +622,14 @@ function saveLedgerRecord(form, overrides = {}) {
   const payment = values.payment || ledgerState.payment || '토스은행';
   const record = {
     ...(existing || {}),
-    id: values.ledgerEditId || ('tx_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7)),
+    id: values.ledgerEditId || '',
     date: values.date,
     type: values.type,
     amount,
     payment,
     item: values.item.trim(),
-    person: personMatch ? personMatch[0] : '기타',
-    category: values.category,
+    person: personMatch ? personMatch[0] : '',
+    category: values.category || '',
     fixedCost: values.fixedCost === '\uACE0\uC815\uBE44' ? values.fixedCost : '',
     memo,
     createdAt: existing?.createdAt ?? Date.now()
