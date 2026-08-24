@@ -1,4 +1,4 @@
-import { toIso } from './ledger-utils.js?v=20260824_25';
+import { toIso } from './ledger-utils.js?v=20260824_26';
 
 // Bank and cash data normalization responsibility.
 export const LEDGER_FUNDPLAN_SCOPE = Object.freeze({
