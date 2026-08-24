@@ -200,7 +200,23 @@ function syncLedgerCardButtons() {
   allButton?.classList.toggle('active', ledgerState.filterType === 'all');
   personButton?.classList.toggle('active', activePerson);
   categoryButton?.classList.toggle('active', activeCategory);
-  fixedButton?.classList.toggle('active', activeFixed);
+
+  if (fixedButton) {
+    if (activeFixed) {
+      if (ledgerState.filterValue === 'variable') {
+        fixedButton.textContent = '변동비만 ⚪';
+        fixedButton.classList.add('active', 'variable-active');
+      } else {
+        fixedButton.textContent = '고정비만 🟡';
+        fixedButton.classList.add('active');
+        fixedButton.classList.remove('variable-active');
+      }
+    } else {
+      fixedButton.textContent = '고정비';
+      fixedButton.classList.remove('active', 'variable-active');
+    }
+  }
+
   if (personButton) personButton.textContent = '사용자';
   if (categoryButton) categoryButton.textContent = '사용처';
   document.querySelectorAll('[data-ledger-filter-type]').forEach(button => {
@@ -853,7 +869,13 @@ function bindLedgerEvents() {
   document.getElementById('ledgerPersonFilterToggle')?.addEventListener('click', () => toggleLedgerFilterOptions('person'));
   document.getElementById('ledgerCategoryFilterToggle')?.addEventListener('click', () => toggleLedgerFilterOptions('category'));
   document.getElementById('ledgerFixedFilterBtn')?.addEventListener('click', () => {
-    setLedgerFilter(ledgerState.filterType === 'fixed' ? 'all' : 'fixed', ledgerState.filterType === 'fixed' ? 'all' : '고정비');
+    if (ledgerState.filterType !== 'fixed') {
+      setLedgerFilter('fixed', 'fixed');
+    } else if (ledgerState.filterValue === 'fixed') {
+      setLedgerFilter('fixed', 'variable');
+    } else {
+      setLedgerFilter('all', 'all');
+    }
   });
   document.querySelectorAll('[data-ledger-filter-type]').forEach(button => {
     button.addEventListener('click', () => {

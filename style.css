@@ -2590,6 +2590,14 @@ tr.ledger-fixed-row .ledger-fixed-tag,
   font-weight: 700 !important;
 }
 
+/* 변동비만(고정비 제외) 필터 활성화 스타일 */
+#ledgerFixedFilterBtn.active.variable-active {
+  background-color: #E0F2FE !important;
+  border-color: #38BDF8 !important;
+  color: #0369A1 !important;
+  font-weight: 700 !important;
+}
+
 /* 최신내역반영 아래 5개 수단 버튼 커스텀 색상 전용 스타일 */
 .ledger-source-chip {
   background-color: var(--source-bg, #F1F5F9) !important;
