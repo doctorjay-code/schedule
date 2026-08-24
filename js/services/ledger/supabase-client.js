@@ -5,6 +5,8 @@ export const SUPABASE_CONFIG = {
   url: 'https://jpdospunrcscvfpuqzhf.supabase.co',
   anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpwZG9zcHVucmNzY3ZmcHVxemhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxNDY3NjcsImV4cCI6MjEwMjcyMjc2N30.UsIKguZm2v5Y_tDilvH7CQuqBt5dG6QSVFMeixX6r5Q'
 };
+export const SUPABASE_URL = SUPABASE_CONFIG.url;
+export const SUPABASE_ANON_KEY = SUPABASE_CONFIG.anonKey;
 
 const defaultHeaders = {
   'apikey': SUPABASE_CONFIG.anonKey,

@@ -16,11 +16,11 @@ function showAppLoadError() {
 
 async function loadAuthenticatedApp() {
   if (appLoadPromise) return appLoadPromise;
-  appLoadPromise = import('./app.js?v=20260825_08')
+  appLoadPromise = import('./app.js?v=20260825_10')
     .then(async module => {
       const res = module.initializeAppLogic();
       try {
-        const { initSupabaseRealtime } = await import('./services/shared/supabase-realtime.js?v=20260825_08');
+        const { initSupabaseRealtime } = await import('./services/shared/supabase-realtime.js?v=20260825_10');
         initSupabaseRealtime();
       } catch (err) {
         console.warn('Realtime init skipped:', err);
