@@ -2,16 +2,16 @@ import { state, pastelPalette, saveColorSettings, defaultColorSettings } from '.
 import { switchViewModeUI } from '../schedule/render.js';
 import { openWeekSelectModal } from '../schedule/modals/week-picker.js';
 import { openMonthSelectModal } from '../schedule/modals/month-picker.js';
-import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor, recalculateRunningBalances } from './ledger-utils.js?v=20260824_24';
+import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor, recalculateRunningBalances } from './ledger-utils.js?v=20260824_25';
 import { filterLedgerRecords } from './card.js';
 import { normalizeFundplanRows } from './fundplan.js';
 import { groupExpenses, renderStatList } from './stats.js';
-import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_24';
-import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_24';
-import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_24';
-import { bindLedgerListActions } from './ledger-events.js?v=20260824_24';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_24';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_24';
+import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_25';
+import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_25';
+import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_25';
+import { bindLedgerListActions } from './ledger-events.js?v=20260824_25';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_25';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_25';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
