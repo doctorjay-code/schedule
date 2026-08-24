@@ -1,1 +1,1 @@
-export { initLedgerView } from './ledger-app.js?v=20260824_19';
+export { initLedgerView } from './ledger-app.js?v=20260824_20';
