@@ -6,12 +6,12 @@ import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor } from '
 import { filterLedgerRecords } from './card.js';
 import { normalizeFundplanRows } from './fundplan.js';
 import { groupExpenses, renderStatList } from './stats.js';
-import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_18';
-import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_18';
-import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_18';
-import { bindLedgerListActions } from './ledger-events.js?v=20260824_18';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_18';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_18';
+import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_19';
+import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_19';
+import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_19';
+import { bindLedgerListActions } from './ledger-events.js?v=20260824_19';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_19';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_19';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -112,7 +112,7 @@ function applyLedgerDataSources() {
   importedForecastRecords = sheetForecastRecords || [];
   loadRecords();
   syncLedgerWriteControls();
-  if (ledgerState.source !== 'card') renderActiveLedgerPeriod();
+  renderActiveLedgerPeriod();
 }
 
 function loadLedgerSheetSnapshot() {
