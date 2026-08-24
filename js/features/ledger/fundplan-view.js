@@ -1,5 +1,5 @@
 import { toIso, formatMoney, recalculateRunningBalances } from './ledger-utils.js';
-import { createLedgerTableHead, renderTransactionRow } from './transaction-view.js?v=20260824_22';
+import { createLedgerTableHead, renderTransactionRow } from './transaction-view.js?v=20260824_23';
 
 export function getRecordMonthGroup(record, isCompanyCard) {
   if (!isCompanyCard) {

@@ -47,3 +47,9 @@ export function recalculateRunningBalances(items, isCompanyCard = false) {
     };
   });
 }
+
+export function getLedgerTagColor(colorSettings, field, value) {
+  const key = field === 'person' ? 'ledgerPersonColors' : 'ledgerCategoryColors';
+  const colors = colorSettings?.[key] || {};
+  return colors[value] || '#F1F5F9';
+}
