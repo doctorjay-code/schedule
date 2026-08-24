@@ -6,12 +6,12 @@ import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor } from '
 import { filterLedgerRecords } from './card.js';
 import { normalizeFundplanRows } from './fundplan.js';
 import { groupExpenses, renderStatList } from './stats.js';
-import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_02';
-import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_02';
-import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_02';
-import { bindLedgerListActions } from './ledger-events.js?v=20260824_02';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_02';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_02';
+import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_03';
+import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_03';
+import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_03';
+import { bindLedgerListActions } from './ledger-events.js?v=20260824_03';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_03';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_03';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -461,23 +461,36 @@ function restoreLedgerSheetState(snapshot) {
 function recalculateLedgerBalances(records) {
   if (!Array.isArray(records) || records.length === 0) return records;
 
-  let running = null;
-  return records.map(rec => {
-    const amt = Number(rec.amount) || 0;
-    const isIncome = rec.type === 'income' || rec.type === '\uC218\uC785';
-    const diff = isIncome ? amt : -amt;
+  let lastKnownBalance = null;
 
-    const rawBal = Number(String(rec.balance || '').replace(/[^0-9.-]/g, ''));
-    if (running === null) {
-      running = Number.isFinite(rawBal) && rawBal !== 0 ? rawBal : (isIncome ? amt : 0);
-    } else {
-      running = running + diff;
+  return records.map(rec => {
+    // 기업카드는 잔액 열을 강제 조작하지 않음
+    if (rec.payment === '기업카드' || rec.sheetName === '기업카드') {
+      return rec;
     }
 
-    return {
-      ...rec,
-      balance: running
-    };
+    const rawBal = Number(String(rec.balance ?? '').replace(/[^0-9.-]/g, ''));
+    const hasValidSheetBalance = Number.isFinite(rawBal) && rec.balance !== '' && rec.balance !== null && rec.balance !== undefined;
+
+    if (hasValidSheetBalance) {
+      // 1. 시트 원본에 이미 실제 잔액이 있는 경우 100% 그대로 보존
+      lastKnownBalance = rawBal;
+      return rec;
+    }
+
+    // 2. 신규 추가되었거나 잔액이 없는 행의 경우: 직전 잔액을 기준으로 계산
+    if (lastKnownBalance !== null) {
+      const amt = Number(rec.amount) || 0;
+      const isIncome = rec.type === 'income' || rec.type === '\uC218\uC785';
+      const diff = isIncome ? amt : -amt;
+      lastKnownBalance = lastKnownBalance + diff;
+      return {
+        ...rec,
+        balance: lastKnownBalance
+      };
+    }
+
+    return rec;
   });
 }
 
@@ -496,7 +509,7 @@ function reorderLedgerRecord(draggedId, targetId, insertAfter = false) {
     const insertIdx = insertAfter ? finalTargetIdx + 1 : finalTargetIdx;
     next.splice(insertIdx, 0, draggedItem);
 
-    return recalculateLedgerBalances(next);
+    return next;
   };
 
   if (sheetLedgerRecords) sheetLedgerRecords = reorderList(sheetLedgerRecords);
@@ -504,7 +517,7 @@ function reorderLedgerRecord(draggedId, targetId, insertAfter = false) {
   if (sheetBankRecords) sheetBankRecords = reorderList(sheetBankRecords);
 
   applyLedgerDataSources();
-  showLedgerToast('↕️ 거래 순서 및 잔액이 재계산되었습니다.');
+  showLedgerToast('↕️ 거래 순서가 변경되었습니다.');
 }
 
 function upsertLocalRecord(records, record) {
@@ -545,7 +558,7 @@ function applyOptimisticSave(record) {
 }
 
 function applyOptimisticDelete(record) {
-  const withoutRecord = rows => recalculateLedgerBalances((rows || []).filter(item => item.id !== record.id));
+  const withoutRecord = rows => (rows || []).filter(item => item.id !== record.id);
   if (record.payment === '현금' || record.sheetName === '현금') {
     sheetCashRecords = withoutRecord(sheetCashRecords);
   } else if (record.payment === '기업은행' || record.sheetName === '기업은행') {
