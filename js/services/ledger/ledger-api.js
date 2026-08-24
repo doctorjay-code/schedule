@@ -75,7 +75,7 @@ function mapSheetRows(sheetName, sheetData) {
 }
 
 export async function fetchLedgerSheetData(fetchImpl = fetch, sheetName = '') {
-  const query = new URLSearchParams({ action: 'GET_LEDGER_DATA' });
+  const query = new URLSearchParams({ action: 'GET_LEDGER_DATA', _t: String(Date.now()) });
   const selectedSheet = String(sheetName || '').trim();
   if (selectedSheet) query.set('sheet', selectedSheet);
   const response = await fetchImpl(`${LEDGER_API_URL}?${query.toString()}`, { cache: 'no-store' });
