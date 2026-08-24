@@ -38,7 +38,7 @@ export function recalculateRunningBalances(items, isCompanyCard = false) {
   if (!Array.isArray(items) || items.length === 0) return items;
 
   if (isCompanyCard) {
-    // 기업카드: 1번째 행부터 시작하는 정확한 누적 사용액
+    // 💳 기업카드: 1번째 행부터 시작하는 정확한 누적 사용액
     let runningUsage = 0;
     return items.map(item => {
       const amt = Number(item.amount) || 0;
@@ -50,29 +50,33 @@ export function recalculateRunningBalances(items, isCompanyCard = false) {
     });
   }
 
-  // 일반 계좌: 첫 번째 행의 잔액으로부터 입출금 누적
-  const firstWithBalanceIndex = items.findIndex(item => Number.isFinite(Number(item.balance)) && Number(item.balance) !== 0);
-  if (firstWithBalanceIndex === -1) {
-    let runningBal = 0;
-    return items.map(item => {
-      const amt = Number(item.amount) || 0;
-      runningBal += (item.type === 'income' ? amt : -amt);
-      return { ...item, balance: runningBal };
-    });
-  }
-
-  const firstItem = items[firstWithBalanceIndex];
-  let runningBalance = Number(firstItem.balance);
+  // 🏦 일반 계좌 (토스은행 / 현금 / 기업은행):
+  // 각 행에 저장된 실제 잔액을 100% 보존하며, 비어있는 행만 직전 행 잔액에서 입출금 계산!
+  let currentBalance = null;
 
   return items.map((item, idx) => {
-    if (idx < firstWithBalanceIndex) return item;
-    if (idx > firstWithBalanceIndex) {
-      const amt = Number(item.amount) || 0;
-      runningBalance += (item.type === 'income' ? amt : -amt);
+    const rawBal = Number(item.balance);
+    const hasValidBal = Number.isFinite(rawBal) && item.balance !== '' && item.balance !== null;
+
+    if (hasValidBal) {
+      currentBalance = rawBal;
+      return item;
     }
+
+    if (currentBalance !== null) {
+      const amt = Number(item.amount) || 0;
+      currentBalance += (item.type === 'income' ? amt : -amt);
+      return {
+        ...item,
+        balance: currentBalance
+      };
+    }
+
+    const amt = Number(item.amount) || 0;
+    currentBalance = (item.type === 'income' ? amt : -amt);
     return {
       ...item,
-      balance: runningBalance
+      balance: currentBalance
     };
   });
 }
