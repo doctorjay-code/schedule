@@ -1,5 +1,4 @@
 import { initSecurityAuth, setAuthSuccessCallback } from './auth/auth.js';
-import { initSupabaseRealtime } from './services/shared/supabase-realtime.js?v=20260825_05';
 
 let appLoadPromise = null;
 
@@ -17,10 +16,15 @@ function showAppLoadError() {
 
 async function loadAuthenticatedApp() {
   if (appLoadPromise) return appLoadPromise;
-  appLoadPromise = import('./app.js?v=20260825_05')
-    .then(module => {
+  appLoadPromise = import('./app.js?v=20260825_08')
+    .then(async module => {
       const res = module.initializeAppLogic();
-      initSupabaseRealtime();
+      try {
+        const { initSupabaseRealtime } = await import('./services/shared/supabase-realtime.js?v=20260825_08');
+        initSupabaseRealtime();
+      } catch (err) {
+        console.warn('Realtime init skipped:', err);
+      }
       return res;
     })
     .catch(error => {

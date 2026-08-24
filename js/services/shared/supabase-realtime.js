@@ -1,11 +1,12 @@
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../ledger/supabase-client.js';
 
-let realtimeClient = null;
+let realtimeSocket = null;
+let heartbeatTimer = null;
 let ledgerRefreshCallback = null;
 let scheduleRefreshCallback = null;
 let ledgerDebounceTimer = null;
 let scheduleDebounceTimer = null;
+let reconnectTimer = null;
 
 export function registerRealtimeCallbacks({ onLedgerChange, onScheduleChange }) {
   if (onLedgerChange) ledgerRefreshCallback = onLedgerChange;
@@ -13,64 +14,75 @@ export function registerRealtimeCallbacks({ onLedgerChange, onScheduleChange }) 
 }
 
 export function initSupabaseRealtime() {
-  if (realtimeClient) return;
+  if (realtimeSocket && realtimeSocket.readyState === WebSocket.OPEN) return;
+  if (typeof WebSocket === 'undefined') return;
 
   try {
-    realtimeClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      realtime: {
-        params: {
-          eventsPerSecond: 10
+    const wsUrl = SUPABASE_URL.replace('https://', 'wss://') + '/realtime/v1/websocket?apikey=' + SUPABASE_ANON_KEY + '&vsn=1.0.0';
+    realtimeSocket = new WebSocket(wsUrl);
+
+    realtimeSocket.onopen = () => {
+      console.log('📡 [Realtime] Supabase WebSocket 연결 성공');
+      // 1. Join Realtime Topic
+      const joinMsg = {
+        topic: 'realtime:public',
+        event: 'phx_join',
+        payload: {
+          config: {
+            postgres_changes: [
+              { event: '*', schema: 'public', table: 'ledger_transactions' },
+              { event: '*', schema: 'public', table: 'ledger_balance_forecast' },
+              { event: '*', schema: 'public', table: 'schedules' },
+              { event: '*', schema: 'public', table: 'schedule_settings' }
+            ]
+          }
+        },
+        ref: '1'
+      };
+      realtimeSocket.send(JSON.stringify(joinMsg));
+
+      // 2. Heartbeat Ping every 25s
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      heartbeatTimer = setInterval(() => {
+        if (realtimeSocket && realtimeSocket.readyState === WebSocket.OPEN) {
+          realtimeSocket.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: 'hb' }));
         }
+      }, 25000);
+    };
+
+    realtimeSocket.onmessage = event => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.event === 'postgres_changes') {
+          const table = data.payload?.data?.table || data.payload?.table;
+          console.log('⚡ [Realtime] 실시간 DB 변경 수신:', table);
+          if (table === 'ledger_transactions' || table === 'ledger_balance_forecast') {
+            if (ledgerRefreshCallback) {
+              if (ledgerDebounceTimer) clearTimeout(ledgerDebounceTimer);
+              ledgerDebounceTimer = setTimeout(() => ledgerRefreshCallback(), 100);
+            }
+          } else if (table === 'schedules' || table === 'schedule_settings') {
+            if (scheduleRefreshCallback) {
+              if (scheduleDebounceTimer) clearTimeout(scheduleDebounceTimer);
+              scheduleDebounceTimer = setTimeout(() => scheduleRefreshCallback(), 100);
+            }
+          }
+        }
+      } catch (err) {
+        // ignore parse error
       }
-    });
+    };
 
-    const channel = realtimeClient.channel('db_realtime_sync');
+    realtimeSocket.onclose = () => {
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(initSupabaseRealtime, 5000);
+    };
 
-    // 1. 가계부 거래 및 잔액전망 실시간 감지
-    channel
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ledger_transactions' }, payload => {
-        console.log('⚡ [Realtime] 가계부 거래 실시간 변경 감지:', payload.eventType);
-        if (ledgerRefreshCallback) {
-          if (ledgerDebounceTimer) clearTimeout(ledgerDebounceTimer);
-          ledgerDebounceTimer = setTimeout(() => {
-            ledgerRefreshCallback();
-          }, 100);
-        }
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ledger_balance_forecast' }, payload => {
-        console.log('⚡ [Realtime] 잔액전망 실시간 변경 감지:', payload.eventType);
-        if (ledgerRefreshCallback) {
-          if (ledgerDebounceTimer) clearTimeout(ledgerDebounceTimer);
-          ledgerDebounceTimer = setTimeout(() => {
-            ledgerRefreshCallback();
-          }, 100);
-        }
-      })
-      // 2. 일정 및 색상 설정 실시간 감지
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, payload => {
-        console.log('⚡ [Realtime] 일정 실시간 변경 감지:', payload.eventType);
-        if (scheduleRefreshCallback) {
-          if (scheduleDebounceTimer) clearTimeout(scheduleDebounceTimer);
-          scheduleDebounceTimer = setTimeout(() => {
-            scheduleRefreshCallback();
-          }, 100);
-        }
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule_settings' }, payload => {
-        console.log('⚡ [Realtime] 일정 설정 실시간 변경 감지:', payload.eventType);
-        if (scheduleRefreshCallback) {
-          if (scheduleDebounceTimer) clearTimeout(scheduleDebounceTimer);
-          scheduleDebounceTimer = setTimeout(() => {
-            scheduleRefreshCallback();
-          }, 100);
-        }
-      })
-      .subscribe(status => {
-        if (status === 'SUBSCRIBED') {
-          console.log('📡 [Realtime] Supabase 실시간 동기화 채널 연결 완료!');
-        }
-      });
-  } catch (error) {
-    console.warn('Realtime 초기화 실패 (오프라인/CDN 차단):', error);
+    realtimeSocket.onerror = () => {
+      realtimeSocket?.close?.();
+    };
+  } catch (err) {
+    console.warn('Realtime socket init failed:', err);
   }
 }
