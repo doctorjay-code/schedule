@@ -115,51 +115,6 @@ function saveLedgerSheetSnapshot(fetchedAt = new Date().toISOString()) {
   ledgerSnapshotFetchedAt = fetchedAt;
 }
 
-function loadOptionalFundplanRecords() {
-  import('../../data/local/fundplan-seed.local.js').then(module => {
-    fallbackBankRecords = normalizeFundplanRows(module.importedBankRows, 'bank');
-    applyLedgerDataSources();
-  }).catch(() => {
-    fallbackBankRecords = [];
-    applyLedgerDataSources();
-  });
-}
-
-// === 스마트 보호 큐 및 지능형 상태 병합 (Race-Condition Proof) ===
-const pendingCreatedRecords = new Map();
-const pendingDeletedIds = new Set();
-let ledgerQueuePromise = Promise.resolve();
-
-function enqueueLedgerTask(taskFn) {
-  ledgerQueuePromise = ledgerQueuePromise.then(async () => {
-    try {
-      await taskFn();
-    } catch (err) {
-      console.error('Ledger background task error:', err);
-    }
-  });
-  return ledgerQueuePromise;
-}
-
-function mergeWithPendingRecords(incomingRecords, targetSheets = null) {
-  let result = (incomingRecords || []).filter(r => r && !pendingDeletedIds.has(String(r.id)));
-
-  for (const [id, pendingRecord] of pendingCreatedRecords.entries()) {
-    if (pendingDeletedIds.has(String(id))) continue;
-    const sheetName = pendingRecord.sheetName || ledgerSheetNameForRecord(pendingRecord);
-    if (!targetSheets || targetSheets.includes(sheetName)) {
-      const idx = result.findIndex(r => String(r.id) === String(id));
-      if (idx !== -1) {
-        result[idx] = { ...result[idx], ...pendingRecord };
-      } else {
-        result.push(pendingRecord);
-      }
-    }
-  }
-
-  return result;
-}
-
 function getCurrentLedgerSheetName() {
   if (ledgerState.source === 'card') return LEDGER_SHEET_BY_PAYMENT[ledgerState.payment] || '';
   if (ledgerState.source === 'cash') return '현금';
@@ -167,29 +122,28 @@ function getCurrentLedgerSheetName() {
   if (ledgerState.source === 'forecast') return '잔액전망';
   return '';
 }
+
 async function refreshLedgerSheetData(sheetName = '') {
   const selectedSheet = String(sheetName || '').trim();
   setLedgerSyncStatus('loading');
   try {
     const { records, counts, fetchedAt } = await fetchLedgerSheetData(fetch, selectedSheet);
     if (selectedSheet) {
-      const preservedLedgerRecords = (sheetLedgerRecords || []).filter(record => record.sheetName !== selectedSheet);
-      const merged = mergeWithPendingRecords(records, [selectedSheet]);
       if (selectedSheet === '현금') {
-        sheetCashRecords = merged;
+        sheetCashRecords = records.filter(r => r.sheetName === '현금');
       } else if (selectedSheet === '기업은행') {
-        sheetBankRecords = merged;
+        sheetBankRecords = records.filter(r => r.sheetName === '기업은행');
       } else if (selectedSheet === '잔액전망') {
-        sheetForecastRecords = merged;
+        sheetForecastRecords = records.filter(r => r.sheetName === '잔액전망');
       } else {
-        sheetLedgerRecords = mergeWithPendingRecords([...preservedLedgerRecords, ...merged]);
+        sheetLedgerRecords = records.filter(r => ['기업카드', '토스은행'].includes(r.sheetName));
       }
       ledgerSheetCounts = { ...(ledgerSheetCounts || {}), ...counts };
     } else {
-      sheetLedgerRecords = mergeWithPendingRecords(records.filter(record => ['기업카드', '토스은행'].includes(record.sheetName)), ['기업카드', '토스은행']);
-      sheetCashRecords = mergeWithPendingRecords(records.filter(record => record.sheetName === '현금'), ['현금']);
-      sheetBankRecords = mergeWithPendingRecords(records.filter(record => record.sheetName === '기업은행'), ['기업은행']);
-      sheetForecastRecords = mergeWithPendingRecords(records.filter(record => record.sheetName === '잔액전망'), ['잔액전망']);
+      sheetLedgerRecords = records.filter(record => ['기업카드', '토스은행'].includes(record.sheetName));
+      sheetCashRecords = records.filter(record => record.sheetName === '현금');
+      sheetBankRecords = records.filter(record => record.sheetName === '기업은행');
+      sheetForecastRecords = records.filter(record => record.sheetName === '잔액전망');
       ledgerSheetCounts = counts;
     }
     ledgerDataState = 'fresh';
@@ -202,7 +156,7 @@ async function refreshLedgerSheetData(sheetName = '') {
     const hasSnapshot = Boolean((sheetLedgerRecords && sheetLedgerRecords.length) || (sheetCashRecords && sheetCashRecords.length));
     ledgerLiveConnected = false;
     ledgerDataState = hasSnapshot ? 'cached' : 'error';
-    if (!hasSnapshot) setText('ledgerDataBadge', '시트 연결 실패');
+    if (!hasSnapshot) setText('ledgerDataBadge', '연결 확인 필요');
     syncLedgerWriteControls();
     setLedgerSyncStatus('offline');
     return false;
@@ -1084,7 +1038,6 @@ function showSchedule() {
 export function initLedgerView() {
   try {
     loadLedgerSheetSnapshot();
-    loadOptionalFundplanRecords();
     refreshLedgerSheetData().catch(e => console.warn('refreshLedgerSheetData warn:', e));
   } catch (e) {
     console.warn('initLedgerView data load warn:', e);
