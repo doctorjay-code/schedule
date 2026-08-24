@@ -11,8 +11,8 @@ import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20
 import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_45';
 import { bindLedgerListActions } from './ledger-events.js?v=20260824_45';
 import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_45';
-import { fetchLedgerData, upsertLedgerRecord, deleteLedgerRecord, reorderLedgerRecords, deleteLedgerRecordsBatch, insertLedgerRecordsBatch } from '../../services/ledger/ledger-api.js?v=20260825_15';
-import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js?v=20260825_15';
+import { fetchLedgerData, fetchLedgerSheetData, upsertLedgerRecord, upsertLedgerSheetRecord, deleteLedgerRecord, deleteLedgerSheetRecord, reorderLedgerRecords, reorderLedgerSheetRecords, deleteLedgerRecordsBatch, insertLedgerRecordsBatch } from '../../services/ledger/ledger-api.js?v=20260825_16';
+import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js?v=20260825_16';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -122,7 +122,7 @@ function getCurrentLedgerSheetName() {
 async function refreshLedgerSheetData() {
   setLedgerSyncStatus('loading');
   try {
-    const { records, counts, fetchedAt } = await fetchLedgerSheetData(fetch);
+    const { records, counts, fetchedAt } = await fetchLedgerData(fetch);
     sheetLedgerRecords = records.filter(record => ['기업카드', '토스은행'].includes(record.sheetName));
     sheetCashRecords = records.filter(record => record.sheetName === '현금');
     sheetBankRecords = records.filter(record => record.sheetName === '기업은행');
