@@ -2567,3 +2567,21 @@ tr.ledger-fixed-row:hover > td {
 tr.ledger-fixed-row.dragging > td {
   background-color: #FEF08A !important;
 }
+
+/* 고정비 태그 뱃지 자체도 예쁜 노란색 */
+tr.ledger-fixed-row .ledger-fixed-tag,
+.ledger-fixed-tag {
+  background-color: #FEF08A !important;
+  border: 1px solid #FACC15 !important;
+  color: #854D0E !important;
+  font-weight: 700 !important;
+}
+
+/* 상단 필터바의 고정비 칩 선택 시에도 노란색 일체화 */
+#ledgerFixedFilterBtn.active,
+.filter-chip[data-ledger-filter-type="fixed"].active {
+  background-color: #FEF08A !important;
+  border-color: #FACC15 !important;
+  color: #854D0E !important;
+  font-weight: 700 !important;
+}

@@ -118,8 +118,11 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
   regularityCell.className = 'ledger-regularity-cell';
   const isFixedCost = String(item.fixedCost || '').trim() === '\uACE0\uC815\uBE44';
   if (useMergedPaymentColumn && isFixedCost) {
-    const fixedCostTag = makeTag('\uACE0\uC815\uBE44');
-    if (fixedCostTag) regularityCell.appendChild(fixedCostTag);
+    const fixedCostTag = makeTag('고정비');
+    if (fixedCostTag) {
+      fixedCostTag.classList.add('ledger-fixed-tag');
+      regularityCell.appendChild(fixedCostTag);
+    }
   } else if (!useMergedPaymentColumn) {
     const paymentTag = makeTag(item.payment);
     if (paymentTag) regularityCell.appendChild(paymentTag);
