@@ -29,6 +29,41 @@ function bindDragAndDropEvents(listEl, onReorder) {
   let activeDropTarget = null;
   let insertAfter = false;
 
+  function updateSlotFeedback(targetId, clientY) {
+    if (!targetId || targetId === draggedId) return;
+
+    const relatedRows = Array.from(listEl.querySelectorAll(`tr[data-ledger-id="${targetId}"]`));
+    if (relatedRows.length === 0) return;
+
+    const topRect = relatedRows[0].getBoundingClientRect();
+    const bottomRect = relatedRows[relatedRows.length - 1].getBoundingClientRect();
+    const groupTop = topRect.top;
+    const groupBottom = bottomRect.bottom;
+    const groupHeight = Math.max(groupBottom - groupTop, 40);
+
+    const relativeY = (clientY - groupTop) / groupHeight;
+
+    // 35% 상단 / 30% 중앙 완충지대(이전 상태 유지) / 35% 하단
+    if (relativeY < 0.4) {
+      insertAfter = false;
+    } else if (relativeY > 0.6) {
+      insertAfter = true;
+    }
+
+    listEl.querySelectorAll('.drag-slot-above, .drag-slot-below, .drag-group-active').forEach(el => {
+      el.classList.remove('drag-slot-above', 'drag-slot-below', 'drag-group-active');
+    });
+
+    relatedRows.forEach(r => r.classList.add('drag-group-active'));
+    if (insertAfter) {
+      relatedRows[relatedRows.length - 1].classList.add('drag-slot-below');
+    } else {
+      relatedRows[0].classList.add('drag-slot-above');
+    }
+
+    activeDropTarget = targetId;
+  }
+
   // 1. PC Drag & Drop
   listEl.addEventListener('dragstart', e => {
     const row = e.target.closest('tr[data-ledger-id]');
@@ -49,26 +84,14 @@ function bindDragAndDropEvents(listEl, onReorder) {
     const targetRow = e.target.closest('tr[data-ledger-id]');
     if (!targetRow || targetRow.dataset.ledgerId === draggedId) return;
 
-    const rect = targetRow.getBoundingClientRect ? targetRow.getBoundingClientRect() : { top: 0, height: 40 };
-    insertAfter = e.clientY > rect.top + rect.height / 2;
-
-    listEl.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(el => {
-      el.classList.remove('drag-over-top', 'drag-over-bottom');
-    });
-
-    const relatedRows = listEl.querySelectorAll(`tr[data-ledger-id="${targetRow.dataset.ledgerId}"]`);
-    if (relatedRows.length > 0) {
-      const edgeRow = insertAfter ? relatedRows[relatedRows.length - 1] : relatedRows[0];
-      edgeRow.classList.add(insertAfter ? 'drag-over-bottom' : 'drag-over-top');
-    }
-    activeDropTarget = targetRow.dataset.ledgerId;
+    updateSlotFeedback(targetRow.dataset.ledgerId, e.clientY);
   });
 
   listEl.addEventListener('dragleave', e => {
     const related = e.relatedTarget;
     if (!related || !listEl.contains(related)) {
-      listEl.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(el => {
-        el.classList.remove('drag-over-top', 'drag-over-bottom');
+      listEl.querySelectorAll('.drag-slot-above, .drag-slot-below, .drag-group-active').forEach(el => {
+        el.classList.remove('drag-slot-above', 'drag-slot-below', 'drag-group-active');
       });
     }
   });
@@ -102,7 +125,7 @@ function bindDragAndDropEvents(listEl, onReorder) {
         listEl.querySelectorAll(`tr[data-ledger-id="${draggedId}"]`).forEach(r => r.classList.add('touch-holding', 'dragging'));
         if (navigator.vibrate) navigator.vibrate(40);
       }
-    }, 250);
+    }, 220);
   }, { passive: true });
 
   listEl.addEventListener('touchmove', e => {
@@ -115,21 +138,12 @@ function bindDragAndDropEvents(listEl, onReorder) {
       return;
     }
 
-    e.preventDefault(); // 드래그 중 스크롤 방지
+    e.preventDefault();
     const el = document.elementFromPoint(e.touches[0].clientX, touchY);
     const targetRow = el ? el.closest('tr[data-ledger-id]') : null;
 
-    listEl.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom'));
-
     if (targetRow && targetRow.dataset.ledgerId !== draggedId) {
-      const rect = targetRow.getBoundingClientRect();
-      insertAfter = touchY > rect.top + rect.height / 2;
-      const relatedRows = listEl.querySelectorAll(`tr[data-ledger-id="${targetRow.dataset.ledgerId}"]`);
-      if (relatedRows.length > 0) {
-        const edgeRow = insertAfter ? relatedRows[relatedRows.length - 1] : relatedRows[0];
-        edgeRow.classList.add(insertAfter ? 'drag-over-bottom' : 'drag-over-top');
-      }
-      activeDropTarget = targetRow.dataset.ledgerId;
+      updateSlotFeedback(targetRow.dataset.ledgerId, touchY);
     }
   }, { passive: false });
 
@@ -155,7 +169,7 @@ function bindDragAndDropEvents(listEl, onReorder) {
 }
 
 function cleanupDragState(listEl) {
-  listEl.querySelectorAll('.dragging, .drag-over-top, .drag-over-bottom, .touch-holding').forEach(el => {
-    el.classList.remove('dragging', 'drag-over-top', 'drag-over-bottom', 'touch-holding');
+  listEl.querySelectorAll('.dragging, .drag-slot-above, .drag-slot-below, .drag-group-active, .touch-holding').forEach(el => {
+    el.classList.remove('dragging', 'drag-slot-above', 'drag-slot-below', 'drag-group-active', 'touch-holding');
   });
 }
