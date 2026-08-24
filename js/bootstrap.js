@@ -35,8 +35,16 @@ async function loadAuthenticatedApp() {
   return appLoadPromise;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function startBootstrap() {
   setAuthSuccessCallback(loadAuthenticatedApp);
   initSecurityAuth();
-  if (sessionStorage.getItem('security_authenticated') === 'true') loadAuthenticatedApp();
-});
+  if (sessionStorage.getItem('security_authenticated') === 'true') {
+    loadAuthenticatedApp();
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startBootstrap);
+} else {
+  startBootstrap();
+}
