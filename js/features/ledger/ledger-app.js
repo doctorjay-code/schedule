@@ -645,7 +645,11 @@ function saveLedgerRecord(form, overrides = {}) {
 
   enqueueLedgerTask(async () => {
     try {
-      await upsertLedgerSheetRecord(record);
+      const res = await upsertLedgerSheetRecord(record);
+      if (res && res.id) {
+        record.id = res.id;
+        record.sheetRow = res.sheetRow;
+      }
       pendingCreatedRecords.delete(String(record.id));
       refreshLedgerInBackground(record);
     } catch (error) {
@@ -895,7 +899,11 @@ function pasteCopiedLedgerRecords() {
   enqueueLedgerTask(async () => {
     try {
       for (const record of newRecords) {
-        await upsertLedgerSheetRecord(record);
+        const res = await upsertLedgerSheetRecord(record);
+        if (res && res.id) {
+          record.id = res.id;
+          record.sheetRow = res.sheetRow;
+        }
         pendingCreatedRecords.delete(String(record.id));
       }
       if (newRecords.length > 0) {

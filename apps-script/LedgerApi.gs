@@ -240,6 +240,8 @@ function upsertLedgerRecord(record) {
     }
   }
 
+  SpreadsheetApp.flush();
+
   return {
     ok: true,
     action: isNew ? 'created' : 'updated',
@@ -369,6 +371,8 @@ function batchUpsertLedgerRecords(records, options) {
     }
   }
 
+  SpreadsheetApp.flush();
+
   return {
     ok: true,
     action: 'batch_upserted',
@@ -419,6 +423,8 @@ function deleteLedgerRecord(record) {
     } catch (e) {}
   }
   target.sheet.deleteRow(existingRow);
+  recalculateSheetBalances(target.sheet, target.sheetName, target.headers, target.index);
+  SpreadsheetApp.flush();
   return { ok: true, action: 'deleted', sheetName: target.sheetName, sheetRow: existingRow, id: id };
 }
 
@@ -568,18 +574,40 @@ function sortSheetByDate(sheet, index) {
 function findExistingRow(target, record) {
   if (!record) return 0;
   var id = cleanText(record.id);
+  var lastRow = target.sheet.getLastRow();
+  if (lastRow < 2) return 0;
+
+  // 1. 고유 ID로 1차 탐색
   if (usableRecordId(id) && target.index.id !== undefined) {
-    var lastRow = target.sheet.getLastRow();
-    if (lastRow >= 2) {
-      var ids = target.sheet.getRange(2, target.index.id + 1, lastRow - 1, 1).getDisplayValues();
-      for (var i = 0; i < ids.length; i += 1) {
-        if (cleanText(ids[i][0]) === id) return i + 2;
+    var ids = target.sheet.getRange(2, target.index.id + 1, lastRow - 1, 1).getDisplayValues();
+    for (var i = 0; i < ids.length; i += 1) {
+      if (cleanText(ids[i][0]) === id) return i + 2;
+    }
+  }
+
+  // 2. sheetRow가 있으면 유효성 검사
+  var sheetRow = Number(record.sheetRow || 0);
+  if (sheetRow >= 2 && sheetRow <= lastRow) return sheetRow;
+
+  // 3. 임시 ID(cp_ 등)이거나 ID 매칭 실패 시: 날짜 + 금액 + 항목으로 2차 정밀 탐색
+  var targetDate = formatIsoDate(record.date);
+  var targetAmount = requiredAmount(record.amount);
+  var targetItem = cleanText(record.item || record.detail).toLowerCase().replace(/\s+/g, '');
+
+  if (targetDate && targetAmount) {
+    var lastCol = Math.max(target.headers.length, target.sheet.getLastColumn(), 13);
+    var data = target.sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+    for (var r = 0; r < data.length; r++) {
+      var row = data[r];
+      var rDate = target.index['날짜'] !== undefined ? formatIsoDate(row[target.index['날짜']]) : '';
+      var rAmt = target.index['amount'] !== undefined ? requiredAmount(row[target.index['amount']]) : (target.index['지출'] !== undefined ? requiredAmount(row[target.index['지출']]) : requiredAmount(row[target.index['수입']]));
+      var rItm = target.index['항목'] !== undefined ? cleanText(row[target.index['항목']]).toLowerCase().replace(/\s+/g, '') : '';
+      if (rDate === targetDate && rAmt === targetAmount && (!targetItem || rItm.indexOf(targetItem) !== -1 || targetItem.indexOf(rItm) !== -1)) {
+        return r + 2;
       }
     }
   }
 
-  var sheetRow = Number(record.sheetRow || 0);
-  if (sheetRow >= 2 && sheetRow <= target.sheet.getMaxRows()) return sheetRow;
   return 0;
 }
 

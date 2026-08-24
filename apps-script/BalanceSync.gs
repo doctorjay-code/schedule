@@ -79,8 +79,9 @@ function syncBalanceForecastById(id, options) {
 
   // 독립형 웹앱 실행에서는 문서 잠금이 없을 수 있으므로 스크립트 잠금으로 대체한다.
   var lock = LockService.getDocumentLock() || LockService.getScriptLock();
-  if (!lock.tryLock(BALANCE_SYNC_CONFIG.lockWaitMs)) {
-    throw new Error('다른 동기화가 진행 중입니다. 잠시 후 다시 시도해 주세요.');
+  if (!lock.tryLock(500)) {
+    console.warn('잔액전망 락 획득 실패 (동시 요청) - 스킵: ' + id);
+    return { ok: true, id: id, status: 'lock-busy-skipped' };
   }
 
   try {

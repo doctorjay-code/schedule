@@ -35,24 +35,25 @@ function doPost(e) {
   var response = null;
   try {
     var request = parsePostRequest(e);
+    var action = request.action || '';
 
-    // 1. 다중 일괄 등록 요청 (BATCH_UPSERT_LEDGER_RECORDS or records 배열)
-    if (request.action === 'BATCH_UPSERT_LEDGER_RECORDS' || Array.isArray(request.records) || Array.isArray(request)) {
+    // 1. 삭제 요청 (최우선 정확 판정!)
+    if (action === 'DELETE_LEDGER_RECORD') {
+      response = deleteLedgerRecord(request.record || request);
+      return jsonResponse(response);
+    }
+
+    // 2. 다중 일괄 등록 요청 (BATCH_UPSERT_LEDGER_RECORDS or records 배열)
+    if (action === 'BATCH_UPSERT_LEDGER_RECORDS' || Array.isArray(request.records) || Array.isArray(request)) {
       var records = request.records || (Array.isArray(request) ? request : []);
       response = batchUpsertLedgerRecords(records, request.options);
       return jsonResponse(response);
     }
 
-    // 2. 단일 거래 저장 요청 (웹 표준 or 단축어 직접 전송)
-    if (request.action === 'UPSERT_LEDGER_RECORD' || request.record || request.amount || request.item) {
+    // 3. 단일 거래 저장/수정 요청
+    if (action === 'UPSERT_LEDGER_RECORD' || request.record || request.amount || request.item) {
       var singleRecord = request.record || normalizeShortcutRecord(request);
       response = upsertLedgerRecord(singleRecord);
-      return jsonResponse(response);
-    }
-
-    // 3. 삭제 요청
-    if (request.action === 'DELETE_LEDGER_RECORD') {
-      response = deleteLedgerRecord(request.record);
       return jsonResponse(response);
     }
 
