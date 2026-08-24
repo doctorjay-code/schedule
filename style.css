@@ -2543,17 +2543,18 @@ body.ledger-dragging-locked {
   background-color: #EEF2FF !important;
   border: 1px solid #CBD5E1 !important;
 }
-/* 잡은 거래 상단선: 2px solid #1E3A8A (날짜 구분선 표준과 100% 동일) */
+/* 잡은 거래 상단선: 1~7열 전체 상단 2px solid #1E3A8A (날짜 구분선 표준 규격) */
 .schedule-row.dragging.schedule-row-detail td {
   border-top: 2px solid #1E3A8A !important;
 }
-/* 상세-태그 사이 가로 점선 */
-.schedule-row.dragging.schedule-row-detail td:not(.cell-date) {
+/* 상세행 중간 가로 점선: 3~7열에만 적용하고, rowspan=2인 날짜(1열)와 수단(2열)은 제외 */
+.schedule-row.dragging.schedule-row-detail td:not(.cell-date):not(.cell-time) {
   border-bottom: 1px dashed #CBD5E1 !important;
 }
-/* 잡은 거래 하단선: 태그행 전체 + rowspan=2 날짜셀까지 100% 완벽 포함 2px solid #1E3A8A */
+/* 잡은 거래 하단선: 1열(날짜), 2열(수단), 3~7열(태그행 전체)까지 1~7열 가로 100% 완전 밀착 2px solid #1E3A8A */
 .schedule-row.dragging.schedule-row-tag td,
-.schedule-row.dragging.schedule-row-detail td.cell-date {
+.schedule-row.dragging.schedule-row-detail td.cell-date,
+.schedule-row.dragging.schedule-row-detail td.cell-time {
   border-bottom: 2px solid #1E3A8A !important;
 }
 
