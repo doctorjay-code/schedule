@@ -90,6 +90,8 @@ export function loadColorSettings() {
         wordRules: Array.isArray(parsed.wordRules) ? parsed.wordRules : [],
         ledgerPersonColors: { ...defaultColorSettings.ledgerPersonColors, ...(parsed.ledgerPersonColors || {}) },
         ledgerCategoryColors: { ...defaultColorSettings.ledgerCategoryColors, ...(parsed.ledgerCategoryColors || {}) },
+        ledgerPaymentColors: { ...defaultColorSettings.ledgerPaymentColors, ...(parsed.ledgerPaymentColors || {}) },
+        scheduleAlertColors: { ...defaultColorSettings.scheduleAlertColors, ...(parsed.scheduleAlertColors || {}) },
         ledgerWordRules: Array.isArray(parsed.ledgerWordRules) ? parsed.ledgerWordRules : []
       };
     } catch (e) {
@@ -104,10 +106,18 @@ export function saveColorSettings() {
   localStorage.setItem('user_color_settings', JSON.stringify(state.colorSettings));
 }
 
+// Reset ONLY Schedule Color Settings (preserves ledger colors!)
+export function resetScheduleColorSettings() {
+  state.colorSettings.regionColors = { ...defaultColorSettings.regionColors };
+  state.colorSettings.clinicColors = { ...defaultColorSettings.clinicColors };
+  state.colorSettings.scheduleAlertColors = { ...defaultColorSettings.scheduleAlertColors };
+  state.colorSettings.wordRules = [];
+  saveColorSettings();
+}
+
 // Reset Color Settings to Default
 export function resetColorSettings() {
-  state.colorSettings = JSON.parse(JSON.stringify(defaultColorSettings));
-  saveColorSettings();
+  resetScheduleColorSettings();
 }
 
 // Return week index corresponding to today's date

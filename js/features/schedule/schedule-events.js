@@ -113,7 +113,13 @@ export function initializeScheduleApp() {
       const syncIcon = document.querySelector('#manualSyncBtn .sync-icon') || document.getElementById('manualSyncBtn');
       syncIcon?.classList.add('spin');
       syncFromGoogleSheets().finally(() => {
+        applyScheduleAlertChipColors();
         syncIcon?.classList.remove('spin');
+      });
+    },
+    onLedgerChange: () => {
+      syncColorSettingsFromSupabase().then(() => {
+        applyScheduleAlertChipColors();
       });
     }
   });

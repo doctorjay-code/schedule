@@ -111,14 +111,26 @@ export async function syncColorSettingsFromSupabase() {
 export const syncColorSettingsFromSheets = syncColorSettingsFromSupabase;
 
 export async function syncColorSettingsToSupabase() {
-  setSyncStatus('saving');
   try {
+    const payload = {
+      regionColors: { ...defaultColorSettings.regionColors, ...(state.colorSettings?.regionColors || {}) },
+      clinicColors: { ...defaultColorSettings.clinicColors, ...(state.colorSettings?.clinicColors || {}) },
+      wordRules: Array.isArray(state.colorSettings?.wordRules) ? state.colorSettings.wordRules : [],
+      ledgerPersonColors: { ...defaultColorSettings.ledgerPersonColors, ...(state.colorSettings?.ledgerPersonColors || {}) },
+      ledgerCategoryColors: { ...defaultColorSettings.ledgerCategoryColors, ...(state.colorSettings?.ledgerCategoryColors || {}) },
+      ledgerPaymentColors: { ...defaultColorSettings.ledgerPaymentColors, ...(state.colorSettings?.ledgerPaymentColors || {}) },
+      scheduleAlertColors: { ...defaultColorSettings.scheduleAlertColors, ...(state.colorSettings?.scheduleAlertColors || {}) },
+      ledgerWordRules: Array.isArray(state.colorSettings?.ledgerWordRules) ? state.colorSettings.ledgerWordRules : []
+    };
+    state.colorSettings = payload;
+    saveColorSettings();
+
     await supabaseRest('schedule_settings', {
       method: 'POST',
       prefer: 'resolution=merge-duplicates',
       body: {
         key: 'color_settings',
-        value: state.colorSettings,
+        value: payload,
         updated_at: new Date().toISOString()
       }
     });
