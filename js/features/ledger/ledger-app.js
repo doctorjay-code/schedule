@@ -2,17 +2,17 @@ import { state, pastelPalette, saveColorSettings, defaultColorSettings } from '.
 import { switchViewModeUI } from '../schedule/render.js';
 import { openWeekSelectModal } from '../schedule/modals/week-picker.js';
 import { openMonthSelectModal } from '../schedule/modals/month-picker.js';
-import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor, recalculateRunningBalances, normalizeLedgerDate, compareLedgerRecords } from './ledger-utils.js?v=20260824_49';
-import { filterLedgerRecords } from './card.js?v=20260824_45';
-import { normalizeFundplanRows } from './fundplan.js?v=20260824_45';
-import { groupExpenses, renderStatList } from './stats.js?v=20260824_45';
-import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_45';
-import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_45';
-import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_45';
-import { bindLedgerListActions } from './ledger-events.js?v=20260824_45';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_45';
-import { fetchLedgerData, fetchLedgerSheetData, upsertLedgerRecord, upsertLedgerSheetRecord, deleteLedgerRecord, deleteLedgerSheetRecord, reorderLedgerRecords, reorderLedgerSheetRecords, deleteLedgerRecordsBatch, insertLedgerRecordsBatch } from '../../services/ledger/ledger-api.js?v=20260825_16';
-import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js?v=20260825_16';
+import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor, recalculateRunningBalances, normalizeLedgerDate, compareLedgerRecords } from './ledger-utils.js?v=20260825_17';
+import { filterLedgerRecords } from './card.js?v=20260825_17';
+import { normalizeFundplanRows } from './fundplan.js?v=20260825_17';
+import { groupExpenses, renderStatList } from './stats.js?v=20260825_17';
+import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260825_17';
+import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260825_17';
+import { createLedgerColorSettings } from './modals/color-settings.js?v=20260825_17';
+import { bindLedgerListActions } from './ledger-events.js?v=20260825_17';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260825_17';
+import { fetchLedgerData, fetchLedgerSheetData, upsertLedgerRecord, upsertLedgerSheetRecord, deleteLedgerRecord, deleteLedgerSheetRecord, reorderLedgerRecords, reorderLedgerSheetRecords, deleteLedgerRecordsBatch, insertLedgerRecordsBatch } from '../../services/ledger/ledger-api.js?v=20260825_17';
+import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js?v=20260825_17';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
