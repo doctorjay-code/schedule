@@ -289,6 +289,33 @@ function reorderLedgerRows(sheetName, orderedIds) {
     allData[targetPositions[k]] = reorderedRows[k];
   }
 
+  // ⭐ 날짜별 ID 순번(01, 02, 03...) 위에서부터 순서대로 자동 재부여!
+  var autoPrefix = 'cash';
+  if (sheetName === '기업카드') autoPrefix = 'ibkcard';
+  else if (sheetName === '토스은행') autoPrefix = 'tossbank';
+  else if (sheetName === '기업은행') autoPrefix = 'ibkbank';
+
+  var dateSeqMap = {};
+  var dateColIdx = index['날짜'];
+
+  for (var j = 0; j < allData.length; j++) {
+    var dRow = allData[j];
+    var rawDate = dateColIdx !== undefined ? formatIsoDate(dRow[dateColIdx]) : '';
+    if (rawDate) {
+      var dateDigits = rawDate.replace(/[^0-9]/g, '').slice(2);
+      if (dateDigits.length === 6) {
+        if (!dateSeqMap[dateDigits]) {
+          dateSeqMap[dateDigits] = 1;
+        } else {
+          dateSeqMap[dateDigits]++;
+        }
+        var seq = dateSeqMap[dateDigits];
+        var newId = autoPrefix + '-' + dateDigits + (seq < 10 ? '0' + seq : String(seq));
+        dRow[idColIdx] = newId;
+      }
+    }
+  }
+
   sheet.getRange(2, 1, allData.length, lastCol).setValues(allData);
 
   // 누적 잔액/사용액 실시간 재계산
