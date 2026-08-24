@@ -38,9 +38,13 @@ function bindPointerDragEngine(listEl, onReorder, onDragFinished) {
   function createPlaceholder() {
     const tr = document.createElement('tr');
     tr.className = 'ledger-drag-placeholder';
-    const td = document.createElement('td');
-    td.colSpan = 7;
-    tr.appendChild(td);
+    const tdDate = document.createElement('td');
+    tdDate.className = 'cell-date';
+    tdDate.style.width = '74px';
+    const tdContent = document.createElement('td');
+    tdContent.colSpan = 6;
+    tr.appendChild(tdDate);
+    tr.appendChild(tdContent);
     return tr;
   }
 
@@ -70,11 +74,11 @@ function bindPointerDragEngine(listEl, onReorder, onDragFinished) {
     isDragging = false;
     draggedRows = [];
 
-    // 모바일 터치 시 180ms 롱터치 타이머
+    // 모바일 터치: 220ms 롱터치 안정 타이머
     if (e.pointerType === 'touch') {
       longTouchTimer = setTimeout(() => {
         startDrag();
-      }, 180);
+      }, 220);
     }
   });
 
@@ -83,10 +87,11 @@ function bindPointerDragEngine(listEl, onReorder, onDragFinished) {
 
     const moveDist = Math.hypot(e.clientX - startX, e.clientY - startY);
 
-    // PC 마우스는 5px 움직이면 즉시 드래그 시작
-    if (!isDragging && e.pointerType !== 'touch' && moveDist > 5) {
+    // PC 마우스: 6px 이상 움직이면 즉시 드래그
+    if (!isDragging && e.pointerType !== 'touch' && moveDist > 6) {
       startDrag();
-    } else if (!isDragging && e.pointerType === 'touch' && moveDist > 10) {
+    } else if (!isDragging && e.pointerType === 'touch' && moveDist > 12) {
+      // 모바일: 롱터치 전 손가락이 많이 움직이면 일반 스크롤로 간주
       if (longTouchTimer) {
         clearTimeout(longTouchTimer);
         longTouchTimer = null;
@@ -135,7 +140,6 @@ function bindPointerDragEngine(listEl, onReorder, onDragFinished) {
     if (isDragging && draggedId && placeholderRow && placeholderRow.parentNode) {
       onDragFinished();
       const parent = placeholderRow.parentNode;
-      // placeholder 자리에 draggedRows를 촥! 안착시킴
       draggedRows.forEach(r => parent.insertBefore(r, placeholderRow));
       placeholderRow.remove();
       placeholderRow = null;

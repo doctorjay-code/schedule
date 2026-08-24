@@ -2512,10 +2512,16 @@ body {
 #ledgerToggleEntryBtn:disabled { opacity: 0.55; cursor: not-allowed; filter: grayscale(0.3); }
 
 /* 가계부 행 드래그 앤 드롭 (Live Space Displacement & Ghost) */
+.ledger-schedule-table,
+.schedule-table,
+.schedule-row,
+.schedule-row td {
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
 .schedule-row {
   cursor: grab;
-  user-select: none;
-  -webkit-user-select: none;
   touch-action: pan-y;
   transition: opacity 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
 }
@@ -2537,19 +2543,23 @@ body.ledger-is-dragging .schedule-row {
 .schedule-row.touch-holding {
   background-color: #EEF2FF !important;
   box-shadow: 0 4px 16px rgba(79, 70, 229, 0.2);
+  transform: scale(1.01);
+}
 /* 실시간 자리 비켜주기 빈 슬롯 (Displacement Spacer Slot) */
 .ledger-drag-placeholder {
+  pointer-events: none !important;
   background-color: #EEF2FF !important;
-  animation: slotFadeIn 0.2s ease-out;
+  animation: slotFadeIn 0.15s ease-out;
 }
 .ledger-drag-placeholder td {
-  height: 52px !important;
+  pointer-events: none !important;
+  height: 48px !important;
   background: repeating-linear-gradient(45deg, #EEF2FF, #EEF2FF 8px, #E0E7FF 8px, #E0E7FF 16px) !important;
   border: 2px dashed #818CF8 !important;
   padding: 0 !important;
 }
 @keyframes slotFadeIn {
-  from { opacity: 0; transform: scaleY(0.5); }
+  from { opacity: 0; transform: scaleY(0.4); }
   to { opacity: 1; transform: scaleY(1); }
 }
 
