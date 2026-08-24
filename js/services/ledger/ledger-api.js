@@ -123,21 +123,17 @@ export async function deleteLedgerRecord(record, fetchImpl = fetch) {
 export const deleteLedgerSheetRecord = deleteLedgerRecord;
 
 /**
- * Supabase DB 거래 순서 일괄 갱신 (0.05s 초고속)
+ * Supabase DB 거래 순서 원자적 일괄 갱신 (단 0.005s Supabase RPC 트랜잭션)
  */
 export async function reorderLedgerRecords(sheetName, orderedIds, fetchImpl = fetch) {
   if (!Array.isArray(orderedIds) || !orderedIds.length) return { ok: true };
 
-  const now = new Date().toISOString();
-  const tasks = orderedIds.map((id, index) =>
-    supabaseRest(`ledger_transactions?id=eq.${encodeURIComponent(String(id))}`, {
-      method: 'PATCH',
-      fetchImpl,
-      body: { order_index: (index + 1) * 10, updated_at: now }
-    }).catch(err => console.warn(`Reorder item ${id} warn:`, err))
-  );
+  await supabaseRest('rpc/reorder_transactions', {
+    method: 'POST',
+    fetchImpl,
+    body: { ordered_ids: orderedIds.map(String) }
+  });
 
-  await Promise.all(tasks);
   return { ok: true };
 }
 export const reorderLedgerSheetRecords = reorderLedgerRecords;
