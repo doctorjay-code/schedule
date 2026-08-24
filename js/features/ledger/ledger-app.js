@@ -6,12 +6,12 @@ import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor } from '
 import { filterLedgerRecords } from './card.js';
 import { normalizeFundplanRows } from './fundplan.js';
 import { groupExpenses, renderStatList } from './stats.js';
-import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_03';
-import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_03';
-import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_03';
-import { bindLedgerListActions } from './ledger-events.js?v=20260824_03';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_03';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_03';
+import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, renderTransactionRow } from './transaction-view.js?v=20260824_04';
+import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20260824_04';
+import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_04';
+import { bindLedgerListActions } from './ledger-events.js?v=20260824_04';
+import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_04';
+import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord } from '../../services/ledger/ledger-api.js?v=20260824_04';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -72,10 +72,43 @@ function syncLedgerWriteControls() {
       : '시트 연결 후 거래를 입력할 수 있습니다.';
 }
 
+const LEDGER_CUSTOM_ORDER_KEY = 'ledger_custom_order_map_v1';
+
+function getCustomOrderMap() {
+  try {
+    return JSON.parse(localStorage.getItem(LEDGER_CUSTOM_ORDER_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function saveCustomOrderMap(orderMap) {
+  try {
+    localStorage.setItem(LEDGER_CUSTOM_ORDER_KEY, JSON.stringify(orderMap));
+  } catch (e) {
+    console.warn('saveCustomOrderMap error:', e);
+  }
+}
+
+function applyCustomOrderToList(records) {
+  if (!Array.isArray(records) || records.length === 0) return records;
+  const orderMap = getCustomOrderMap();
+  if (Object.keys(orderMap).length === 0) return records;
+
+  return [...records].sort((a, b) => {
+    const aOrder = orderMap[String(a.id)];
+    const bOrder = orderMap[String(b.id)];
+    if (aOrder !== undefined && bOrder !== undefined) return aOrder - bOrder;
+    if (aOrder !== undefined) return -1;
+    if (bOrder !== undefined) return 1;
+    return 0;
+  });
+}
+
 function applyLedgerDataSources() {
-  importedLedgerRecords = sheetLedgerRecords || [];
-  importedBankRecords = sheetBankRecords || fallbackBankRecords;
-  importedCashRecords = sheetCashRecords || [];
+  importedLedgerRecords = applyCustomOrderToList(sheetLedgerRecords || []);
+  importedBankRecords = applyCustomOrderToList(sheetBankRecords || fallbackBankRecords);
+  importedCashRecords = applyCustomOrderToList(sheetCashRecords || []);
   importedForecastRecords = sheetForecastRecords || [];
   loadRecords();
   syncLedgerWriteControls();
@@ -509,6 +542,12 @@ function reorderLedgerRecord(draggedId, targetId, insertAfter = false) {
     const insertIdx = insertAfter ? finalTargetIdx + 1 : finalTargetIdx;
     next.splice(insertIdx, 0, draggedItem);
 
+    const orderMap = getCustomOrderMap();
+    next.forEach((rec, idx) => {
+      if (rec && rec.id) orderMap[String(rec.id)] = idx;
+    });
+    saveCustomOrderMap(orderMap);
+
     return next;
   };
 
@@ -517,7 +556,7 @@ function reorderLedgerRecord(draggedId, targetId, insertAfter = false) {
   if (sheetBankRecords) sheetBankRecords = reorderList(sheetBankRecords);
 
   applyLedgerDataSources();
-  showLedgerToast('↕️ 거래 순서가 변경되었습니다.');
+  showLedgerToast('↕️ 거래 순서가 영구 저장되었습니다.');
 }
 
 function upsertLocalRecord(records, record) {
