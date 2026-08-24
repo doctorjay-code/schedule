@@ -949,7 +949,6 @@ function setLedgerSource(source) {
   document.getElementById('ledgerSubnav')?.classList.remove('hidden');
   document.getElementById('ledgerCardNavigator')?.classList.remove('hidden');
   document.getElementById('ledgerPersonSwitch')?.classList.remove('hidden');
-  document.getElementById('ledgerSyncBtn')?.classList.remove('hidden');
   document.getElementById('ledgerRefreshBtn')?.classList.remove('hidden');
   document.getElementById('ledgerMonthlyWrapper')?.classList.toggle('hidden', ledgerState.period !== 'monthly');
   document.getElementById('fundplanAllTimeWrapper')?.classList.toggle('hidden', ledgerState.period === 'monthly');

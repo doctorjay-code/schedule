@@ -105,14 +105,44 @@ export function initializeScheduleApp() {
   loadWeekData(state.currentWeekIndex);
   initEvents();
   initAverageBalanceModal();
+  initNetworkStatusListener();
   updateSummaryCounts();
   syncFromGoogleSheets();
   registerRealtimeCallbacks({
     onScheduleChange: () => {
-      syncFromGoogleSheets();
+      const syncIcon = document.querySelector('#manualSyncBtn .sync-icon') || document.getElementById('manualSyncBtn');
+      syncIcon?.classList.add('spin');
+      syncFromGoogleSheets().finally(() => {
+        syncIcon?.classList.remove('spin');
+      });
     }
   });
   preloadLedgerFeature();
+}
+
+function initNetworkStatusListener() {
+  const banner = document.getElementById('appOfflineBanner');
+  if (!banner) return;
+
+  const updateStatus = () => {
+    if (!navigator.onLine) {
+      banner.textContent = '⚠️ 인터넷 연결 확인 필요 (오프라인 모드)';
+      banner.classList.remove('hidden', 'is-online');
+    } else {
+      if (!banner.classList.contains('hidden')) {
+        banner.textContent = '🟢 인터넷이 다시 연결되었습니다!';
+        banner.classList.add('is-online');
+        setTimeout(() => {
+          banner.classList.add('hidden');
+          banner.classList.remove('is-online');
+        }, 1500);
+      }
+    }
+  };
+
+  window.addEventListener('online', updateStatus);
+  window.addEventListener('offline', updateStatus);
+  if (!navigator.onLine) updateStatus();
 }
 
 function initEvents() {
