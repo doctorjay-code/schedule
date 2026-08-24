@@ -14,15 +14,13 @@ import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view
 import { fetchLedgerData, fetchLedgerSheetData, upsertLedgerRecord, upsertLedgerSheetRecord, deleteLedgerRecord, deleteLedgerSheetRecord, reorderLedgerRecords, reorderLedgerSheetRecords, deleteLedgerRecordsBatch, insertLedgerRecordsBatch } from '../../services/ledger/ledger-api.js';
 import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js';
 
-let importedLedgerRecords = [];
-let importedBankRecords = [];
-let importedCashRecords = [];
-let importedForecastRecords = [];
+const ledgerDataSources = {
+  card: [],
+  cash: [],
+  bank: [],
+  forecast: []
+};
 let fallbackBankRecords = [];
-let sheetLedgerRecords = null;
-let sheetCashRecords = null;
-let sheetBankRecords = null;
-let sheetForecastRecords = null;
 let ledgerSheetCounts = null;
 let ledgerLiveConnected = false;
 let ledgerSnapshotFetchedAt = null;
@@ -72,10 +70,6 @@ function syncLedgerWriteControls() {
 }
 
 function applyLedgerDataSources() {
-  importedLedgerRecords = sheetLedgerRecords || [];
-  importedBankRecords = sheetBankRecords || fallbackBankRecords;
-  importedCashRecords = sheetCashRecords || [];
-  importedForecastRecords = sheetForecastRecords || [];
   loadRecords();
   syncLedgerWriteControls();
   renderActiveLedgerPeriod();
@@ -84,11 +78,20 @@ function applyLedgerDataSources() {
 function loadLedgerSheetSnapshot() {
   try {
     const snapshot = JSON.parse(localStorage.getItem(LEDGER_SHEET_SNAPSHOT_KEY) || 'null');
-    if (!snapshot || !Array.isArray(snapshot.ledgerRecords) || !Array.isArray(snapshot.cashRecords)) return false;
-    sheetLedgerRecords = snapshot.ledgerRecords;
-    sheetCashRecords = snapshot.cashRecords;
-    sheetBankRecords = Array.isArray(snapshot.bankRecords) ? snapshot.bankRecords : null;
-    sheetForecastRecords = Array.isArray(snapshot.forecastRecords) ? snapshot.forecastRecords : null;
+    if (!snapshot) return false;
+    
+    if (snapshot.sources && typeof snapshot.sources === 'object') {
+      ledgerDataSources.card = Array.isArray(snapshot.sources.card) ? snapshot.sources.card : [];
+      ledgerDataSources.cash = Array.isArray(snapshot.sources.cash) ? snapshot.sources.cash : [];
+      ledgerDataSources.bank = Array.isArray(snapshot.sources.bank) ? snapshot.sources.bank : [];
+      ledgerDataSources.forecast = Array.isArray(snapshot.sources.forecast) ? snapshot.sources.forecast : [];
+    } else {
+      ledgerDataSources.card = Array.isArray(snapshot.ledgerRecords) ? snapshot.ledgerRecords : [];
+      ledgerDataSources.cash = Array.isArray(snapshot.cashRecords) ? snapshot.cashRecords : [];
+      ledgerDataSources.bank = Array.isArray(snapshot.bankRecords) ? snapshot.bankRecords : [];
+      ledgerDataSources.forecast = Array.isArray(snapshot.forecastRecords) ? snapshot.forecastRecords : [];
+    }
+
     ledgerSheetCounts = snapshot.counts && typeof snapshot.counts === 'object' ? snapshot.counts : null;
     ledgerSnapshotFetchedAt = snapshot.fetchedAt || null;
     ledgerDataState = 'cached';
@@ -102,13 +105,14 @@ function loadLedgerSheetSnapshot() {
 
 function saveLedgerSheetSnapshot(fetchedAt = new Date().toISOString()) {
   const snapshot = {
-    version: 1,
+    version: 3,
     fetchedAt,
     counts: ledgerSheetCounts,
-    ledgerRecords: sheetLedgerRecords || [],
-    cashRecords: sheetCashRecords || [],
-    bankRecords: sheetBankRecords || [],
-    forecastRecords: sheetForecastRecords || []
+    sources: ledgerDataSources,
+    ledgerRecords: ledgerDataSources.card,
+    cashRecords: ledgerDataSources.cash,
+    bankRecords: ledgerDataSources.bank,
+    forecastRecords: ledgerDataSources.forecast
   };
   localStorage.setItem(LEDGER_SHEET_SNAPSHOT_KEY, JSON.stringify(snapshot));
   ledgerSnapshotFetchedAt = fetchedAt;
@@ -126,10 +130,10 @@ async function refreshLedgerSheetData() {
   setLedgerSyncStatus('loading');
   try {
     const { records, counts, fetchedAt } = await fetchLedgerData(fetch);
-    sheetLedgerRecords = records.filter(record => ['기업카드', '토스은행'].includes(record.sheetName));
-    sheetCashRecords = records.filter(record => record.sheetName === '현금');
-    sheetBankRecords = records.filter(record => record.sheetName === '기업은행');
-    sheetForecastRecords = records.filter(record => record.sheetName === '잔액전망');
+    ledgerDataSources.card = records.filter(record => ['기업카드', '토스은행'].includes(record.sheetName));
+    ledgerDataSources.cash = records.filter(record => record.sheetName === '현금');
+    ledgerDataSources.bank = records.filter(record => record.sheetName === '기업은행');
+    ledgerDataSources.forecast = records.filter(record => record.sheetName === '잔액전망');
     ledgerSheetCounts = counts;
     ledgerDataState = 'fresh';
     ledgerLiveConnected = true;
@@ -138,7 +142,7 @@ async function refreshLedgerSheetData() {
     setLedgerSyncStatus('saved');
     return true;
   } catch (error) {
-    const hasSnapshot = Boolean((sheetLedgerRecords && sheetLedgerRecords.length) || (sheetCashRecords && sheetCashRecords.length));
+    const hasSnapshot = Boolean(ledgerDataSources.card.length || ledgerDataSources.cash.length);
     ledgerLiveConnected = false;
     ledgerDataState = hasSnapshot ? 'cached' : 'error';
     if (!hasSnapshot) setText('ledgerDataBadge', '연결 확인 필요');
@@ -149,7 +153,7 @@ async function refreshLedgerSheetData() {
 }
 
 function loadRecords() {
-  ledgerState.records = [...importedLedgerRecords, ...importedCashRecords, ...importedBankRecords];
+  ledgerState.records = [...ledgerDataSources.card, ...ledgerDataSources.cash, ...ledgerDataSources.bank];
   const sheetTotal = ledgerSheetCounts ? Object.values(ledgerSheetCounts).reduce((sum, count) => sum + count, 0) : 0;
   const snapshotLabel = ledgerSnapshotFetchedAt ? ` · ${new Date(ledgerSnapshotFetchedAt).toLocaleTimeString('ko-KR')}` : '';
   setText('ledgerDataBadge', ledgerSheetCounts ? `실시간 DB ${sheetTotal}건${snapshotLabel}` : 'DB 연결 중');
@@ -161,9 +165,8 @@ function loadRecords() {
   }
 }
 
-
 function getSelectedCardRecords() {
-  const cardRecords = ledgerState.records.filter(record => record.payment === ledgerState.payment);
+  const cardRecords = ledgerDataSources.card.filter(record => record.payment === ledgerState.payment);
   return filterLedgerRecords(cardRecords, ledgerState.filterType, ledgerState.filterValue);
 }
 function closeLedgerFilterOptions() {
@@ -1050,11 +1053,7 @@ export function initLedgerView() {
 
 function getActiveSourceRecords() {
   if (ledgerState.source === 'card') return getSelectedCardRecords();
-  const records = ledgerState.source === 'bank'
-    ? importedBankRecords
-    : ledgerState.source === 'forecast'
-      ? importedForecastRecords
-      : importedCashRecords;
+  const records = ledgerDataSources[ledgerState.source] || [];
   return filterLedgerRecords(records, ledgerState.filterType, ledgerState.filterValue);
 }
 function getMonthlyRecords() {

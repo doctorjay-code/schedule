@@ -8,6 +8,7 @@ import { openMonthSelectModal, closeMonthSelectModal } from './modals/month-pick
 import { bindScheduleNavigation } from './events/navigation.js';
 import { bindScheduleModalCloseEvents, bindScheduleFilterEvents } from './events/modal-filter-events.js';
 import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js';
+import { executeScheduleCopy, executeSchedulePaste } from './schedule-clipboard.js';
 
 // App-core callbacks are registered only after authentication succeeds.
 setApiLoadWeekDataCallback(loadWeekData);
@@ -367,215 +368,20 @@ function initEvents() {
     });
   }
 
-  // Smart Cell-Level Bulk Copy with Multi-Day Support
+  // Smart Cell-Level Bulk Copy & Paste Actions (Delegated to schedule-clipboard.js)
   if (bulkCopyBtn) {
-    bulkCopyBtn.addEventListener('click', () => {
-      if (state.selectedCells.length === 0) {
-        alert('복사할 날짜, 시간, 또는 세부 셀을 선택해주세요!');
-        return;
-      }
-
-      // Collect all unique selected dates from selectedCells
-      const dayDateSet = new Set();
-
-      for (let i = 0; i < state.weekData.length; i += 2) {
-        const mId = state.weekData[i].id;
-        const aId = state.weekData[i + 1] ? state.weekData[i + 1].id : null;
-        const dKey = `${mId}_${aId ?? ''}_day`;
-
-        if (isCellSelected(dKey) || (isCellSelected(`${mId}_row`) && aId && isCellSelected(`${aId}_row`))) {
-          dayDateSet.add(state.weekData[i].date);
-        }
-      }
-
-      // Case 1: Multi-Day or Single Full Day Copy
-      if (dayDateSet.size > 0) {
-        const dayArray = Array.from(dayDateSet);
-        const daysDataList = [];
-
-        dayArray.forEach(dateStr => {
-          const mItem = state.weekData.find(d => d.date === dateStr && d.time === '오전');
-          const aItem = state.weekData.find(d => d.date === dateStr && d.time === '오후');
-          if (mItem && aItem) {
-            daysDataList.push({
-              date: dateStr,
-              morning: JSON.parse(JSON.stringify(mItem)),
-              afternoon: JSON.parse(JSON.stringify(aItem))
-            });
-          }
-        });
-
-        if (daysDataList.length === 1) {
-          state.copiedScheduleData = {
-            type: 'FULL_DAY',
-            dateLabel: daysDataList[0].date,
-            morning: daysDataList[0].morning,
-            afternoon: daysDataList[0].afternoon
-          };
-          if (copiedItemLabel) copiedItemLabel.textContent = `${daysDataList[0].date} 하루 전체 일정`;
-        } else {
-          state.copiedScheduleData = {
-            type: 'MULTI_DAYS',
-            daysList: daysDataList
-          };
-          if (copiedItemLabel) copiedItemLabel.textContent = `${daysDataList[0].date} 외 ${daysDataList.length - 1}개 날짜 전체 일정 (${daysDataList.length}개 일괄)`;
-        }
-
-        if (copyBufferBar) copyBufferBar.classList.remove('hidden');
-        state.selectedCells = [];
-        if (selectedCountLabel) selectedCountLabel.textContent = '0개 선택됨';
-        renderTable();
-        return;
-      }
-
-      // Case 2: Single Slot / Specific Cell Copy
-      const lastKey = state.selectedCells[state.selectedCells.length - 1];
-      const parts = lastKey.split('_');
-      const itemId = parseInt(parts[0]);
-      const field = parts[1]; // 'region', 'clinic', 'trans', 'hr', 'ot', 'row'
-      const targetItem = state.weekData.find(d => d.id === itemId);
-
-      if (targetItem) {
-        let detailLabel = `${targetItem.date} ${targetItem.time}`;
-
-        if (field === 'region') {
-          detailLabel += ` 지역 (${targetItem.region || '-'})`;
-        } else if (field === 'clinic') {
-          detailLabel += ` 진료 (${targetItem.clinic || '-'})`;
-        } else if (field === 'trans') {
-          const content = [targetItem.transStatus, targetItem.transDetail].filter(Boolean).join(' ');
-          detailLabel += ` 교통 (${content || '-'})`;
-        } else if (field === 'hr') {
-          const content = [targetItem.hrStatus, targetItem.hrDetail].filter(Boolean).join(' ');
-          detailLabel += ` 국인체 (${content || '-'})`;
-        } else if (field === 'ot') {
-          const content = [targetItem.otStatus, targetItem.otDetail].filter(Boolean).join(' ');
-          detailLabel += ` 수당 (${content || '-'})`;
-        } else {
-          detailLabel += ` 일정 전체`;
-        }
-
-        state.copiedScheduleData = {
-          type: 'SINGLE_SLOT',
-          field: field,
-          data: JSON.parse(JSON.stringify(targetItem))
-        };
-
-        if (copiedItemLabel) copiedItemLabel.textContent = `${detailLabel}`;
-        if (copyBufferBar) copyBufferBar.classList.remove('hidden');
-
-        state.selectedCells = [];
-        if (selectedCountLabel) selectedCountLabel.textContent = '0개 선택됨';
-        renderTable();
-      }
-    });
+    bulkCopyBtn.addEventListener('click', () => executeScheduleCopy({ state, renderTable }));
   }
 
-  // Smart Bulk Paste Action
-  const handleBulkPaste = () => {
-    if (!state.copiedScheduleData) {
-      alert('복사된 일정이 없습니다. 복사할 항목을 먼저 선택 후 [📋 복사]를 누르세요!');
-      return;
-    }
-    if (state.selectedCells.length === 0) {
-      alert('붙여넣을 셀이나 날짜를 선택해주세요!');
-      return;
-    }
-
-    const targetDates = Array.from(new Set(state.selectedCells.map(key => {
-      const id = parseInt(key.split('_')[0]);
-      const item = state.weekData.find(d => d.id === id);
-      return item ? item.date : null;
-    }).filter(Boolean)));
-
-    if (state.copiedScheduleData.type === 'MULTI_DAYS') {
-      const srcDays = state.copiedScheduleData.daysList;
-      targetDates.forEach((targetDateStr, idx) => {
-        const srcDay = srcDays[idx % srcDays.length];
-        state.weekData.forEach(item => {
-          if (item.date === targetDateStr) {
-            const src = (item.time === '오전') ? srcDay.morning : srcDay.afternoon;
-            item.region = src.region;
-            item.clinic = src.clinic;
-            item.transStatus = src.transStatus;
-            item.transDetail = src.transDetail;
-            item.hrStatus = src.hrStatus;
-            item.hrDetail = src.hrDetail;
-            item.otStatus = src.otStatus;
-            item.otDetail = src.otDetail;
-          }
-        });
-      });
-    } else if (state.copiedScheduleData.type === 'FULL_DAY') {
-      state.weekData.forEach(item => {
-        if (targetDates.includes(item.date)) {
-          const src = (item.time === '오전') ? state.copiedScheduleData.morning : state.copiedScheduleData.afternoon;
-          item.region = src.region;
-          item.clinic = src.clinic;
-          item.transStatus = src.transStatus;
-          item.transDetail = src.transDetail;
-          item.hrStatus = src.hrStatus;
-          item.hrDetail = src.hrDetail;
-          item.otStatus = src.otStatus;
-          item.otDetail = src.otDetail;
-        }
-      });
-    } else {
-      const src = state.copiedScheduleData.data;
-      const srcField = state.copiedScheduleData.field;
-
-      state.selectedCells.forEach(key => {
-        const parts = key.split('_');
-        const id = parseInt(parts[0]);
-        const targetField = parts[1];
-        const item = state.weekData.find(d => d.id === id);
-
-        if (item) {
-          if (targetField === 'row' || targetField === 'time' || !srcField || srcField === 'row') {
-            item.region = src.region;
-            item.clinic = src.clinic;
-            item.transStatus = src.transStatus;
-            item.transDetail = src.transDetail;
-            item.hrStatus = src.hrStatus;
-            item.hrDetail = src.hrDetail;
-            item.otStatus = src.otStatus;
-            item.otDetail = src.otDetail;
-          } else if (targetField === 'region') item.region = src.region;
-          else if (targetField === 'clinic') item.clinic = src.clinic;
-          else if (targetField === 'trans') {
-            item.transStatus = src.transStatus;
-            item.transDetail = src.transDetail;
-          } else if (targetField === 'hr') {
-            item.hrStatus = src.hrStatus;
-            item.hrDetail = src.hrDetail;
-          } else if (targetField === 'ot') {
-            item.otStatus = src.otStatus;
-            item.otDetail = src.otDetail;
-          } else if (srcField === 'region') item.region = src.region;
-          else if (srcField === 'clinic') item.clinic = src.clinic;
-          else if (srcField === 'trans') {
-            item.transStatus = src.transStatus;
-            item.transDetail = src.transDetail;
-          } else if (srcField === 'hr') {
-            item.hrStatus = src.hrStatus;
-            item.hrDetail = src.hrDetail;
-          } else if (srcField === 'ot') {
-            item.otStatus = src.otStatus;
-            item.otDetail = src.otDetail;
-          }
-        }
-      });
-    }
-
-    syncToGoogleSheets();
-    state.selectedCells = [];
-    if (selectedCountLabel) selectedCountLabel.textContent = '0개 선택됨';
-    renderTable();
-    updateSummaryCounts();
-    if (state.currentView === 'monthly') renderMonthlyCalendar();
-  };
-
-  if (bulkPasteBtn) bulkPasteBtn.addEventListener('click', handleBulkPaste);
+  if (bulkPasteBtn) {
+    bulkPasteBtn.addEventListener('click', () => executeSchedulePaste({
+      state,
+      renderTable,
+      updateSummaryCounts,
+      syncToSheets: syncToGoogleSheets,
+      renderMonthlyCalendar
+    }));
+  }
 
   // 3 Alert Summary Buttons
   const unpaidSummaryBtn = document.getElementById('unpaidSummaryBtn');
