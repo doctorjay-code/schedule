@@ -25,17 +25,45 @@ export function closeColorSettingsModal() {
   if (colorSettingsModalOverlay) colorSettingsModalOverlay.classList.remove('active');
 }
 
+export function applyScheduleAlertChipColors() {
+  const alertColors = state.colorSettings?.scheduleAlertColors || {};
+  const unpaidBtn = document.getElementById('unpaidSummaryBtn');
+  const unappliedBtn = document.getElementById('unappliedSummaryBtn');
+  const unapprovedBtn = document.getElementById('unapprovedSummaryBtn');
+
+  if (unpaidBtn && alertColors['미결제']) {
+    unpaidBtn.style.setProperty('--alert-bg', alertColors['미결제']);
+    unpaidBtn.style.backgroundColor = alertColors['미결제'];
+    unpaidBtn.style.color = '#DC2626';
+    unpaidBtn.style.borderColor = 'rgba(220, 38, 38, 0.3)';
+  }
+  if (unappliedBtn && alertColors['미신청']) {
+    unappliedBtn.style.setProperty('--alert-bg', alertColors['미신청']);
+    unappliedBtn.style.backgroundColor = alertColors['미신청'];
+    unappliedBtn.style.color = '#D97706';
+    unappliedBtn.style.borderColor = 'rgba(217, 119, 6, 0.3)';
+  }
+  if (unapprovedBtn && alertColors['미승인']) {
+    unapprovedBtn.style.setProperty('--alert-bg', alertColors['미승인']);
+    unapprovedBtn.style.backgroundColor = alertColors['미승인'];
+    unapprovedBtn.style.color = '#15803D';
+    unapprovedBtn.style.borderColor = 'rgba(21, 128, 61, 0.3)';
+  }
+}
+
 export function renderPaletteChipsRows() {
   const chipContainers = document.querySelectorAll('.palette-chips-row[data-target-type]');
   
   chipContainers.forEach(container => {
     container.innerHTML = '';
-    const type = container.dataset.targetType; // 'region' or 'clinic'
-    const key = container.dataset.targetKey;   // e.g. '진주', 'O'
+    const type = container.dataset.targetType; // 'region', 'clinic', 'alert'
+    const key = container.dataset.targetKey;
 
     const currentColor = (type === 'region')
-      ? (state.colorSettings.regionColors[key] || '#FFEDD5')
-      : (state.colorSettings.clinicColors[key] || '#F1F5F9');
+      ? (state.colorSettings.regionColors?.[key] || '#FFEDD5')
+      : (type === 'clinic')
+        ? (state.colorSettings.clinicColors?.[key] || '#F1F5F9')
+        : (state.colorSettings.scheduleAlertColors?.[key] || (key === '미결제' ? '#FEF2F2' : key === '미신청' ? '#FFFBEB' : '#F0FDF4'));
 
     pastelPalette.forEach(hex => {
       const chip = document.createElement('div');
@@ -46,8 +74,17 @@ export function renderPaletteChipsRows() {
       chip.style.backgroundColor = hex;
 
       chip.addEventListener('click', () => {
-        if (type === 'region') state.colorSettings.regionColors[key] = hex;
-        else if (type === 'clinic') state.colorSettings.clinicColors[key] = hex;
+        if (type === 'region') {
+          if (!state.colorSettings.regionColors) state.colorSettings.regionColors = {};
+          state.colorSettings.regionColors[key] = hex;
+        } else if (type === 'clinic') {
+          if (!state.colorSettings.clinicColors) state.colorSettings.clinicColors = {};
+          state.colorSettings.clinicColors[key] = hex;
+        } else if (type === 'alert') {
+          if (!state.colorSettings.scheduleAlertColors) state.colorSettings.scheduleAlertColors = {};
+          state.colorSettings.scheduleAlertColors[key] = hex;
+          applyScheduleAlertChipColors();
+        }
 
         container.querySelectorAll('.color-chip').forEach(c => c.classList.remove('selected'));
         chip.classList.add('selected');
@@ -99,10 +136,10 @@ export function renderWordRulesList() {
 
     tag.innerHTML = `
       <span>${escapeHtml(rule.word)}</span>
-      <button class="delete-rule-btn" title="규칙 삭제">✕</button>
+      <span class="delete-rule-btn" data-rule-id="${rule.id}">✕</span>
     `;
 
-    tag.querySelector('.delete-rule-btn').addEventListener('click', (e) => {
+    tag.querySelector('.delete-rule-btn')?.addEventListener('click', (e) => {
       e.stopPropagation();
       state.colorSettings.wordRules = state.colorSettings.wordRules.filter(r => r.id !== rule.id);
       renderWordRulesList();
@@ -155,6 +192,7 @@ export function setupColorSettingsEvents(options = {}) {
         syncColorSettingsToSheets();
         renderPaletteChipsRows();
         renderWordRulesList();
+        applyScheduleAlertChipColors();
         if (renderTableFn) renderTableFn();
         renderMonthlyCalendar();
       }
@@ -165,10 +203,10 @@ export function setupColorSettingsEvents(options = {}) {
     saveBtn.addEventListener('click', () => {
       saveColorSettings();
       syncColorSettingsToSheets();
+      applyScheduleAlertChipColors();
       if (renderTableFn) renderTableFn();
       renderMonthlyCalendar();
       closeColorSettingsModal();
     });
   }
 }
-

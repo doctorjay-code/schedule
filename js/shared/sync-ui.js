@@ -19,7 +19,7 @@ export function setSyncStatus(state, detail = '') {
       banner.classList.remove('hidden', 'is-online');
     }
   } else if (state === 'saved') {
-    if (banner && !banner.classList.contains('hidden') && !banner.classList.contains('is-online')) {
+    if (banner && banner.classList && typeof banner.classList.contains === 'function' && !banner.classList.contains('hidden') && !banner.classList.contains('is-online')) {
       banner.textContent = '🟢 인터넷이 다시 연결되었습니다!';
       banner.classList.add('is-online');
       setTimeout(() => {

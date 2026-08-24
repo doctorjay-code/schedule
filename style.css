@@ -701,30 +701,32 @@ body {
 }
 
 .alert-chip {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
-  padding: 4px 6px;
+  padding: 5px 10px;
   border-radius: 12px;
   cursor: pointer;
   white-space: nowrap;
+  border: 1.5px solid rgba(15, 23, 42, 0.12);
+  transition: all 0.15s ease;
 }
 
 .alert-unpaid {
-  background-color: #FEF2F2;
+  background-color: var(--alert-bg, #FEF2F2);
   color: #DC2626;
-  border: 1px solid #FCA5A5;
+  border: 1.5px solid rgba(220, 38, 38, 0.25);
 }
 
 .alert-unapplied {
-  background-color: #FFFBEB;
+  background-color: var(--alert-bg, #FFFBEB);
   color: #D97706;
-  border: 1px solid #FCD34D;
+  border: 1.5px solid rgba(217, 119, 6, 0.25);
 }
 
 .alert-unapproved {
-  background-color: #F0FDF4;
+  background-color: var(--alert-bg, #F0FDF4);
   color: #15803D;
-  border: 1px solid #86EFAC;
+  border: 1.5px solid rgba(21, 128, 61, 0.25);
 }
 
 /* Quick Filter Bar (3rd Row) */
@@ -741,22 +743,23 @@ body {
 
 .filter-chip {
   background-color: #F1F5F9;
-  border: 1px solid #E2E8F0;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 500;
-  padding: 4px 10px;
-  border-radius: 14px;
+  border: 1.5px solid rgba(15, 23, 42, 0.12);
+  color: #334155;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 12px;
   white-space: nowrap;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
   flex-shrink: 0;
 }
 
 .filter-chip.active {
-  background-color: var(--primary-accent);
+  background-color: #2F5597;
   color: white;
-  border-color: var(--primary-accent);
+  border-color: #2F5597;
+  font-weight: 700;
 }
 
 .multi-edit-chip {

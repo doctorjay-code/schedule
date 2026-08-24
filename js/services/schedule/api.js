@@ -66,6 +66,7 @@ export async function syncScheduleFromSupabase() {
           ledgerPersonColors: { ...defaultColorSettings.ledgerPersonColors, ...(parsed.ledgerPersonColors || {}) },
           ledgerCategoryColors: { ...defaultColorSettings.ledgerCategoryColors, ...(parsed.ledgerCategoryColors || {}) },
           ledgerPaymentColors: { ...defaultColorSettings.ledgerPaymentColors, ...(parsed.ledgerPaymentColors || {}) },
+          scheduleAlertColors: { ...defaultColorSettings.scheduleAlertColors, ...(parsed.scheduleAlertColors || {}) },
           ledgerWordRules: Array.isArray(parsed.ledgerWordRules) ? parsed.ledgerWordRules : []
         };
         saveColorSettings();
@@ -96,6 +97,7 @@ export async function syncColorSettingsFromSupabase() {
           ledgerPersonColors: { ...defaultColorSettings.ledgerPersonColors, ...(parsed.ledgerPersonColors || {}) },
           ledgerCategoryColors: { ...defaultColorSettings.ledgerCategoryColors, ...(parsed.ledgerCategoryColors || {}) },
           ledgerPaymentColors: { ...defaultColorSettings.ledgerPaymentColors, ...(parsed.ledgerPaymentColors || {}) },
+          scheduleAlertColors: { ...defaultColorSettings.scheduleAlertColors, ...(parsed.scheduleAlertColors || {}) },
           ledgerWordRules: Array.isArray(parsed.ledgerWordRules) ? parsed.ledgerWordRules : []
         };
         saveColorSettings();

@@ -48,6 +48,11 @@ export const defaultColorSettings = {
     '기업은행': '#E0E7FF',
     '잔액전망': '#FEF3C7'
   },
+  scheduleAlertColors: {
+    '미결제': '#FEF2F2',
+    '미신청': '#FFFBEB',
+    '미승인': '#F0FDF4'
+  },
   ledgerWordRules: []
 };
 
