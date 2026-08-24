@@ -13,6 +13,7 @@ import { bindLedgerListActions } from './ledger-events.js';
 import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js';
 import { fetchLedgerData, fetchLedgerSheetData, upsertLedgerRecord, upsertLedgerSheetRecord, deleteLedgerRecord, deleteLedgerSheetRecord, reorderLedgerRecords, reorderLedgerSheetRecords, deleteLedgerRecordsBatch, insertLedgerRecordsBatch } from '../../services/ledger/ledger-api.js';
 import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js';
+import { showLedgerToast, findLedgerRecordById, executeLedgerCopy, executeLedgerDelete, executeLedgerPaste } from './ledger-clipboard.js';
 
 const ledgerDataSources = {
   card: [],
@@ -706,153 +707,36 @@ function handleLedgerRowClick(id, event) {
   }
 }
 
-function findLedgerRecordById(id) {
-  const allPool = [
-    ...(ledgerState.records || []),
-    ...(sheetLedgerRecords || []),
-    ...(sheetCashRecords || []),
-    ...(sheetBankRecords || []),
-    ...(sheetForecastRecords || []),
-    ...(importedLedgerRecords || []),
-    ...(importedBankRecords || []),
-    ...(importedCashRecords || []),
-    ...(importedForecastRecords || [])
-  ];
-  return allPool.find(item => item && String(item.id) === String(id)) || null;
+function getRecordById(id) {
+  return findLedgerRecordById(id, { ledgerState, ledgerDataSources });
 }
 
 function copySelectedLedgerRecords() {
-  if (selectedLedgerIds.size === 0) {
-    alert('복사할 거래를 선택해주세요.');
-    return;
-  }
-  copiedLedgerRecords = Array.from(selectedLedgerIds)
-    .map(id => findLedgerRecordById(id))
-    .filter(Boolean)
-    .map(r => JSON.parse(JSON.stringify(r)));
-  
-  if (copiedLedgerRecords.length === 0) {
-    alert('선택된 거래 정보를 찾을 수 없습니다.');
-    return;
-  }
-
-  const copyBar = document.getElementById('ledgerCopyBufferBar');
-  const copyLabel = document.getElementById('ledgerCopiedItemLabel');
-  if (copyLabel) copyLabel.textContent = `${copiedLedgerRecords.length}건`;
-  copyBar?.classList.remove('hidden');
-  
-  setLedgerMultiEditMode(false);
+  copiedLedgerRecords = executeLedgerCopy({
+    selectedLedgerIds,
+    findRecordFn: getRecordById,
+    setMultiEditMode: setLedgerMultiEditMode
+  });
 }
 
 function deleteSelectedLedgerRecords() {
-  if (selectedLedgerIds.size === 0) {
-    showLedgerToast('⚠️ 삭제할 거래를 선택해주세요.');
-    return;
-  }
-
-  const count = selectedLedgerIds.size;
-  if (!confirm(`선택한 ${count}건의 거래를 모두 삭제할까요?`)) return;
-
-  const recordsToDelete = Array.from(selectedLedgerIds)
-    .map(id => findLedgerRecordById(id))
-    .filter(Boolean);
-
-  if (recordsToDelete.length === 0) {
-    showLedgerToast('⚠️ 삭제할 거래 정보를 찾을 수 없습니다.');
-    return;
-  }
-
-  for (const record of recordsToDelete) {
-    applyOptimisticDelete(record);
-  }
-
-  setLedgerMultiEditMode(false);
-  showLedgerToast(`🗑️ ${recordsToDelete.length}건의 거래가 삭제되었습니다.`);
-
-  const idsToDelete = recordsToDelete.map(r => r.id).filter(Boolean);
-  if (idsToDelete.length > 0) {
-    deleteLedgerRecordsBatch(idsToDelete).catch(error => {
-      console.error('Multi-delete error:', error);
-    });
-  }
-}
-
-let toastTimer = null;
-function showLedgerToast(message) {
-  const toast = document.getElementById('ledgerToast');
-  if (!toast) return;
-  toast.textContent = message;
-  toast.classList.remove('hidden');
-  if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    toast.classList.add('hidden');
-  }, 1800);
+  executeLedgerDelete({
+    selectedLedgerIds,
+    findRecordFn: getRecordById,
+    applyOptimisticDelete,
+    deleteBatchFn: deleteLedgerRecordsBatch,
+    setMultiEditMode: setLedgerMultiEditMode
+  });
 }
 
 function pasteCopiedLedgerRecords() {
-  if (!copiedLedgerRecords || copiedLedgerRecords.length === 0) {
-    showLedgerToast('복사된 거래가 없습니다.');
-    return;
-  }
-
-  const isCompanyCard = ledgerState.source === 'card' && ledgerState.payment === '기업카드';
-  const targetYear = ledgerState.monthCursor.getFullYear();
-  const targetMonth = ledgerState.monthCursor.getMonth(); // 0-indexed (0=1월, 7=8월, 8=9월)
-
-  const newRecords = [];
-  const recordsToSave = [...copiedLedgerRecords];
-
-  for (let i = 0; i < recordsToSave.length; i++) {
-    const item = recordsToSave[i];
-    const origParts = String(item.date || '').split('-');
-    const origDay = origParts.length === 3 ? parseInt(origParts[2], 10) || 1 : 1;
-
-    let newDate = '';
-    if (isCompanyCard) {
-      // 기업카드 13일 정산 주기 스마트 계산 (현재 화면의 청구월 targetMonth에 정확히 꽂히도록 계산)
-      let calcYear = targetYear;
-      let calcMonth = targetMonth; // 0-indexed
-      if (targetMonth <= 1) {
-        calcMonth = targetMonth;
-      } else {
-        // 13일 이상이면 전월(targetMonth-1), 12일 이하이면 당월(targetMonth)
-        if (origDay >= 13) {
-          calcMonth = targetMonth - 1;
-        } else {
-          calcMonth = targetMonth;
-        }
-      }
-      const maxDays = new Date(calcYear, calcMonth + 1, 0).getDate();
-      const clampedDay = Math.min(origDay, maxDays);
-      newDate = `${calcYear}-${String(calcMonth + 1).padStart(2, '0')}-${String(clampedDay).padStart(2, '0')}`;
-    } else {
-      // 일반 결제수단 (토스/현금/기업은행): 당월 1일~말일
-      const maxDays = new Date(targetYear, targetMonth + 1, 0).getDate();
-      const clampedDay = Math.min(origDay, maxDays);
-      newDate = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(clampedDay).padStart(2, '0')}`;
-    }
-
-    const newId = 'cp_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 6);
-
-    const newRecord = {
-      ...item,
-      id: newId,
-      date: newDate,
-      balance: '',
-      createdAt: Date.now() + i
-    };
-    newRecord.sheetName = ledgerSheetNameForRecord(newRecord);
-
-    newRecords.push(newRecord);
-    applyOptimisticSave(newRecord);
-  }
-
-  clearLedgerCopyBuffer();
-  showLedgerToast(`📋 ${newRecords.length}건의 거래가 ${targetMonth + 1}월 화면으로 복사되었습니다.`);
-
-  insertLedgerRecordsBatch(newRecords).catch(error => {
-    console.error('Paste sync error:', error);
-    showLedgerToast('⚠️ DB 저장 동기화 지연 중 (로컬 반영 완료)');
+  executeLedgerPaste({
+    copiedRecords: copiedLedgerRecords,
+    ledgerState,
+    ledgerSheetNameForRecord,
+    applyOptimisticSave,
+    insertBatchFn: insertLedgerRecordsBatch,
+    onComplete: clearLedgerCopyBuffer
   });
 }
 
