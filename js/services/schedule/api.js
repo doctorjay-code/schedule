@@ -203,12 +203,16 @@ async function postAllSchedules() {
   if (allItemsToPost.length === 0) return;
 
   const chunkSize = 100;
+  const chunks = [];
   for (let i = 0; i < allItemsToPost.length; i += chunkSize) {
-    const chunk = allItemsToPost.slice(i, i + chunkSize);
-    await supabaseRest('schedules', {
+    chunks.push(allItemsToPost.slice(i, i + chunkSize));
+  }
+
+  await Promise.all(chunks.map(chunk =>
+    supabaseRest('schedules', {
       method: 'POST',
       prefer: 'resolution=merge-duplicates',
       body: chunk
-    });
-  }
+    })
+  ));
 }

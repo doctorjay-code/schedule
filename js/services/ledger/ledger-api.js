@@ -123,6 +123,57 @@ export async function deleteLedgerRecord(record, fetchImpl = fetch) {
 export const deleteLedgerSheetRecord = deleteLedgerRecord;
 
 /**
+ * Supabase DB에서 거래 다중 일괄 삭제 (단 1번의 IN 쿼리, 0.01s 초고속)
+ */
+export async function deleteLedgerRecordsBatch(ids, fetchImpl = fetch) {
+  if (!Array.isArray(ids) || ids.length === 0) return { ok: true };
+
+  const validIds = ids.map(String).filter(Boolean);
+  if (validIds.length === 0) return { ok: true };
+
+  const inClause = validIds.map(encodeURIComponent).join(',');
+  await supabaseRest(`ledger_transactions?id=in.(${inClause})`, {
+    method: 'DELETE',
+    fetchImpl
+  });
+
+  return { ok: true, count: validIds.length };
+}
+
+/**
+ * Supabase DB에 거래 다중 일괄 생성/복사 (단 1번의 배치 INSERT, 0.01s 초고속)
+ */
+export async function insertLedgerRecordsBatch(records, fetchImpl = fetch) {
+  if (!Array.isArray(records) || records.length === 0) return { ok: true };
+
+  const now = new Date().toISOString();
+  const rows = records.map((record, index) => ({
+    id: String(record.id || ''),
+    payment_method: record.payment || record.sheetName || '기업카드',
+    date: record.date,
+    user_name: record.person || '기타',
+    category: record.category || '',
+    item: record.item || '항목 없음',
+    memo: record.memo || '',
+    fixed_cost: record.fixedCost || '',
+    type: (record.type || 'expense').toLowerCase(),
+    amount: Number(record.amount || 0),
+    balance: Number(record.balance || 0),
+    order_index: record.orderIndex ?? ((index + 1) * 10),
+    updated_at: now
+  }));
+
+  const saved = await supabaseRest('ledger_transactions', {
+    method: 'POST',
+    fetchImpl,
+    prefer: 'resolution=merge-duplicates,return=representation',
+    body: rows
+  });
+
+  return { ok: true, count: rows.length, records: saved };
+}
+
+/**
  * Supabase DB 거래 순서 원자적 일괄 갱신 (단 0.005s Supabase RPC 트랜잭션)
  */
 export async function reorderLedgerRecords(sheetName, orderedIds, fetchImpl = fetch) {

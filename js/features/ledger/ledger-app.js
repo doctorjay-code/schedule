@@ -11,8 +11,8 @@ import { createLedgerTransactionModal } from './modals/transaction-modal.js?v=20
 import { createLedgerColorSettings } from './modals/color-settings.js?v=20260824_45';
 import { bindLedgerListActions } from './ledger-events.js?v=20260824_45';
 import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js?v=20260824_45';
-import { fetchLedgerSheetData, upsertLedgerSheetRecord, deleteLedgerSheetRecord, reorderLedgerSheetRecords } from '../../services/ledger/ledger-api.js?v=20260825_05';
-import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js?v=20260825_05';
+import { fetchLedgerData, upsertLedgerRecord, deleteLedgerRecord, reorderLedgerRecords, deleteLedgerRecordsBatch, insertLedgerRecordsBatch } from '../../services/ledger/ledger-api.js?v=20260825_15';
+import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js?v=20260825_15';
 
 let importedLedgerRecords = [];
 let importedBankRecords = [];
@@ -716,15 +716,12 @@ function deleteSelectedLedgerRecords() {
   setLedgerMultiEditMode(false);
   showLedgerToast(`🗑️ ${recordsToDelete.length}건의 거래가 삭제되었습니다.`);
 
-  Promise.all(recordsToDelete.map(record => {
-    const deletePayload = {
-      ...record,
-      sheetName: ledgerSheetNameForRecord(record)
-    };
-    return deletePayload.id ? deleteLedgerSheetRecord(deletePayload) : Promise.resolve();
-  })).catch(error => {
-    console.error('Multi-delete error:', error);
-  });
+  const idsToDelete = recordsToDelete.map(r => r.id).filter(Boolean);
+  if (idsToDelete.length > 0) {
+    deleteLedgerRecordsBatch(idsToDelete).catch(error => {
+      console.error('Multi-delete error:', error);
+    });
+  }
 }
 
 let toastTimer = null;
@@ -800,9 +797,7 @@ function pasteCopiedLedgerRecords() {
   clearLedgerCopyBuffer();
   showLedgerToast(`📋 ${newRecords.length}건의 거래가 ${targetMonth + 1}월 화면으로 복사되었습니다.`);
 
-  Promise.all(newRecords.map(record => upsertLedgerSheetRecord(record).then(res => {
-    if (res && res.id) record.id = res.id;
-  }))).catch(error => {
+  insertLedgerRecordsBatch(newRecords).catch(error => {
     console.error('Paste sync error:', error);
     showLedgerToast('⚠️ DB 저장 동기화 지연 중 (로컬 반영 완료)');
   });
