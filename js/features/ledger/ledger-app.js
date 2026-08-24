@@ -72,41 +72,10 @@ function syncLedgerWriteControls() {
       : '시트 연결 후 거래를 입력할 수 있습니다.';
 }
 
-const LEDGER_CUSTOM_ORDER_KEY = 'ledger_custom_order_map_v2';
-
-function getCustomOrderMap() {
-  try {
-    return JSON.parse(localStorage.getItem(LEDGER_CUSTOM_ORDER_KEY) || '{}');
-  } catch {
-    return {};
-  }
-}
-
-function saveCustomOrderMap(orderMap) {
-  try {
-    localStorage.setItem(LEDGER_CUSTOM_ORDER_KEY, JSON.stringify(orderMap));
-  } catch (e) {
-    console.warn('saveCustomOrderMap error:', e);
-  }
-}
-
-function applyCustomOrderToList(records) {
-  if (!Array.isArray(records) || records.length === 0) return records;
-  const orderMap = getCustomOrderMap();
-  if (Object.keys(orderMap).length === 0) return records;
-
-  return [...records].sort((a, b) => {
-    const aOrder = orderMap[String(a.id)];
-    const bOrder = orderMap[String(b.id)];
-    if (aOrder !== undefined && bOrder !== undefined) return aOrder - bOrder;
-    return 0;
-  });
-}
-
 function applyLedgerDataSources() {
-  importedLedgerRecords = applyCustomOrderToList(sheetLedgerRecords || []);
-  importedBankRecords = applyCustomOrderToList(sheetBankRecords || fallbackBankRecords);
-  importedCashRecords = applyCustomOrderToList(sheetCashRecords || []);
+  importedLedgerRecords = sheetLedgerRecords || [];
+  importedBankRecords = sheetBankRecords || fallbackBankRecords;
+  importedCashRecords = sheetCashRecords || [];
   importedForecastRecords = sheetForecastRecords || [];
   loadRecords();
   syncLedgerWriteControls();
@@ -531,31 +500,10 @@ function recalculateLedgerBalances(records) {
 
 function reorderLedgerRecord(orderedIds) {
   if (!Array.isArray(orderedIds) || orderedIds.length === 0) return;
-  const orderMap = getCustomOrderMap();
-  
-  const existingOrders = orderedIds
-    .map(id => orderMap[String(id)])
-    .filter(val => typeof val === 'number')
-    .sort((a, b) => a - b);
-  
-  const baseOrder = existingOrders.length > 0 ? existingOrders[0] : Date.now();
-  
-  orderedIds.forEach((id, idx) => {
-    if (id) {
-      orderMap[String(id)] = baseOrder + idx;
-    }
-  });
-  
-  saveCustomOrderMap(orderMap);
-  
-  if (sheetLedgerRecords) sheetLedgerRecords = applyCustomOrderToList(sheetLedgerRecords);
-  if (sheetBankRecords) sheetBankRecords = applyCustomOrderToList(sheetBankRecords);
-  if (sheetCashRecords) sheetCashRecords = applyCustomOrderToList(sheetCashRecords);
-  
-  applyLedgerDataSources();
-  showLedgerToast('↕️ 거래 순서가 시트에 반영되었습니다.');
 
   const currentSheetName = getCurrentLedgerSheetName();
+  showLedgerToast('↕️ 거래 순서가 저장되었습니다.');
+
   if (currentSheetName && currentSheetName !== '잔액전망') {
     enqueueLedgerTask(async () => {
       try {
@@ -693,7 +641,7 @@ function deleteRecord(id) {
 
   enqueueLedgerTask(async () => {
     try {
-      if (deletePayload.sheetRow || !String(deletePayload.id || '').startsWith('cp_')) {
+      if (deletePayload.id) {
         await deleteLedgerSheetRecord(deletePayload);
       }
       refreshLedgerInBackground(deletePayload);
@@ -850,7 +798,7 @@ function deleteSelectedLedgerRecords() {
           ...record,
           sheetName: ledgerSheetNameForRecord(record)
         };
-        if (deletePayload.sheetRow || !String(deletePayload.id || '').startsWith('cp_')) {
+        if (deletePayload.id) {
           await deleteLedgerSheetRecord(deletePayload);
         }
       }
@@ -925,7 +873,6 @@ function pasteCopiedLedgerRecords() {
       id: newId,
       date: newDate,
       balance: '',
-      sheetRow: null,
       createdAt: Date.now() + i
     };
     newRecord.sheetName = ledgerSheetNameForRecord(newRecord);
@@ -946,7 +893,6 @@ function pasteCopiedLedgerRecords() {
         const res = await upsertLedgerSheetRecord(record);
         if (res && res.id) {
           record.id = res.id;
-          record.sheetRow = res.sheetRow;
         }
         pendingCreatedRecords.delete(String(record.id));
       }
@@ -955,7 +901,7 @@ function pasteCopiedLedgerRecords() {
       }
     } catch (error) {
       console.error('Background paste sync error:', error);
-      showLedgerToast('⚠️ 시트 저장 동기화 지연 중 (로컬 반영 완료)');
+      showLedgerToast('⚠️ DB 저장 동기화 지연 중 (로컬 반영 완료)');
     }
   });
 }
