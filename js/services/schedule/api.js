@@ -79,7 +79,7 @@ export async function syncScheduleFromSupabase() {
 }
 export const syncFromGoogleSheets = syncScheduleFromSupabase;
 
-export async function syncColorSettingsFromSheets() {
+export async function syncColorSettingsFromSupabase() {
   try {
     const colorSettingRows = await supabaseRest('schedule_settings?key=eq.color_settings');
     if (Array.isArray(colorSettingRows) && colorSettingRows.length > 0) {
@@ -98,8 +98,9 @@ export async function syncColorSettingsFromSheets() {
     console.warn('Color settings sync error:', e);
   }
 }
+export const syncColorSettingsFromSheets = syncColorSettingsFromSupabase;
 
-export async function syncColorSettingsToSheets() {
+export async function syncColorSettingsToSupabase() {
   setSyncStatus('saving');
   try {
     await supabaseRest('schedule_settings', {
@@ -117,6 +118,7 @@ export async function syncColorSettingsToSheets() {
     setSyncStatus('error');
   }
 }
+export const syncColorSettingsToSheets = syncColorSettingsToSupabase;
 
 /**
  * Supabase DB의 schedules 레코드를 주차별 allWeeksData로 파싱

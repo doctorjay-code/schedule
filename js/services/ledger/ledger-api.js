@@ -44,7 +44,7 @@ function mapForecastRow(row) {
 /**
  * Supabase DB에서 초고속 (0.05초) 가계부 데이터 조회
  */
-export async function fetchLedgerSheetData(fetchImpl = fetch, sheetName = '') {
+export async function fetchLedgerData(fetchImpl = fetch, sheetName = '') {
   let transEndpoint = 'ledger_transactions?select=*&order=date.asc,order_index.asc,id.asc';
   if (sheetName && sheetName !== '잔액전망') {
     transEndpoint += `&payment_method=eq.${encodeURIComponent(sheetName)}`;
@@ -73,11 +73,12 @@ export async function fetchLedgerSheetData(fetchImpl = fetch, sheetName = '') {
     fetchedAt: new Date().toISOString()
   };
 }
+export const fetchLedgerSheetData = fetchLedgerData;
 
 /**
  * Supabase DB에 거래 단건 저장 / 수정 (0.05s 초고속)
  */
-export async function upsertLedgerSheetRecord(record, fetchImpl = fetch) {
+export async function upsertLedgerRecord(record, fetchImpl = fetch) {
   const row = {
     id: String(record.id || ''),
     payment_method: record.payment || record.sheetName || '기업카드',
@@ -103,11 +104,12 @@ export async function upsertLedgerSheetRecord(record, fetchImpl = fetch) {
 
   return { ok: true, id: row.id, record: saved };
 }
+export const upsertLedgerSheetRecord = upsertLedgerRecord;
 
 /**
  * Supabase DB에서 거래 삭제 (0.05s 초고속)
  */
-export async function deleteLedgerSheetRecord(record, fetchImpl = fetch) {
+export async function deleteLedgerRecord(record, fetchImpl = fetch) {
   const targetId = String(record.id || '');
   if (!targetId) return { ok: false };
 
@@ -118,11 +120,12 @@ export async function deleteLedgerSheetRecord(record, fetchImpl = fetch) {
 
   return { ok: true, id: targetId };
 }
+export const deleteLedgerSheetRecord = deleteLedgerRecord;
 
 /**
  * Supabase DB 거래 순서 일괄 갱신 (0.05s 초고속)
  */
-export async function reorderLedgerSheetRecords(sheetName, orderedIds, fetchImpl = fetch) {
+export async function reorderLedgerRecords(sheetName, orderedIds, fetchImpl = fetch) {
   if (!Array.isArray(orderedIds) || !orderedIds.length) return { ok: true };
 
   const updates = orderedIds.map((id, index) => ({
@@ -139,5 +142,6 @@ export async function reorderLedgerSheetRecords(sheetName, orderedIds, fetchImpl
     }).catch(() => {});
   }
 
-  return { ok: true, count: orderedIds.length };
+  return { ok: true };
 }
+export const reorderLedgerSheetRecords = reorderLedgerRecords;
