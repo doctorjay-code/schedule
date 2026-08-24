@@ -58,11 +58,14 @@ export async function syncScheduleFromSupabase() {
 
     if (Array.isArray(colorSettingRows) && colorSettingRows.length > 0) {
       const parsed = colorSettingRows[0].value;
-      if (parsed) {
+      if (parsed && typeof parsed === 'object') {
         state.colorSettings = {
           regionColors: { ...defaultColorSettings.regionColors, ...(parsed.regionColors || {}) },
           clinicColors: { ...defaultColorSettings.clinicColors, ...(parsed.clinicColors || {}) },
-          wordRules: Array.isArray(parsed.wordRules) ? parsed.wordRules : []
+          wordRules: Array.isArray(parsed.wordRules) ? parsed.wordRules : [],
+          ledgerPersonColors: { ...defaultColorSettings.ledgerPersonColors, ...(parsed.ledgerPersonColors || {}) },
+          ledgerCategoryColors: { ...defaultColorSettings.ledgerCategoryColors, ...(parsed.ledgerCategoryColors || {}) },
+          ledgerWordRules: Array.isArray(parsed.ledgerWordRules) ? parsed.ledgerWordRules : []
         };
         saveColorSettings();
         if (apiLoadWeekDataFn) apiLoadWeekDataFn(state.currentWeekIndex);
