@@ -133,7 +133,7 @@ export async function reorderLedgerRecords(sheetName, orderedIds, fetchImpl = fe
     supabaseRest(`ledger_transactions?id=eq.${encodeURIComponent(String(id))}`, {
       method: 'PATCH',
       fetchImpl,
-      body: { order_index: index, updated_at: now }
+      body: { order_index: (index + 1) * 10, updated_at: now }
     }).catch(err => console.warn(`Reorder item ${id} warn:`, err))
   );
 

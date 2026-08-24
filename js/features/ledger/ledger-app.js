@@ -440,11 +440,12 @@ function reorderLedgerRecord(orderedIds) {
   const currentSheetName = getCurrentLedgerSheetName();
   showLedgerToast('↕️ 거래 순서가 저장되었습니다.');
 
-  // 1. 메모리 리스트에서 orderIndex 즉시 갱신
+  // 1. 현재 결제수단에 속한 모든 거래에 대해 고유한 orderIndex(10, 20, 30...) 부여
+  const idMap = new Map();
+  orderedIds.forEach((id, idx) => idMap.set(String(id), (idx + 1) * 10));
+
   const updateOrderInList = (list) => {
     if (!Array.isArray(list)) return list;
-    const idMap = new Map();
-    orderedIds.forEach((id, idx) => idMap.set(String(id), idx));
     return list.map(item => {
       if (idMap.has(String(item.id))) {
         return { ...item, orderIndex: idMap.get(String(item.id)) };
@@ -460,7 +461,7 @@ function reorderLedgerRecord(orderedIds) {
   applyLedgerDataSources();
   saveLedgerSheetSnapshot();
 
-  // 2. Supabase DB 비동기 영구 저장
+  // 2. Supabase DB 비동기 초고속 일괄 영구 저장
   if (currentSheetName && currentSheetName !== '잔액전망') {
     reorderLedgerSheetRecords(currentSheetName, orderedIds).catch(err => {
       console.error('Supabase reorder sync error:', err);
