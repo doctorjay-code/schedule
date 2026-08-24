@@ -123,29 +123,15 @@ function getCurrentLedgerSheetName() {
   return '';
 }
 
-async function refreshLedgerSheetData(sheetName = '') {
-  const selectedSheet = String(sheetName || '').trim();
+async function refreshLedgerSheetData() {
   setLedgerSyncStatus('loading');
   try {
-    const { records, counts, fetchedAt } = await fetchLedgerSheetData(fetch, selectedSheet);
-    if (selectedSheet) {
-      if (selectedSheet === '현금') {
-        sheetCashRecords = records.filter(r => r.sheetName === '현금');
-      } else if (selectedSheet === '기업은행') {
-        sheetBankRecords = records.filter(r => r.sheetName === '기업은행');
-      } else if (selectedSheet === '잔액전망') {
-        sheetForecastRecords = records.filter(r => r.sheetName === '잔액전망');
-      } else {
-        sheetLedgerRecords = records.filter(r => ['기업카드', '토스은행'].includes(r.sheetName));
-      }
-      ledgerSheetCounts = { ...(ledgerSheetCounts || {}), ...counts };
-    } else {
-      sheetLedgerRecords = records.filter(record => ['기업카드', '토스은행'].includes(record.sheetName));
-      sheetCashRecords = records.filter(record => record.sheetName === '현금');
-      sheetBankRecords = records.filter(record => record.sheetName === '기업은행');
-      sheetForecastRecords = records.filter(record => record.sheetName === '잔액전망');
-      ledgerSheetCounts = counts;
-    }
+    const { records, counts, fetchedAt } = await fetchLedgerSheetData(fetch);
+    sheetLedgerRecords = records.filter(record => ['기업카드', '토스은행'].includes(record.sheetName));
+    sheetCashRecords = records.filter(record => record.sheetName === '현금');
+    sheetBankRecords = records.filter(record => record.sheetName === '기업은행');
+    sheetForecastRecords = records.filter(record => record.sheetName === '잔액전망');
+    ledgerSheetCounts = counts;
     ledgerDataState = 'fresh';
     ledgerLiveConnected = true;
     applyLedgerDataSources();
@@ -534,11 +520,6 @@ function applyOptimisticDelete(record) {
   applyLedgerDataSources();
 }
 
-function refreshLedgerInBackground(record) {
-  const sheetName = ledgerSheetNameForRecord(record);
-  if (sheetName) refreshLedgerSheetData(sheetName).catch(() => {});
-}
-
 function saveLedgerRecord(form, overrides = {}) {
   const values = { ...Object.fromEntries(new FormData(form).entries()), ...overrides };
   const amount = Number(values.amount);
@@ -565,26 +546,17 @@ function saveLedgerRecord(form, overrides = {}) {
   };
   record.sheetName = ledgerSheetNameForRecord(record);
 
-  pendingDeletedIds.delete(String(record.id));
-  pendingCreatedRecords.set(String(record.id), record);
-
   applyOptimisticSave(record);
   getLedgerTransactionModal().close();
   showLedgerToast(isEdit ? '✏️ 거래가 수정되었습니다.' : '＋ 거래가 등록되었습니다.');
 
-  enqueueLedgerTask(async () => {
-    try {
-      const res = await upsertLedgerSheetRecord(record);
-      if (res && res.id) {
-        record.id = res.id;
-        record.sheetRow = res.sheetRow;
-      }
-      pendingCreatedRecords.delete(String(record.id));
-      refreshLedgerInBackground(record);
-    } catch (error) {
-      console.error('Background ledger save error:', error);
-      showLedgerToast('⚠️ 시트 저장 동기화 지연 중 (로컬 반영 완료)');
+  upsertLedgerSheetRecord(record).then(res => {
+    if (res && res.id && record.id !== res.id) {
+      record.id = res.id;
     }
+  }).catch(error => {
+    console.error('Supabase ledger save error:', error);
+    showLedgerToast('⚠️ 저장 지연 중 (로컬 반영 완료)');
   });
 }
 
@@ -601,23 +573,15 @@ function deleteRecord(id) {
     sheetName: ledgerSheetNameForRecord(record)
   };
 
-  pendingCreatedRecords.delete(String(record.id));
-  pendingDeletedIds.add(String(record.id));
-
   applyOptimisticDelete(record);
   getLedgerTransactionModal().close();
   showLedgerToast('🗑️ 거래가 삭제되었습니다.');
 
-  enqueueLedgerTask(async () => {
-    try {
-      if (deletePayload.id) {
-        await deleteLedgerSheetRecord(deletePayload);
-      }
-      refreshLedgerInBackground(deletePayload);
-    } catch (error) {
-      console.error('Background ledger delete error:', error);
-    }
-  });
+  if (deletePayload.id) {
+    deleteLedgerSheetRecord(deletePayload).catch(error => {
+      console.error('Supabase ledger delete error:', error);
+    });
+  }
 }
 
 function toggleLedgerEntry() {
@@ -748,31 +712,20 @@ function deleteSelectedLedgerRecords() {
   }
 
   for (const record of recordsToDelete) {
-    pendingCreatedRecords.delete(String(record.id));
-    pendingDeletedIds.add(String(record.id));
     applyOptimisticDelete(record);
   }
 
   setLedgerMultiEditMode(false);
   showLedgerToast(`🗑️ ${recordsToDelete.length}건의 거래가 삭제되었습니다.`);
 
-  enqueueLedgerTask(async () => {
-    try {
-      for (const record of recordsToDelete) {
-        const deletePayload = {
-          ...record,
-          sheetName: ledgerSheetNameForRecord(record)
-        };
-        if (deletePayload.id) {
-          await deleteLedgerSheetRecord(deletePayload);
-        }
-      }
-      if (recordsToDelete.length > 0) {
-        refreshLedgerInBackground(recordsToDelete[0]);
-      }
-    } catch (error) {
-      console.error('Background multi-delete error:', error);
-    }
+  Promise.all(recordsToDelete.map(record => {
+    const deletePayload = {
+      ...record,
+      sheetName: ledgerSheetNameForRecord(record)
+    };
+    return deletePayload.id ? deleteLedgerSheetRecord(deletePayload) : Promise.resolve();
+  })).catch(error => {
+    console.error('Multi-delete error:', error);
   });
 }
 
@@ -842,9 +795,6 @@ function pasteCopiedLedgerRecords() {
     };
     newRecord.sheetName = ledgerSheetNameForRecord(newRecord);
 
-    pendingDeletedIds.delete(String(newRecord.id));
-    pendingCreatedRecords.set(String(newRecord.id), newRecord);
-
     newRecords.push(newRecord);
     applyOptimisticSave(newRecord);
   }
@@ -852,22 +802,11 @@ function pasteCopiedLedgerRecords() {
   clearLedgerCopyBuffer();
   showLedgerToast(`📋 ${newRecords.length}건의 거래가 ${targetMonth + 1}월 화면으로 복사되었습니다.`);
 
-  enqueueLedgerTask(async () => {
-    try {
-      for (const record of newRecords) {
-        const res = await upsertLedgerSheetRecord(record);
-        if (res && res.id) {
-          record.id = res.id;
-        }
-        pendingCreatedRecords.delete(String(record.id));
-      }
-      if (newRecords.length > 0) {
-        refreshLedgerInBackground(newRecords[0]);
-      }
-    } catch (error) {
-      console.error('Background paste sync error:', error);
-      showLedgerToast('⚠️ DB 저장 동기화 지연 중 (로컬 반영 완료)');
-    }
+  Promise.all(newRecords.map(record => upsertLedgerSheetRecord(record).then(res => {
+    if (res && res.id) record.id = res.id;
+  }))).catch(error => {
+    console.error('Paste sync error:', error);
+    showLedgerToast('⚠️ DB 저장 동기화 지연 중 (로컬 반영 완료)');
   });
 }
 
