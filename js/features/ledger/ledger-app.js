@@ -917,7 +917,7 @@ function getFundplanView() {
   if (!fundplanView) {
     fundplanView = createFundplanView({
       ledgerState,
-      colorSettings: state.colorSettings,
+      getColorSettings: () => state.colorSettings,
       getActiveSourceRecords,
       clampLedgerDate,
       minDate: LEDGER_MIN_DATE,

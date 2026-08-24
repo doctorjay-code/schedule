@@ -114,10 +114,11 @@ export function createLedgerMonthDividerRow({
 }
 
 // Bank, cash, and card all-time ledger rendering responsibility.
-export function createFundplanView({ ledgerState, colorSettings, getActiveSourceRecords, clampLedgerDate, minDate, setText }) {
+export function createFundplanView({ ledgerState, getColorSettings, colorSettings, getActiveSourceRecords, clampLedgerDate, minDate, setText }) {
   const monthExpandedState = {};
 
   function render() {
+    const activeColorSettings = (typeof getColorSettings === 'function' ? getColorSettings() : colorSettings) || {};
     const source = ledgerState.source;
     const isCompanyCard = source === 'card' && ledgerState.payment === '\uAE30\uC5C5\uCE74\uB4DC';
     const records = getActiveSourceRecords().filter(record => {
@@ -205,7 +206,7 @@ export function createFundplanView({ ledgerState, colorSettings, getActiveSource
       const calculatedMonthRecords = recalculateRunningBalances(monthRecords, isCompanyCard);
       calculatedMonthRecords.forEach(record => {
         const prevCount = list.children.length;
-        renderTransactionRow(record, 'fundplanAllTimeList', { source, colorSettings });
+        renderTransactionRow(record, 'fundplanAllTimeList', { source, colorSettings: activeColorSettings });
         const newCount = list.children.length;
         for (let i = prevCount; i < newCount; i++) {
           const rowEl = list.children[i];

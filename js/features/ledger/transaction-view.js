@@ -140,16 +140,21 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
     tagRow.appendChild(afternoonCell);
   }
   const personCell = makeDayEndCell();
-  const personTag = makeTag(item.person);
+  const personText = String(item.person || '').trim();
+  const personTag = makeTag(personText);
   if (personTag) {
-    personTag.style.backgroundColor = getLedgerTagColor(colorSettings, 'person', item.person);
+    personTag.style.backgroundColor = getLedgerTagColor(colorSettings, 'person', personText);
+    personTag.style.color = '#0F172A';
     personCell.appendChild(personTag);
   }
   tagRow.appendChild(personCell);
+
   const categoryCell = makeDayEndCell();
-  const categoryTag = makeTag(item.category);
+  const categoryText = String(item.category || '').trim();
+  const categoryTag = makeTag(categoryText);
   if (categoryTag) {
-    categoryTag.style.backgroundColor = getLedgerTagColor(colorSettings, 'category', item.category);
+    categoryTag.style.backgroundColor = getLedgerTagColor(colorSettings, 'category', categoryText);
+    categoryTag.style.color = '#0F172A';
     categoryCell.appendChild(categoryTag);
   }
   tagRow.appendChild(categoryCell);
