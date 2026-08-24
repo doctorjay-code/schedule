@@ -48,9 +48,17 @@ function bindUnifiedTouchDragEngine(listEl, onReorder, onDragFinished) {
   function moveDrag(clientX, clientY) {
     if (!isDragging || !draggedId) return;
 
-    const el = document.elementFromPoint(clientX, clientY);
-    const targetRow = el ? el.closest('tr[data-ledger-id]') : null;
-    if (!targetRow || targetRow.dataset.ledgerId === draggedId) return;
+    const allRows = Array.from(listEl.querySelectorAll('tr[data-ledger-id]'));
+    let targetRow = null;
+    for (const r of allRows) {
+      if (r.dataset.ledgerId === draggedId) continue;
+      const rect = r.getBoundingClientRect();
+      if (clientY >= rect.top && clientY <= rect.bottom) {
+        targetRow = r;
+        break;
+      }
+    }
+    if (!targetRow) return;
 
     const targetId = targetRow.dataset.ledgerId;
     const targetRows = Array.from(listEl.querySelectorAll(`tr[data-ledger-id="${targetId}"]`));
