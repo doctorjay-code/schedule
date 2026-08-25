@@ -140,7 +140,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
       const moneyInLabel = isCompanyCard ? '\uC218\uC785' : '\uC785\uAE08';
       const moneyOutLabel = isCompanyCard ? '\uC9C0\uCD9C' : '\uCD9C\uAE08';
       const balanceLabel = isCompanyCard ? '\uC0AC\uC6A9\uC561' : '\uC794\uC561';
-      const useMerged = ['card', 'cash', 'bank'].includes(source);
+      const useMerged = ['card', 'cash', 'bank', 'forecast'].includes(source);
       thead.replaceWith(createLedgerTableHead(moneyInLabel, moneyOutLabel, useMerged, balanceLabel));
       const newThead = document.querySelector('#ledgerAllTable thead');
       if (newThead) newThead.id = 'ledgerAllTableHead';
@@ -203,7 +203,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
       list.appendChild(dividerRow);
 
       // 2. Month Transaction Rows
-      const calculatedMonthRecords = recalculateRunningBalances(monthRecords, isCompanyCard);
+      const calculatedMonthRecords = (source === 'forecast') ? monthRecords : recalculateRunningBalances(monthRecords, isCompanyCard);
       calculatedMonthRecords.forEach(record => {
         const prevCount = list.children.length;
         renderTransactionRow(record, 'fundplanAllTimeList', { source, colorSettings: activeColorSettings });

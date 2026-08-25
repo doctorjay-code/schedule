@@ -15,6 +15,7 @@ import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view
 import { fetchLedgerData, fetchLedgerSheetData, upsertLedgerRecord, upsertLedgerSheetRecord, deleteLedgerRecord, deleteLedgerSheetRecord, reorderLedgerRecords, reorderLedgerSheetRecords, deleteLedgerRecordsBatch, insertLedgerRecordsBatch } from '../../services/ledger/ledger-api.js';
 import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js';
 import { showLedgerToast, findLedgerRecordById, executeLedgerCopy, executeLedgerDelete, executeLedgerPaste } from './ledger-clipboard.js';
+import { generateForecastRecords } from './ledger-forecast.js';
 
 const ledgerDataSources = {
   card: [],
@@ -886,6 +887,10 @@ export function initLedgerView() {
 
 function getActiveSourceRecords() {
   if (ledgerState.source === 'card') return getSelectedCardRecords();
+  if (ledgerState.source === 'forecast') {
+    const forecastRecords = generateForecastRecords(ledgerDataSources);
+    return filterLedgerRecords(forecastRecords, ledgerState.filterType, ledgerState.filterValue);
+  }
   const records = ledgerDataSources[ledgerState.source] || [];
   return filterLedgerRecords(records, ledgerState.filterType, ledgerState.filterValue);
 }
