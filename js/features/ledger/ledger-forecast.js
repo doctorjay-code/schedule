@@ -117,7 +117,7 @@ export function generateForecastRecords(ledgerDataSources = {}) {
       });
     }
 
-    // B. 기업카드 청구분 (매월 27일) - 1월은 결제 없음, 1월 1일~2월 13일 전체가 2월 27일에 결제됨
+    // B. 기업카드 청구분 (매월 27일) - 1월은 결제 없음, 1월 1일~2월 12일 전체가 2월 27일에 결제됨
     let cardStart = null;
     let cardEnd = null;
     if (m === 1) {
@@ -125,11 +125,11 @@ export function generateForecastRecords(ledgerDataSources = {}) {
       cardEnd = null;
     } else if (m === 2) {
       cardStart = `${y}-01-01`;
-      cardEnd = `${y}-02-13`;
+      cardEnd = `${y}-02-12`;
     } else {
       const prevMonthStr = `${y}-${String(m - 1).padStart(2, '0')}`;
-      cardStart = `${prevMonthStr}-14`;
-      cardEnd = `${mStr}-13`;
+      cardStart = `${prevMonthStr}-13`;
+      cardEnd = `${mStr}-12`;
     }
 
     if (cardStart && cardEnd) {
