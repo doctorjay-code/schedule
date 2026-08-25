@@ -1417,6 +1417,34 @@ td.cell-date {
   display: none !important;
 }
 
+/* Ledger Subdetail Rows (Accordion Drill-Down) */
+.ledger-aggregate-row {
+  cursor: pointer;
+  user-select: none;
+  background-color: #F8FAFC !important;
+  transition: background-color 0.15s ease;
+}
+.ledger-aggregate-row:hover {
+  background-color: #F1F5F9 !important;
+}
+.ledger-subdetail-row {
+  background-color: #F8FAFC !important;
+  font-size: 0.95em;
+}
+.ledger-subdetail-row:hover {
+  background-color: #F1F5F9 !important;
+}
+.ledger-subdetail-row td.cell-date {
+  color: #64748B;
+  font-size: 11px;
+}
+.ledger-subdetail-indicator {
+  display: inline-block;
+  margin-right: 3px;
+  color: #94A3B8;
+  font-weight: 800;
+}
+
 /* Summary Collector List Cards */
 .summary-list {
   display: flex;

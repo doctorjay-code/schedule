@@ -114,7 +114,7 @@ export function createLedgerMonthDividerRow({
 }
 
 // Bank, cash, and card all-time ledger rendering responsibility.
-export function createFundplanView({ ledgerState, getColorSettings, colorSettings, getActiveSourceRecords, clampLedgerDate, minDate, setText, onOpenForecastDetail }) {
+export function createFundplanView({ ledgerState, getColorSettings, colorSettings, getActiveSourceRecords, clampLedgerDate, minDate, setText }) {
   const monthExpandedState = {};
 
   function render() {
@@ -208,19 +208,50 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
         const prevCount = list.children.length;
         renderTransactionRow(record, 'fundplanAllTimeList', { source, colorSettings: activeColorSettings });
         const newCount = list.children.length;
+        const mainRows = [];
         for (let i = prevCount; i < newCount; i++) {
           const rowEl = list.children[i];
           rowEl.dataset.monthGroup = month;
           if (!isExpanded) rowEl.style.display = 'none';
-          if (record.isAggregate && typeof onOpenForecastDetail === 'function') {
+          monthRowElements.push(rowEl);
+          mainRows.push(rowEl);
+        }
+
+        // 만약 통합 가변/고정 아코디언 행(isAggregate === true)인 경우:
+        // 바로 밑에 세부 거래들(subRecords)을 인라인으로 렌더링 (기본 닫힘)
+        if (record.isAggregate && Array.isArray(record.subRecords) && record.subRecords.length > 0) {
+          const subRows = [];
+          record.subRecords.forEach(sub => {
+            const subPrev = list.children.length;
+            renderTransactionRow({ ...sub, isSubDetail: true }, 'fundplanAllTimeList', { source, colorSettings: activeColorSettings });
+            const subNew = list.children.length;
+            for (let j = subPrev; j < subNew; j++) {
+              const subEl = list.children[j];
+              subEl.dataset.monthGroup = month;
+              subEl.dataset.parentAggregateId = record.id;
+              subEl.style.display = 'none'; // 기본 닫힘
+              monthRowElements.push(subEl);
+              subRows.push(subEl);
+            }
+          });
+
+          // 메인 행 클릭 시 세부 행들 도르르 펼치기/접기
+          let isSubExpanded = false;
+          mainRows.forEach(rowEl => {
             rowEl.style.cursor = 'pointer';
-            rowEl.title = '📊 클릭하여 세부 거래 내역 확인';
+            rowEl.title = '클릭하여 세부 거래 내역 펼치기/접기';
             rowEl.addEventListener('click', (e) => {
               e.stopPropagation();
-              onOpenForecastDetail(record);
+              isSubExpanded = !isSubExpanded;
+              mainRows.forEach(mr => {
+                const iconEl = mr.querySelector('.ledger-accordion-icon');
+                if (iconEl) iconEl.textContent = isSubExpanded ? '▼' : '▶';
+              });
+              subRows.forEach(subEl => {
+                subEl.style.display = isSubExpanded ? '' : 'none';
+              });
             });
-          }
-          monthRowElements.push(rowEl);
+          });
         }
       });
     });

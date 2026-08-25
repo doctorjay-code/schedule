@@ -87,9 +87,9 @@ export function generateForecastRecords(ledgerDataSources = {}) {
         amount: netTossVar >= 0 ? netTossVar : Math.abs(netTossVar),
         type: netTossVar >= 0 ? 'expense' : 'income',
         payment: '토스은행',
-        category: '생활',
-        person: '기타',
-        memo: `${mNum}월 토스 생활비 실시간 합산 (${tossMonthVars.length}건)`,
+        category: '',
+        person: '',
+        memo: `${mNum}월 토스 생활비 (${tossMonthVars.length}건)`,
         fixedCost: '',
         source: 'forecast',
         isAggregate: true,
@@ -97,7 +97,7 @@ export function generateForecastRecords(ledgerDataSources = {}) {
       });
     }
 
-    // B. 기업카드 청구분(가변) (매월 27일)
+    // B. 기업카드 청구분 (매월 27일) - 고정비 행과 변동비 행을 각각 분리 생성
     // 정산 주기: 전달 14일 ~ 이번달 13일 (1월/2월 예외 포함)
     let cardStart;
     let cardEnd;
@@ -113,28 +113,37 @@ export function generateForecastRecords(ledgerDataSources = {}) {
       cardEnd = `${mStr}-13`;
     }
 
+    // 1) 기업카드 고정비 통합 행 (27일)
+    const cardMonthFixed = cardRecords.filter(r => {
+      const d = normalizeLedgerDate(r.date);
+      return d >= cardStart && d <= cardEnd && isFixedRecord(r);
+    });
+    const cardFixedTotal = cardMonthFixed.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
+
+    if (cardMonthFixed.length > 0) {
+      forecastPool.push({
+        id: `fc-fix-card-${mStr}`,
+        date: `${mStr}-27`,
+        item: '기업카드(고정)',
+        amount: cardFixedTotal,
+        type: 'expense',
+        payment: '기업은행',
+        category: '',
+        person: '',
+        memo: `${mNum}월 기업카드 고정비 (${cardMonthFixed.length}건)`,
+        fixedCost: '고정비',
+        source: 'forecast',
+        isAggregate: true,
+        subRecords: [...cardMonthFixed].sort(compareLedgerRecords)
+      });
+    }
+
+    // 2) 기업카드 변동비 통합 행 (27일)
     const cardMonthVars = cardRecords.filter(r => {
       const d = normalizeLedgerDate(r.date);
       return d >= cardStart && d <= cardEnd && !isFixedRecord(r);
     });
     const cardVarTotal = cardMonthVars.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
-
-    // 기업카드 고정비 항목들도 27일 결제일에 기업은행 출금으로 배치
-    const cardMonthFixed = cardRecords.filter(r => {
-      const d = normalizeLedgerDate(r.date);
-      return d >= cardStart && d <= cardEnd && isFixedRecord(r);
-    });
-    cardMonthFixed.forEach(r => {
-      forecastPool.push({
-        ...r,
-        id: `fc-card-fix-${r.id}`,
-        originalId: r.id,
-        date: `${mStr}-27`,
-        item: `${r.item}(카드고정)`,
-        payment: '기업은행',
-        source: 'forecast'
-      });
-    });
 
     if (cardMonthVars.length > 0) {
       forecastPool.push({
@@ -144,9 +153,9 @@ export function generateForecastRecords(ledgerDataSources = {}) {
         amount: cardVarTotal,
         type: 'expense',
         payment: '기업은행',
-        category: '생활',
-        person: '기타',
-        memo: `${mNum}월 기업카드 실시간 청구 합산 (${cardMonthVars.length}건)`,
+        category: '',
+        person: '',
+        memo: `${mNum}월 기업카드 변동비 (${cardMonthVars.length}건)`,
         fixedCost: '',
         source: 'forecast',
         isAggregate: true,

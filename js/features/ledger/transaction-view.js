@@ -56,16 +56,27 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
     detailRow.classList.add('ledger-fixed-row');
     tagRow.classList.add('ledger-fixed-row');
   }
-
+  if (item.isAggregate) {
+    detailRow.classList.add('ledger-aggregate-row');
+    tagRow.classList.add('ledger-aggregate-row');
+  }
+  if (item.isSubDetail) {
+    detailRow.classList.add('ledger-subdetail-row');
+    tagRow.classList.add('ledger-subdetail-row');
+  }
 
   const dateCell = document.createElement('td');
   dateCell.className = 'cell-date';
   const dateObject = new Date(item.date + 'T00:00:00');
   if (dateObject.getDay() === 0 || dateObject.getDay() === 6) dateCell.classList.add('cell-holiday');
   dateCell.rowSpan = 2;
-  dateCell.textContent = formatLedgerScheduleDate(item.date);
+  if (item.isSubDetail) {
+    dateCell.innerHTML = `<span class="ledger-subdetail-indicator">↳</span>${formatLedgerScheduleDate(item.date)}`;
+  } else {
+    dateCell.textContent = formatLedgerScheduleDate(item.date);
+  }
   detailRow.appendChild(dateCell);
-  const useMergedPaymentColumn = ['card', 'cash', 'bank'].includes(source);
+  const useMergedPaymentColumn = ['card', 'cash', 'bank', 'forecast'].includes(source);
   const morningCell = document.createElement('td');
   morningCell.className = 'cell-time';
   if (useMergedPaymentColumn) {
@@ -93,7 +104,11 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
   itemCell.style.textAlign = 'left';
   itemCell.style.paddingLeft = '0.5em';
   const title = document.createElement('strong');
-  title.textContent = item.item;
+  if (item.isAggregate) {
+    title.innerHTML = `<span class="ledger-accordion-icon" style="margin-right:4px;font-size:11px;color:#2563EB;display:inline-block;">▶</span>${item.item || ''}`;
+  } else {
+    title.textContent = item.item || '';
+  }
   itemCell.appendChild(title);
   detailRow.appendChild(itemCell);
   const memoCell = document.createElement('td');
@@ -113,7 +128,7 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
   const regularityCell = document.createElement('td');
   regularityCell.className = 'ledger-regularity-cell';
   const isFixedCost = String(item.fixedCost || '').trim() === '\uACE0\uC815\uBE44';
-  if (useMergedPaymentColumn && isFixedCost) {
+  if (useMergedPaymentColumn && isFixedCost && !item.isAggregate) {
     const fixedCostTag = makeTag('고정비');
     if (fixedCostTag) {
       fixedCostTag.classList.add('ledger-fixed-tag');
@@ -136,7 +151,8 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
     tagRow.appendChild(afternoonCell);
   }
   const personCell = makeDayEndCell();
-  const personText = String(item.person || item.user_name || '기타').trim();
+  const rawPerson = item.isAggregate ? (item.person || '') : (item.person || item.user_name || '기타');
+  const personText = String(rawPerson).trim();
   const personTag = makeTag(personText);
   if (personTag) {
     personTag.style.backgroundColor = getLedgerTagColor(colorSettings, 'person', personText);
@@ -166,10 +182,14 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
   tagRow.appendChild(expenseCell);
   const balanceCell = makeDayEndCell();
   balanceCell.className += ' ledger-cell-money ledger-cell-balance';
-  const usageAmount = Number(item.balance);
-  balanceCell.textContent = Number.isFinite(usageAmount)
-    ? `${usageAmount < 0 ? '-' : ''}${formatMoney(usageAmount)}`
-    : '';
+  if (item.isSubDetail) {
+    balanceCell.textContent = '';
+  } else {
+    const usageAmount = Number(item.balance);
+    balanceCell.textContent = Number.isFinite(usageAmount)
+      ? `${usageAmount < 0 ? '-' : ''}${formatMoney(usageAmount)}`
+      : '';
+  }
   tagRow.appendChild(balanceCell);
   list.appendChild(detailRow);
   list.appendChild(tagRow);
