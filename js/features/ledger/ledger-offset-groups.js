@@ -63,9 +63,7 @@ export function createOffsetGroupFromRecords(records) {
     return sId.replace(/^fc-(toss|bank)-/, '');
   });
 
-  const itemsSummary = records.map(r => r.item || '항목').slice(0, 2).join(', ');
-  const etcCount = records.length > 2 ? ` 외 ${records.length - 2}건` : '';
-  const title = `${m}/${d} 상계 묶음 (${itemsSummary}${etcCount})`;
+  const title = `${m}/${d} 상계 묶음`;
 
   const group = {
     id: groupId,
@@ -106,7 +104,7 @@ export function deleteOffsetGroup(groupId) {
 }
 
 /**
- * 월별행 스타일의 얇은 1줄 슬림 상계 묶음 접힘 행 생성 (1 row divider style)
+ * 0원 상계 묶음 가상 행(TR) 렌더링 생성기 (일반 행들과 100% 동일한 그리드 & 높이)
  */
 export function createOffsetGroupRow({
   group,
@@ -149,20 +147,11 @@ export function createOffsetGroupRow({
   icon.style.fontSize = '0.85em';
   icon.textContent = isExpanded ? '▼' : '▶';
 
-  const tagBadge = document.createElement('span');
-  tagBadge.style.backgroundColor = '#EEF2FF';
-  tagBadge.style.color = '#4F46E5';
-  tagBadge.style.fontSize = '0.75em';
-  tagBadge.style.padding = '1px 5px';
-  tagBadge.style.borderRadius = '4px';
-  tagBadge.style.fontWeight = 'bold';
-  tagBadge.textContent = '0원 상계';
-
+  const cleanTitle = (group.title || '').replace(/\s*\([^)]*\)/g, '');
   const titleText = document.createElement('span');
-  titleText.textContent = group.title;
+  titleText.textContent = cleanTitle;
 
   leftBox.appendChild(icon);
-  leftBox.appendChild(tagBadge);
   leftBox.appendChild(titleText);
 
   // 우측 상계 풀기 버튼 (명확하고 예쁜 버튼)
