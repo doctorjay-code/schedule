@@ -37,12 +37,30 @@ export function generateForecastRecords(ledgerDataSources = {}) {
   const cardRecords = cardList.filter(r => r.payment === '기업카드' || r.sheetName === '기업카드');
   const bankRecords = ledgerDataSources.bank || [];
 
-  // 2026-01부터 시작하는 모든 월 목록 추출
+  // 2026-01부터 시작하는 모든 월 목록 추출 (기업카드의 13일~12일 결제월 기준까지 완벽 포함!)
   const monthSet = new Set();
-  [...tossRecords, ...cardRecords, ...bankRecords].forEach(r => {
+  [...tossRecords, ...bankRecords].forEach(r => {
     const dStr = normalizeLedgerDate(r.date);
     if (dStr >= '2026-01-01') {
       monthSet.add(dStr.slice(0, 7));
+    }
+  });
+
+  cardRecords.forEach(r => {
+    const dStr = normalizeLedgerDate(r.date);
+    if (dStr >= '2026-01-01') {
+      const [y, m, d] = dStr.split('-').map(Number);
+      let billingMonth = m;
+      let billingYear = y;
+      if (d >= 13) {
+        billingMonth += 1;
+        if (billingMonth > 12) {
+          billingMonth = 1;
+          billingYear += 1;
+        }
+      }
+      if (billingMonth === 1) billingMonth = 2;
+      monthSet.add(`${billingYear}-${String(billingMonth).padStart(2, '0')}`);
     }
   });
 
