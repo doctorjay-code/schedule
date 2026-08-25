@@ -6,30 +6,78 @@ export function isFixedRecord(r) {
 }
 
 /**
- * 모든 숨김 처리(필터링/압축/제외)를 완전히 0으로 제거하고,
- * 토스은행, 기업은행, 현금의 모든 원본 거래를 100% 있는 그대로 전수 취합하여
- * 실시간 연속 누적 잔액(Total Running Balance)을 계산합니다.
+ * 이체 / 송금 / 월급 관련 중요 거래인지 확인
+ * (통장 간 돈의 이동 흐름이므로 생활비에 뭉개지 않고 100% 단독 행으로 표시)
+ */
+export function isTransferOrSalaryRecord(r) {
+  if (!r) return false;
+  const category = String(r.category || '').trim();
+  const item = String(r.item || '').trim();
+  const memo = String(r.memo || '').trim();
+  if (category === '이체' || category === '월급') return true;
+  if (item.includes('박주하') || item.includes('모임통장') || item.includes('급여') || item.includes('재정관리단')) return true;
+  if (memo.includes('이체') || memo.includes('월급') || memo.includes('송금') || memo.includes('카드값') || memo.includes('대출이자')) return true;
+  return false;
+}
+
+/**
+ * 기업은행 시트에 적힌 수기 카드 결제/선결제 출금 건 여부 확인
+ * (잔액전망에서는 27일에 실시간 집계되는 기업카드(고정/가변)로 대체되므로 중복 방지를 위해 제외)
+ */
+export function isManualCardPayment(r) {
+  if (!r || r.type !== 'expense') return false;
+  const item = String(r.item || '').trim();
+  const memo = String(r.memo || '').trim();
+  return item.includes('비씨카드') || item.includes('BC카드') || item.includes('기업카드출금') || memo.includes('기업카드 결제') || memo.includes('카드선결제') || memo.includes('BC카드선결제') || item.includes('카드선결제');
+}
+
+/**
+ * 토스은행 + 기업은행 통합 잔액전망 엔진:
+ * - 3대 통합 아코디언 행: 매월 1일 [생활비(가변)], 매월 27일 [기업카드(고정)], [기업카드(가변)]
+ * - 단독 중요 거래: 모든 고정비, 모든 이체/송금/급여/월급/대출원리금상환 풀 코스 100% 표시!
+ * - 현금: 완전 제외
  */
 export function generateForecastRecords(ledgerDataSources = {}) {
   const cardList = ledgerDataSources.card || [];
   const tossRecords = cardList.filter(r => r.payment === '토스은행' || r.sheetName === '토스은행');
+  const cardRecords = cardList.filter(r => r.payment === '기업카드' || r.sheetName === '기업카드');
   const bankRecords = ledgerDataSources.bank || [];
+
+  // 2026-01부터 시작하는 모든 월 목록 추출
+  const monthSet = new Set();
+  [...tossRecords, ...cardRecords, ...bankRecords].forEach(r => {
+    const dStr = normalizeLedgerDate(r.date);
+    if (dStr >= '2026-01-01') {
+      monthSet.add(dStr.slice(0, 7));
+    }
+  });
+
+  const nowIso = new Date().toISOString().slice(0, 7);
+  monthSet.add(nowIso);
+  const months = Array.from(monthSet).sort();
 
   const forecastPool = [];
 
-  // 1. 토스은행의 '모든' 거래 100% 추가
+  // 1. 토스은행 고정비 및 모든 이체/송금/월급 거래들 단독 행으로 100% 추가
   tossRecords.forEach(r => {
-    forecastPool.push({
-      ...r,
-      id: `fc-toss-${r.id}`,
-      originalId: r.id,
-      source: 'forecast',
-      payment: '토스은행'
-    });
+    const isFixed = isFixedRecord(r);
+    const isTransOrSal = isTransferOrSalaryRecord(r);
+
+    if (isFixed || isTransOrSal) {
+      forecastPool.push({
+        ...r,
+        id: `fc-toss-${r.id}`,
+        originalId: r.id,
+        source: 'forecast',
+        payment: '토스은행'
+      });
+    }
   });
 
-  // 2. 기업은행의 '모든' 거래 100% 추가
+  // 2. 기업은행의 모든 거래 추가 (수기 카드결제 중복만 제외하고 이체/급여/대출상환 100% 표시)
   bankRecords.forEach(r => {
+    if (isManualCardPayment(r)) return; // 27일 기업카드(고정/가변)로 대체
+
     forecastPool.push({
       ...r,
       id: `fc-bank-${r.id}`,
@@ -39,10 +87,113 @@ export function generateForecastRecords(ledgerDataSources = {}) {
     });
   });
 
-  // 3. 날짜순 표준 정렬
+  // 3. 월별 가변비 합산 생성 (토스 순수가변 생활비 & 기업카드 27일 청구액)
+  months.forEach(mStr => {
+    const [y, m] = mStr.split('-').map(Number);
+    const mNum = m;
+
+    // A. 토스은행 생활비(가변) (매월 1일) - 고정비도 아니고 이체/월급도 아닌 순수 생활비 지출만 집계!
+    const tossMonthVars = tossRecords.filter(r => {
+      const d = normalizeLedgerDate(r.date);
+      const isFixed = isFixedRecord(r);
+      const isTransOrSal = isTransferOrSalaryRecord(r);
+      return d.startsWith(mStr) && !isFixed && !isTransOrSal;
+    });
+
+    const tossVarExpense = tossMonthVars.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
+    const tossVarIncome = tossMonthVars.reduce((sum, r) => sum + (r.type === 'income' ? Number(r.amount || 0) : 0), 0);
+    const netTossVar = tossVarExpense - tossVarIncome;
+
+    if (tossMonthVars.length > 0) {
+      forecastPool.push({
+        id: `fc-var-toss-${mStr}`,
+        date: `${mStr}-01`,
+        item: '생활비(가변)',
+        amount: netTossVar >= 0 ? netTossVar : Math.abs(netTossVar),
+        type: netTossVar >= 0 ? 'expense' : 'income',
+        payment: '토스은행',
+        category: '',
+        person: '',
+        memo: `${mNum}월 토스 생활비 (${tossMonthVars.length}건)`,
+        fixedCost: '',
+        source: 'forecast',
+        isAggregate: true,
+        subRecords: [...tossMonthVars].sort(compareLedgerRecords)
+      });
+    }
+
+    // B. 기업카드 청구분 (매월 27일) - 1월은 결제 없음, 1월 1일~2월 13일 전체가 2월 27일에 결제됨
+    let cardStart = null;
+    let cardEnd = null;
+    if (m === 1) {
+      cardStart = null;
+      cardEnd = null;
+    } else if (m === 2) {
+      cardStart = `${y}-01-01`;
+      cardEnd = `${y}-02-13`;
+    } else {
+      const prevMonthStr = `${y}-${String(m - 1).padStart(2, '0')}`;
+      cardStart = `${prevMonthStr}-14`;
+      cardEnd = `${mStr}-13`;
+    }
+
+    if (cardStart && cardEnd) {
+      // 1) 기업카드 고정비 통합 행 (27일)
+      const cardMonthFixed = cardRecords.filter(r => {
+        const d = normalizeLedgerDate(r.date);
+        return d >= cardStart && d <= cardEnd && isFixedRecord(r);
+      });
+      const cardFixedTotal = cardMonthFixed.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
+
+      if (cardMonthFixed.length > 0) {
+        forecastPool.push({
+          id: `fc-fix-card-${mStr}`,
+          date: `${mStr}-27`,
+          item: '기업카드(고정)',
+          amount: cardFixedTotal,
+          type: 'expense',
+          payment: '기업은행',
+          category: '',
+          person: '',
+          memo: `${mNum}월 기업카드 고정비 (${cardMonthFixed.length}건)`,
+          fixedCost: '고정비',
+          source: 'forecast',
+          isAggregate: true,
+          subRecords: [...cardMonthFixed].sort(compareLedgerRecords)
+        });
+      }
+
+      // 2) 기업카드 변동비 통합 행 (27일)
+      const cardMonthVars = cardRecords.filter(r => {
+        const d = normalizeLedgerDate(r.date);
+        return d >= cardStart && d <= cardEnd && !isFixedRecord(r);
+      });
+      const cardVarTotal = cardMonthVars.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
+
+      if (cardMonthVars.length > 0) {
+        forecastPool.push({
+          id: `fc-var-card-${mStr}`,
+          date: `${mStr}-27`,
+          item: '기업카드(가변)',
+          amount: cardVarTotal,
+          type: 'expense',
+          payment: '기업은행',
+          category: '',
+          person: '',
+          memo: `${mNum}월 기업카드 변동비 (${cardMonthVars.length}건)`,
+          fixedCost: '',
+          source: 'forecast',
+          isAggregate: true,
+          subRecords: [...cardMonthVars].sort(compareLedgerRecords)
+        });
+      }
+    }
+  });
+
+  // 4. 날짜순 정렬
   forecastPool.sort(compareLedgerRecords);
 
-  // 4. 통장 계좌(토스은행, 기업은행)의 2026년 시작 잔액 합산
+  // 5. 각 계좌의 시작 잔액 합산 (2026년 통합 시작 잔액 - 토스 + 기업)
   const getAccountOpeningBalance = (records) => {
     if (!Array.isArray(records) || records.length === 0) return 0;
     const sorted = [...records].filter(r => normalizeLedgerDate(r.date) >= '2026-01-01').sort(compareLedgerRecords);
@@ -58,7 +209,7 @@ export function generateForecastRecords(ledgerDataSources = {}) {
   const bankOpening = getAccountOpeningBalance(bankRecords);
   const totalOpeningBalance = tossOpening + bankOpening;
 
-  // 5. 통합 통장 시작 잔액에서 출발하여 전체 실시간 연속 누적 잔액(Running Balance) 계산!
+  // 6. 통합 시작 잔액에서 출발하여 전체 실시간 연속 누적 잔액(Running Balance) 계산!
   let runningBalance = totalOpeningBalance;
   forecastPool.forEach(r => {
     const amt = Number(r.amount || 0);
