@@ -96,15 +96,16 @@ export function generateForecastRecords(ledgerDataSources = {}) {
 
     const tossVarExpense = tossMonthVars.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
     const tossVarIncome = tossMonthVars.reduce((sum, r) => sum + (r.type === 'income' ? Number(r.amount || 0) : 0), 0);
-    const netTossVar = tossVarExpense - tossVarIncome;
 
     if (tossMonthVars.length > 0) {
       forecastPool.push({
         id: `fc-var-toss-${mStr}`,
         date: `${mStr}-01`,
         item: '생활비(가변)',
-        amount: netTossVar >= 0 ? netTossVar : Math.abs(netTossVar),
-        type: netTossVar >= 0 ? 'expense' : 'income',
+        amount: tossVarExpense - tossVarIncome,
+        incomeAmount: tossVarIncome,
+        expenseAmount: tossVarExpense,
+        type: 'aggregate',
         payment: '토스은행',
         category: '',
         person: '',
@@ -137,15 +138,18 @@ export function generateForecastRecords(ledgerDataSources = {}) {
         const d = normalizeLedgerDate(r.date);
         return d >= cardStart && d <= cardEnd && isFixedRecord(r);
       });
-      const cardFixedTotal = cardMonthFixed.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
+      const cardFixedExp = cardMonthFixed.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
+      const cardFixedInc = cardMonthFixed.reduce((sum, r) => sum + (r.type === 'income' ? Number(r.amount || 0) : 0), 0);
 
       if (cardMonthFixed.length > 0) {
         forecastPool.push({
           id: `fc-fix-card-${mStr}`,
           date: `${mStr}-27`,
           item: '기업카드(고정)',
-          amount: cardFixedTotal,
-          type: 'expense',
+          amount: cardFixedExp - cardFixedInc,
+          incomeAmount: cardFixedInc,
+          expenseAmount: cardFixedExp,
+          type: 'aggregate',
           payment: '기업은행',
           category: '',
           person: '',
@@ -162,15 +166,18 @@ export function generateForecastRecords(ledgerDataSources = {}) {
         const d = normalizeLedgerDate(r.date);
         return d >= cardStart && d <= cardEnd && !isFixedRecord(r);
       });
-      const cardVarTotal = cardMonthVars.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
+      const cardVarExp = cardMonthVars.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
+      const cardVarInc = cardMonthVars.reduce((sum, r) => sum + (r.type === 'income' ? Number(r.amount || 0) : 0), 0);
 
       if (cardMonthVars.length > 0) {
         forecastPool.push({
           id: `fc-var-card-${mStr}`,
           date: `${mStr}-27`,
           item: '기업카드(가변)',
-          amount: cardVarTotal,
-          type: 'expense',
+          amount: cardVarExp - cardVarInc,
+          incomeAmount: cardVarInc,
+          expenseAmount: cardVarExp,
+          type: 'aggregate',
           payment: '기업은행',
           category: '',
           person: '',
@@ -206,11 +213,15 @@ export function generateForecastRecords(ledgerDataSources = {}) {
   // 6. 통합 시작 잔액에서 출발하여 전체 실시간 연속 누적 잔액(Running Balance) 계산!
   let runningBalance = totalOpeningBalance;
   forecastPool.forEach(r => {
-    const amt = Number(r.amount || 0);
-    if (r.type === 'income') {
-      runningBalance += amt;
+    if (r.incomeAmount !== undefined || r.expenseAmount !== undefined) {
+      runningBalance += Number(r.incomeAmount || 0) - Number(r.expenseAmount || 0);
     } else {
-      runningBalance -= amt;
+      const amt = Number(r.amount || 0);
+      if (r.type === 'income') {
+        runningBalance += amt;
+      } else {
+        runningBalance -= amt;
+      }
     }
     r.balance = runningBalance;
   });
