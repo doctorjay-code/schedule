@@ -381,7 +381,9 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
         // 바로 밑에 세부 거래들(subRecords)을 인라인으로 렌더링 (기본 닫힘)
         if ((record.isAggregate || record.hasCardAccordion) && Array.isArray(record.subRecords) && record.subRecords.length > 0) {
           const subRows = [];
-          record.subRecords.forEach(sub => {
+          record.subRecords.forEach((sub, sIdx) => {
+            const isFirstSub = sIdx === 0;
+            const isLastSub = sIdx === record.subRecords.length - 1;
             const subPrev = list.children.length;
             renderTransactionRow({ ...sub, isSubDetail: true }, 'fundplanAllTimeList', { source, colorSettings: activeColorSettings });
             const subNew = list.children.length;
@@ -389,6 +391,8 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
               const subEl = list.children[j];
               subEl.dataset.monthGroup = month;
               subEl.dataset.parentAggregateId = record.id;
+              if (isFirstSub) subEl.dataset.subdetailFirst = 'true';
+              if (isLastSub) subEl.dataset.subdetailLast = 'true';
               subEl.style.display = 'none'; // 기본 닫힘
               monthRowElements.push(subEl);
               subRows.push(subEl);

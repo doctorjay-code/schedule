@@ -1432,9 +1432,9 @@ td.cell-date {
 .ledger-aggregate-row:hover {
   background-color: #F1F5F9 !important;
 }
-/* 세부 거래 내역 행 (Subdetail - 모든 보더가 보라색 인디케이터로 100% 일원화) */
+/* 세부 거래 내역 행 (Subdetail - 위아래 보라색 실선 & 행간 보라색 점선) */
 tr.schedule-row.ledger-subdetail-row {
-  --row-border-bottom: 1.5px solid #818CF8;
+  --row-border-bottom: 1.5px dashed #818CF8;
   background-color: #F8FAFC !important;
   font-size: 1.0em !important;
   transition: background-color 0.15s ease;
@@ -1456,11 +1456,26 @@ tr.schedule-row.ledger-subdetail-row td:last-child {
   border-right: 4px solid #818CF8 !important;
 }
 
-/* 세부 거래 내역 행의 모든 하단 셀 구분선 일원화 (변수 적용) */
-tr.schedule-row.ledger-subdetail-row td.cell-day-end-border,
-tr.schedule-row.ledger-subdetail-row td.cell-date,
-tr.schedule-row-tag.ledger-subdetail-row td {
-  border-bottom: 1.5px solid #818CF8 !important;
+/* 세부 거래 사이의 중간 하단 구분선: 보라색 점선! */
+tr.schedule-row.ledger-subdetail-row:not([data-subdetail-last="true"]) td.cell-day-end-border,
+tr.schedule-row.ledger-subdetail-row:not([data-subdetail-last="true"]) td.cell-date,
+tr.schedule-row-tag.ledger-subdetail-row:not([data-subdetail-last="true"]) td {
+  border-bottom: 1.5px dashed #818CF8 !important;
+}
+
+/* 세부 거래 블록의 최하단선: 보라색 실선! */
+tr.schedule-row.ledger-subdetail-row[data-subdetail-last="true"] td.cell-day-end-border,
+tr.schedule-row.ledger-subdetail-row[data-subdetail-last="true"] td.cell-date,
+tr.schedule-row-tag.ledger-subdetail-row[data-subdetail-last="true"] td {
+  border-bottom: 2px solid #818CF8 !important;
+}
+
+/* 상위 카드결제 행과 맞닿는 윗선: 보라색 실선! */
+tr.schedule-row[data-ledger-id]:has(+ tr.ledger-subdetail-row) td.cell-day-end-border,
+tr.schedule-row[data-ledger-id]:has(+ tr.ledger-subdetail-row) td.cell-date,
+tr.schedule-row[data-ledger-id]:has(+ tr.ledger-subdetail-row) td.ledger-payment-cell,
+tr.schedule-row-tag:has(+ tr.ledger-subdetail-row) td {
+  border-bottom: 2px solid #818CF8 !important;
 }
 
 .ledger-subdetail-indicator {
@@ -2569,7 +2584,7 @@ body {
   padding: 3px 2px !important;
   text-align: center;
   vertical-align: middle;
-  border-bottom: 2px solid var(--border-day-end) !important;
+  border-bottom: var(--row-border-bottom, 2px solid var(--border-day-end)) !important;
   border-right: 1px solid var(--border-grid) !important;
   background: #F8FAFC;
 }
