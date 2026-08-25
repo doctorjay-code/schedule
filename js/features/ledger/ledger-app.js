@@ -16,7 +16,7 @@ import { fetchLedgerData, fetchLedgerSheetData, upsertLedgerRecord, upsertLedger
 import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js';
 import { showLedgerToast, findLedgerRecordById, executeLedgerCopy, executeLedgerDelete, executeLedgerPaste } from './ledger-clipboard.js';
 import { generateForecastRecords, loadForecastOrderMap, saveForecastOrderMap, syncForecastOrdersFromDB } from './ledger-forecast.js';
-import { createOffsetGroupFromRecords, syncOffsetGroupsFromDB } from './ledger-offset-groups.js';
+import { createOffsetGroupFromRecords, syncOffsetGroupsFromDB, loadOffsetGroups, createOffsetGroupRow, deleteOffsetGroup } from './ledger-offset-groups.js';
 
 const ledgerDataSources = {
   card: [],
@@ -1040,10 +1040,29 @@ function getMonthlyRecords() {
   });
 }function renderMonthly() {
   const items = getMonthlyRecords();
-  const income = items.filter(x => x.type === 'income').reduce((sum,x) => sum + x.amount, 0);
-  const expense = items.filter(x => x.type === 'expense').reduce((sum,x) => sum + x.amount, 0);
+  const offsetGroups = loadOffsetGroups();
+  const offsetRecordIds = new Set();
+  Object.values(offsetGroups).forEach(g => {
+    if (Array.isArray(g.recordIds)) g.recordIds.forEach(id => offsetRecordIds.add(String(id)));
+  });
+
+  const income = items.filter(x => {
+    const rawId = String(x.id || '').replace(/^fc-(toss|bank)-/, '');
+    const origId = String(x.originalId || '');
+    if (offsetRecordIds.has(rawId) || offsetRecordIds.has(origId) || offsetRecordIds.has(String(x.id))) return false;
+    return x.type === 'income';
+  }).reduce((sum, x) => sum + Number(x.amount || 0), 0);
+
+  const expense = items.filter(x => {
+    const rawId = String(x.id || '').replace(/^fc-(toss|bank)-/, '');
+    const origId = String(x.originalId || '');
+    if (offsetRecordIds.has(rawId) || offsetRecordIds.has(origId) || offsetRecordIds.has(String(x.id))) return false;
+    return x.type === 'expense';
+  }).reduce((sum, x) => sum + Number(x.amount || 0), 0);
+
   const cursor = ledgerState.monthCursor;
-  setText('ledgerPeriodTitle', cursor.getFullYear() + '.' + String(cursor.getMonth() + 1).padStart(2, '0'));  setText('ledgerMonthlyIncome', formatMoney(income));
+  setText('ledgerPeriodTitle', cursor.getFullYear() + '.' + String(cursor.getMonth() + 1).padStart(2, '0'));
+  setText('ledgerMonthlyIncome', formatMoney(income));
   setText('ledgerMonthlyExpense', formatMoney(expense));
   setText('ledgerMonthlyBalance', (income - expense < 0 ? '-' : '') + formatMoney(income - expense));
   renderStatList('ledgerCategoryStats', groupExpenses(items, 'category'));
@@ -1052,21 +1071,17 @@ function getMonthlyRecords() {
   renderMonthlyList(items);
 }
 
-
-
-
-
 function renderMonthlyList(items) {
   const sorted = [...items].sort(compareLedgerRecords);
-  setText('ledgerMonthlyTransactionCount', sorted.length + '\uAC74');
+  setText('ledgerMonthlyTransactionCount', sorted.length + '건');
 
-  const isCompanyCard = ledgerState.source === 'card' && ledgerState.payment === '\uAE30\uC5C5\uCE74\uB4DC';
+  const isCompanyCard = ledgerState.source === 'card' && ledgerState.payment === '기업카드';
   const thead = document.getElementById('ledgerMonthlyTableHead');
   if (thead) {
-    const moneyInLabel = isCompanyCard ? '\uC218\uC785' : '\uC785\uAE08';
-    const moneyOutLabel = isCompanyCard ? '\uC9C0\uCD9C' : '\uCD9C\uAE08';
-    const balanceLabel = isCompanyCard ? '\uC0AC\uC6A9\uC561' : '\uC794\uC561';
-    const useMerged = ['card', 'cash', 'bank'].includes(ledgerState.source);
+    const moneyInLabel = isCompanyCard ? '수입' : '입금';
+    const moneyOutLabel = isCompanyCard ? '지출' : '출금';
+    const balanceLabel = isCompanyCard ? '사용액' : '잔액';
+    const useMerged = ['card', 'cash', 'bank', 'forecast'].includes(ledgerState.source);
     thead.replaceWith(createLedgerTableHead(moneyInLabel, moneyOutLabel, useMerged, balanceLabel));
     const newThead = document.querySelector('#ledgerMonthlyTable thead');
     if (newThead) newThead.id = 'ledgerMonthlyTableHead';
@@ -1076,7 +1091,7 @@ function renderMonthlyList(items) {
   if (!list) return;
   list.replaceChildren();
   if (!sorted.length) {
-    appendLedgerEmptyRow(list, ledgerState.payment + '\uC758 \uC774\uBC88 \uB2EC \uAC70\uB798\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.');
+    appendLedgerEmptyRow(list, ledgerState.payment + '의 이번 달 거래가 없습니다.');
     return;
   }
 
@@ -1084,23 +1099,136 @@ function renderMonthlyList(items) {
   let monthlyExpanded = true;
   const monthRowElements = [];
 
+  const offsetGroups = loadOffsetGroups();
+  const offsetRecordIds = new Set();
+  Object.values(offsetGroups).forEach(g => {
+    if (Array.isArray(g.recordIds)) g.recordIds.forEach(id => offsetRecordIds.add(String(id)));
+  });
+
   const dividerRow = createLedgerMonthDividerRow({
     monthKey,
     isCompanyCard,
     isExpanded: true,
     monthRecords: sorted,
+    offsetRecordIds,
     onToggle: toggleIcon => {
       monthlyExpanded = !monthlyExpanded;
-      toggleIcon.textContent = monthlyExpanded ? '\u25BC' : '\u25B6';
+      toggleIcon.textContent = monthlyExpanded ? '▼' : '▶';
       monthRowElements.forEach(r => {
-        r.style.display = monthlyExpanded ? '' : 'none';
+        if (r.classList.contains('ledger-subdetail-row') || r.classList.contains('ledger-offset-unlink-row')) {
+          r.style.display = 'none';
+        } else {
+          r.style.display = monthlyExpanded ? '' : 'none';
+        }
       });
     }
   });
   list.appendChild(dividerRow);
 
-  const calculatedSorted = recalculateRunningBalances(sorted, isCompanyCard);
+  const calculatedSorted = (ledgerState.source === 'forecast') ? sorted : recalculateRunningBalances(sorted, isCompanyCard);
+  const handledGroupIds = new Set();
+
   calculatedSorted.forEach(item => {
+    const rawId = String(item.id || '').replace(/^fc-(toss|bank)-/, '');
+    const origId = String(item.originalId || '');
+
+    // 상계 묶음에 속한 거래인지 확인
+    let matchedGroup = null;
+    for (const gId of Object.keys(offsetGroups)) {
+      const g = offsetGroups[gId];
+      if (Array.isArray(g.recordIds) && (g.recordIds.includes(rawId) || g.recordIds.includes(origId) || g.recordIds.includes(item.id))) {
+        matchedGroup = g;
+        break;
+      }
+    }
+
+    if (matchedGroup) {
+      if (handledGroupIds.has(matchedGroup.id)) return;
+      handledGroupIds.add(matchedGroup.id);
+
+      // 평소(0원 버튼 꺼짐)일 때는 완전 숨김!
+      if (!ledgerState.showOffsetGroups) return;
+
+      const groupRecords = calculatedSorted.filter(r => {
+        const rId = String(r.id || '').replace(/^fc-(toss|bank)-/, '');
+        const oId = String(r.originalId || '');
+        return matchedGroup.recordIds.includes(rId) || matchedGroup.recordIds.includes(oId) || matchedGroup.recordIds.includes(r.id);
+      });
+
+      let isGroupExpanded = false;
+      const groupRow = createOffsetGroupRow({
+        group: matchedGroup,
+        isExpanded: isGroupExpanded,
+        onToggle: (iconEl) => {
+          isGroupExpanded = !isGroupExpanded;
+          if (iconEl) iconEl.textContent = isGroupExpanded ? '▼' : '▶';
+          subGroupRows.forEach(subEl => {
+            subEl.style.display = isGroupExpanded ? '' : 'none';
+          });
+        },
+        onUnlink: (gId) => {
+          deleteOffsetGroup(gId);
+          renderMonthly();
+        }
+      });
+
+      list.appendChild(groupRow);
+      monthRowElements.push(groupRow);
+
+      const subGroupRows = [];
+      groupRecords.forEach(sub => {
+        const subPrev = list.children.length;
+        renderTransactionRow({ ...sub, isSubDetail: true }, 'ledgerMonthlyTransactionList', { source: ledgerState.source, colorSettings: state.colorSettings });
+        const subNew = list.children.length;
+        for (let j = subPrev; j < subNew; j++) {
+          const subEl = list.children[j];
+          subEl.dataset.parentOffsetGroupId = matchedGroup.id;
+          subEl.style.display = 'none';
+          monthRowElements.push(subEl);
+          subGroupRows.push(subEl);
+        }
+      });
+
+      const unlinkActionRow = document.createElement('tr');
+      unlinkActionRow.className = 'schedule-row ledger-offset-unlink-row';
+      unlinkActionRow.dataset.parentOffsetGroupId = matchedGroup.id;
+      unlinkActionRow.style.display = 'none';
+      unlinkActionRow.style.backgroundColor = '#F8FAFC';
+      unlinkActionRow.style.borderBottom = '1.5px dashed #CBD5E1';
+
+      const actionTd = document.createElement('td');
+      actionTd.colSpan = 7;
+      actionTd.style.padding = '6px 12px';
+      actionTd.style.textAlign = 'center';
+
+      const bigUnlinkBtn = document.createElement('button');
+      bigUnlinkBtn.type = 'button';
+      bigUnlinkBtn.style.backgroundColor = '#FFFFFF';
+      bigUnlinkBtn.style.color = '#EF4444';
+      bigUnlinkBtn.style.border = '1px solid #FCA5A5';
+      bigUnlinkBtn.style.borderRadius = '6px';
+      bigUnlinkBtn.style.padding = '4px 14px';
+      bigUnlinkBtn.style.fontSize = '0.82em';
+      bigUnlinkBtn.style.fontWeight = 'bold';
+      bigUnlinkBtn.style.cursor = 'pointer';
+      bigUnlinkBtn.textContent = '🔓 이 상계 묶음 해제하기 (개별 거래로 복귀)';
+      bigUnlinkBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (confirm('이 상계 묶음을 해제할까요? (원래 개별 거래들로 돌아갑니다)')) {
+          deleteOffsetGroup(matchedGroup.id);
+          renderMonthly();
+        }
+      });
+
+      actionTd.appendChild(bigUnlinkBtn);
+      unlinkActionRow.appendChild(actionTd);
+      list.appendChild(unlinkActionRow);
+      monthRowElements.push(unlinkActionRow);
+      subGroupRows.push(unlinkActionRow);
+
+      return;
+    }
+
     const prevCount = list.children.length;
     renderTransactionRow(item, 'ledgerMonthlyTransactionList', { source: ledgerState.source, colorSettings: state.colorSettings });
     const newCount = list.children.length;
