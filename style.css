@@ -985,18 +985,18 @@ td.cell-selected,
   border-bottom: 2px solid #1E3A8A !important;
 }
 
-/* 3. 세부 거래 중간행 (Subdetail Middle Row): 하단선 전체 1.5px 보라색 점선(dashed) */
+/* 3. 세부 거래 중간행 (Subdetail Middle Row): 하단선 전체 1px 보라색 얇은 실선 */
 .schedule-table tr.ledger-subdetail-row:not([data-subdetail-last="true"]) td.cell-date,
 .schedule-table tr.ledger-subdetail-row:not([data-subdetail-last="true"]) td.ledger-payment-cell,
 .schedule-table tr.schedule-row-tag.ledger-subdetail-row:not([data-subdetail-last="true"]) td {
-  border-bottom: 1.5px dashed #818CF8 !important;
+  border-bottom: 1px solid #818CF8 !important;
 }
 
-/* 4. 세부 거래 마지막행 (Subdetail Last Row): 하단 마감선 전체 2px 보라색 실선(solid) */
+/* 4. 세부 거래 마지막행 (Subdetail Last Row): 하단 마감선 전체 2.5px 보라색 굵은 실선 */
 .schedule-table tr.ledger-subdetail-row[data-subdetail-last="true"] td.cell-date,
 .schedule-table tr.ledger-subdetail-row[data-subdetail-last="true"] td.ledger-payment-cell,
 .schedule-table tr.schedule-row-tag.ledger-subdetail-row[data-subdetail-last="true"] td {
-  border-bottom: 2px solid #818CF8 !important;
+  border-bottom: 2.5px solid #818CF8 !important;
 }
 
 /* 5. 세부 거래 블록 좌/우 세로선 (4px 보라색 실선) */
@@ -1008,11 +1008,11 @@ td.cell-selected,
   border-right: 4px solid #818CF8 !important;
 }
 
-/* 6. 카드 결제 상위행 하단선 (세부 거래 시작선: 2px 보라색 실선) */
+/* 6. 카드 결제 상위행 하단선 (세부 거래 시작선: 2.5px 보라색 굵은 실선) */
 .schedule-table tr.schedule-row-detail:not(.ledger-subdetail-row):has(+ tr.schedule-row-tag + tr.ledger-subdetail-row) td.cell-date,
 .schedule-table tr.schedule-row-detail:not(.ledger-subdetail-row):has(+ tr.schedule-row-tag + tr.ledger-subdetail-row) td.ledger-payment-cell,
 .schedule-table tr.schedule-row-tag:not(.ledger-subdetail-row):has(+ tr.ledger-subdetail-row) td {
-  border-bottom: 2px solid #818CF8 !important;
+  border-bottom: 2.5px solid #818CF8 !important;
 }
 
 /* Bottom Action Group (Copy Toast Bar stacked right above Multi Action Bar) */
