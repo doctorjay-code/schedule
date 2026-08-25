@@ -1232,8 +1232,52 @@ function renderMonthlyList(items) {
     const prevCount = list.children.length;
     renderTransactionRow(item, 'ledgerMonthlyTransactionList', { source: ledgerState.source, colorSettings: state.colorSettings });
     const newCount = list.children.length;
+    const mainRows = [];
     for (let i = prevCount; i < newCount; i++) {
-      monthRowElements.push(list.children[i]);
+      const rowEl = list.children[i];
+      monthRowElements.push(rowEl);
+      mainRows.push(rowEl);
+    }
+
+    if ((item.isAggregate || item.hasCardAccordion) && Array.isArray(item.subRecords) && item.subRecords.length > 0) {
+      const subRows = [];
+      item.subRecords.forEach(sub => {
+        const subPrev = list.children.length;
+        renderTransactionRow({ ...sub, isSubDetail: true }, 'ledgerMonthlyTransactionList', { source: ledgerState.source, colorSettings: state.colorSettings });
+        const subNew = list.children.length;
+        for (let j = subPrev; j < subNew; j++) {
+          const subEl = list.children[j];
+          subEl.dataset.parentAggregateId = item.id;
+          subEl.style.display = 'none';
+          monthRowElements.push(subEl);
+          subRows.push(subEl);
+        }
+      });
+
+      let isSubExpanded = false;
+      const toggleSubAccordion = (e) => {
+        if (e) e.stopPropagation();
+        isSubExpanded = !isSubExpanded;
+        mainRows.forEach(mr => {
+          const iconEl = mr.querySelector('.ledger-accordion-icon');
+          if (iconEl) iconEl.textContent = isSubExpanded ? '▼' : '▶';
+        });
+        subRows.forEach(subEl => {
+          subEl.style.display = isSubExpanded ? '' : 'none';
+        });
+      };
+
+      if (item.isAggregate) {
+        mainRows.forEach(rowEl => {
+          rowEl.style.cursor = 'pointer';
+          rowEl.addEventListener('click', toggleSubAccordion);
+        });
+      } else if (item.hasCardAccordion) {
+        mainRows.forEach(rowEl => {
+          const iconEl = rowEl.querySelector('.ledger-accordion-icon');
+          if (iconEl) iconEl.addEventListener('click', toggleSubAccordion);
+        });
+      }
     }
   });
 }

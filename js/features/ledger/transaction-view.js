@@ -106,8 +106,11 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
   itemCell.style.textAlign = 'left';
   itemCell.style.paddingLeft = '0.5em';
   const title = document.createElement('strong');
-  if (item.isAggregate) {
-    title.innerHTML = `<span class="ledger-accordion-icon" style="margin-right:4px;font-size:11px;color:#2563EB;display:inline-block;">▶</span>${item.item || ''}`;
+  if (item.isAggregate || item.hasCardAccordion) {
+    const countBadge = (Array.isArray(item.subRecords) && item.subRecords.length > 0)
+      ? ` <span style="font-size:0.85em;font-weight:normal;color:#64748B;">(${item.subRecords.length}건)</span>`
+      : '';
+    title.innerHTML = `<span class="ledger-accordion-icon" data-ledger-toggle-id="${item.id}" style="margin-right:6px;font-size:11px;color:#4F46E5;display:inline-block;cursor:pointer;padding:1px 5px;border-radius:4px;background:#EEF2FF;border:1px solid #C7D2FE;font-weight:bold;user-select:none;" title="카드 세부내역 펼치기/접기">▶</span>${item.item || ''}${countBadge}`;
   } else {
     title.textContent = item.item || '';
   }

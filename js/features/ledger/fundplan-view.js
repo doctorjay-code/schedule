@@ -376,9 +376,9 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
           mainRows.push(rowEl);
         }
 
-        // 만약 통합 가변/고정 아코디언 행(isAggregate === true)인 경우:
+        // 만약 통합 가변/고정 아코디언 행(isAggregate) 또는 실제 카드 출금 행(hasCardAccordion)인 경우:
         // 바로 밑에 세부 거래들(subRecords)을 인라인으로 렌더링 (기본 닫힘)
-        if (record.isAggregate && Array.isArray(record.subRecords) && record.subRecords.length > 0) {
+        if ((record.isAggregate || record.hasCardAccordion) && Array.isArray(record.subRecords) && record.subRecords.length > 0) {
           const subRows = [];
           record.subRecords.forEach(sub => {
             const subPrev = list.children.length;
@@ -394,23 +394,35 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
             }
           });
 
-          // 메인 행 클릭 시 세부 행들 도르르 펼치기/접기
           let isSubExpanded = false;
-          mainRows.forEach(rowEl => {
-            rowEl.style.cursor = 'pointer';
-            rowEl.title = '클릭하여 세부 거래 내역 펼치기/접기';
-            rowEl.addEventListener('click', (e) => {
-              e.stopPropagation();
-              isSubExpanded = !isSubExpanded;
-              mainRows.forEach(mr => {
-                const iconEl = mr.querySelector('.ledger-accordion-icon');
-                if (iconEl) iconEl.textContent = isSubExpanded ? '▼' : '▶';
-              });
-              subRows.forEach(subEl => {
-                subEl.style.display = isSubExpanded ? '' : 'none';
-              });
+          const toggleSubAccordion = (e) => {
+            if (e) e.stopPropagation();
+            isSubExpanded = !isSubExpanded;
+            mainRows.forEach(mr => {
+              const iconEl = mr.querySelector('.ledger-accordion-icon');
+              if (iconEl) iconEl.textContent = isSubExpanded ? '▼' : '▶';
             });
-          });
+            subRows.forEach(subEl => {
+              subEl.style.display = isSubExpanded ? '' : 'none';
+            });
+          };
+
+          if (record.isAggregate) {
+            // 순수 가상 통합행(생활비/미래 예상액): 행 전체 클릭 시 펼침/접기
+            mainRows.forEach(rowEl => {
+              rowEl.style.cursor = 'pointer';
+              rowEl.title = '클릭하여 세부 거래 내역 펼치기/접기';
+              rowEl.addEventListener('click', toggleSubAccordion);
+            });
+          } else if (record.hasCardAccordion) {
+            // 실제 통장 출금 거래(비씨카드출금 등): 항목 앞 [ ▶ ] 아이콘 클릭 시 펼침/접기, 행 클릭 시 수정 모달 오픈!
+            mainRows.forEach(rowEl => {
+              const iconEl = rowEl.querySelector('.ledger-accordion-icon');
+              if (iconEl) {
+                iconEl.addEventListener('click', toggleSubAccordion);
+              }
+            });
+          }
         }
       });
 
