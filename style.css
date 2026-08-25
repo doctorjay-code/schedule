@@ -972,10 +972,19 @@ td.cell-selected,
    ========================================================================== */
 
 /* 1. [일정(Schedule) 테이블] 날짜별 굵은 실선 구분선 (2px 남색 실선) */
+#scheduleBody td.cell-date,
+#scheduleBody tr.row-day-end td,
+#scheduleBody td.cell-day-end-border,
+#scheduleBody tr:not(.row-day-end):not(:has(+ tr.row-day-end)) td,
 #weeklyViewWrapper .schedule-table tr.row-day-end td,
 #weeklyViewWrapper .schedule-table td.cell-day-end-border,
 #weeklyViewWrapper .schedule-table td.cell-date {
   border-bottom: 2px solid #1E3A8A !important;
+}
+
+/* 1-1. 일정 테이블 오전 행(내부 행) 가로 경계선 (연한 회색 1px) */
+#scheduleBody tr:not(.row-day-end) td:not(.cell-date):not(.cell-day-end-border) {
+  border-bottom: 1px solid var(--border-grid, #E2E8F0);
 }
 
 /* 2. [가계부(Ledger) 테이블] 통합 보더 파이프라인 */
