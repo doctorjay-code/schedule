@@ -60,6 +60,7 @@ const ledgerState = {
   payment: '\uD1A0\uC2A4\uC740\uD589',
   filterType: 'all',
   filterValue: 'all',
+  filterValues: new Set(),
   showOffsetGroups: false,
   weekStart: startOfWeek(new Date()),
   monthCursor: new Date(),
@@ -225,10 +226,21 @@ function syncLedgerCardButtons() {
     }
   }
 
-  if (personButton) personButton.textContent = '사용자';
-  if (categoryButton) categoryButton.textContent = '사용처';
+  const selectedSet = ledgerState.filterValues || new Set();
+  const count = selectedSet.size;
+
+  if (personButton) {
+    personButton.textContent = (activePerson && count > 0) ? `사용자 (${count})` : '사용자';
+  }
+  if (categoryButton) {
+    categoryButton.textContent = (activeCategory && count > 0) ? `사용처 (${count})` : '사용처';
+  }
+
   document.querySelectorAll('[data-ledger-filter-type]').forEach(button => {
-    button.classList.toggle('active', button.dataset.ledgerFilterType === ledgerState.filterType && button.dataset.ledgerFilterValue === ledgerState.filterValue);
+    const bType = button.dataset.ledgerFilterType;
+    const bVal = button.dataset.ledgerFilterValue;
+    const isAct = (bType === ledgerState.filterType && selectedSet.has(bVal));
+    button.classList.toggle('active', isAct);
   });
 
   const paymentBtnMap = [
@@ -260,10 +272,30 @@ function syncLedgerCardButtons() {
     }
   });
 }
+
 function setLedgerFilter(type, value) {
   ledgerState.filterType = type;
-  ledgerState.filterValue = value;
-  if (type === 'person' || type === 'category') {
+  if (type === 'all') {
+    ledgerState.filterValue = 'all';
+    ledgerState.filterValues = new Set();
+    closeLedgerFilterOptions();
+  } else if (type === 'fixed') {
+    ledgerState.filterValue = value;
+    ledgerState.filterValues = new Set([value]);
+    closeLedgerFilterOptions();
+  } else {
+    // person or category
+    if (value instanceof Set) {
+      ledgerState.filterValues = new Set(value);
+    } else if (Array.isArray(value)) {
+      ledgerState.filterValues = new Set(value);
+    } else if (value && value !== 'all') {
+      ledgerState.filterValues = new Set([value]);
+    } else {
+      ledgerState.filterValues = new Set();
+    }
+    ledgerState.filterValue = ledgerState.filterValues.size > 0 ? Array.from(ledgerState.filterValues).join(',') : 'all';
+
     const activeOptionsId = type === 'person' ? 'ledgerPersonFilterOptions' : 'ledgerCategoryFilterOptions';
     const inactiveOptionsId = type === 'person' ? 'ledgerCategoryFilterOptions' : 'ledgerPersonFilterOptions';
     const activeToggleId = type === 'person' ? 'ledgerPersonFilterToggle' : 'ledgerCategoryFilterToggle';
@@ -272,9 +304,31 @@ function setLedgerFilter(type, value) {
     document.getElementById(inactiveToggleId)?.setAttribute('aria-expanded', 'false');
     document.getElementById(activeOptionsId)?.classList.remove('hidden');
     document.getElementById(activeToggleId)?.setAttribute('aria-expanded', 'true');
-  } else {
-    closeLedgerFilterOptions();
   }
+  syncLedgerCardButtons();
+  renderActiveLedgerPeriod();
+}
+
+function toggleLedgerSubFilter(type, value) {
+  if (ledgerState.filterType !== type) {
+    ledgerState.filterType = type;
+    ledgerState.filterValues = new Set([value]);
+  } else {
+    if (!ledgerState.filterValues) ledgerState.filterValues = new Set();
+    if (ledgerState.filterValues.has(value)) {
+      ledgerState.filterValues.delete(value);
+    } else {
+      ledgerState.filterValues.add(value);
+    }
+  }
+
+  if (ledgerState.filterValues.size === 0) {
+    // 모든 하위 선택이 해제된 경우 상위 탭은 열어두되 필터는 전체 표시
+    ledgerState.filterValue = 'all';
+  } else {
+    ledgerState.filterValue = Array.from(ledgerState.filterValues).join(',');
+  }
+
   syncLedgerCardButtons();
   renderActiveLedgerPeriod();
 }function getLedgerWeekStartFromPickerItem(wObj) {
@@ -821,8 +875,7 @@ function bindLedgerEvents() {
     button.addEventListener('click', () => {
       const type = button.dataset.ledgerFilterType;
       const value = button.dataset.ledgerFilterValue;
-      const isSelected = ledgerState.filterType === type && ledgerState.filterValue === value;
-      setLedgerFilter(isSelected ? 'all' : type, isSelected ? 'all' : value);
+      toggleLedgerSubFilter(type, value);
     });
   });
   document.getElementById('ledgerToggleMultiEditBtn')?.addEventListener('click', toggleLedgerMultiEdit);

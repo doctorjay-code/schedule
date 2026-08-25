@@ -20,9 +20,29 @@ export function filterLedgerRecords(records, filterType, filterValue) {
       return fixed === '고정비' || fixed === '고정' || fixed === 'true';
     });
   }
-  if (filterType === 'person' && (filterValue === '진주' || filterValue === '쥬쥬')) {
-    const jin = ['진주', '쥬쥬'];
-    return records.filter(record => jin.includes(record.person));
+
+  // 다중 선택(Multi-select) Set / Array / 쉼표 구분 문자열 정규화
+  let selectedSet = new Set();
+  if (filterValue instanceof Set) {
+    selectedSet = filterValue;
+  } else if (Array.isArray(filterValue)) {
+    selectedSet = new Set(filterValue);
+  } else if (typeof filterValue === 'string' && filterValue.includes(',')) {
+    selectedSet = new Set(filterValue.split(',').map(s => s.trim()).filter(Boolean));
+  } else if (filterValue && filterValue !== 'all') {
+    selectedSet = new Set([filterValue]);
   }
-  return records.filter(record => record[filterType] === filterValue);
+
+  if (selectedSet.size === 0) return records;
+
+  if (filterType === 'person') {
+    const hasJuJu = selectedSet.has('진주') || selectedSet.has('쥬쥬');
+    return records.filter(record => {
+      const p = record.person || record.user_name || '기타';
+      if (hasJuJu && (p === '진주' || p === '쥬쥬')) return true;
+      return selectedSet.has(p);
+    });
+  }
+
+  return records.filter(record => selectedSet.has(record[filterType]));
 }
