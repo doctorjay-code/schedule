@@ -45,10 +45,10 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
     return { person: finalPerson, memo: finalMemo, detail: cleanedDetail };
   }
 
-  function setReadOnly(readOnly) {
+  function setReadOnly(readOnly, isExistingRecord = false) {
     setFormReadOnly(document.getElementById('ledgerTransactionForm'), readOnly);
     setElementVisible(document.getElementById('ledgerModalSaveBtn'), !readOnly);
-    setElementVisible(document.getElementById('ledgerModalDeleteBtn'), !readOnly);
+    setElementVisible(document.getElementById('ledgerModalDeleteBtn'), Boolean(isExistingRecord && !readOnly));
   }
 
   function close() {
@@ -73,6 +73,7 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
       fixedCost: ''
     };
     const value = { ...defaults, ...(record || {}) };
+    const isExisting = Boolean(record && record.id);
     const isReadOnly = Boolean(record && (record.sheetName === '잔액전망' || record.source === 'forecast'));
     document.getElementById('ledgerTransactionModalTitle').textContent = record
       ? formatLedgerScheduleDate(value.date) + ' ' + modalText(0xAC70, 0xB798, 0x20, 0xC0C1, 0xC138)
@@ -98,7 +99,7 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
     document.getElementById('ledgerModalMemo').value = memoParts.detail || '';
     setGroup('ledgerModalCategoryGroup', 'ledgerModalCategory', value.category);
     setGroup('ledgerModalFixedCostGroup', 'ledgerModalFixedCost', value.fixedCost === '\uACE0\uC815\uBE44' ? value.fixedCost : '');
-    setReadOnly(isReadOnly);
+    setReadOnly(isReadOnly, isExisting);
     setModalOpen(overlay, true);
   }
 
