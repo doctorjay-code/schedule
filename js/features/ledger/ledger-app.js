@@ -15,7 +15,7 @@ import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view
 import { fetchLedgerData, fetchLedgerSheetData, upsertLedgerRecord, upsertLedgerSheetRecord, deleteLedgerRecord, deleteLedgerSheetRecord, reorderLedgerRecords, reorderLedgerSheetRecords, deleteLedgerRecordsBatch, insertLedgerRecordsBatch, saveForecastOrders } from '../../services/ledger/ledger-api.js';
 import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js';
 import { showLedgerToast, findLedgerRecordById, executeLedgerCopy, executeLedgerDelete, executeLedgerPaste } from './ledger-clipboard.js';
-import { generateForecastRecords, loadForecastOrderMap, saveForecastOrderMap, syncForecastOrdersFromDB } from './ledger-forecast.js';
+import { generateForecastRecords, loadForecastOrderMap, saveForecastOrderMap, syncForecastOrdersFromDB, isManualCardPayment } from './ledger-forecast.js';
 import { createOffsetGroupFromRecords, syncOffsetGroupsFromDB, loadOffsetGroups, createOffsetGroupRow, deleteOffsetGroup } from './ledger-offset-groups.js';
 
 const ledgerDataSources = {
@@ -1012,6 +1012,41 @@ function getActiveSourceRecords() {
   if (ledgerState.source === 'forecast') {
     const forecastRecords = generateForecastRecords(ledgerDataSources);
     return filterLedgerRecords(forecastRecords, ledgerState.filterType, ledgerState.filterValue);
+  }
+  if (ledgerState.source === 'bank') {
+    const bankList = ledgerDataSources.bank || [];
+    const cardRecords = (ledgerDataSources.card || []).filter(r => r.payment === '기업카드' || r.sheetName === '기업카드');
+    const enrichedBank = bankList.map(r => {
+      if (isManualCardPayment(r)) {
+        const dStr = normalizeLedgerDate(r.date);
+        const mStr = dStr.slice(0, 7);
+        const [y, m] = mStr.split('-').map(Number);
+        let cardStart = null, cardEnd = null;
+        if (m === 2) {
+          cardStart = `${y}-01-01`;
+          cardEnd = `${y}-02-12`;
+        } else {
+          const pStr = `${y}-${String(m - 1).padStart(2, '0')}`;
+          cardStart = `${pStr}-13`;
+          cardEnd = `${mStr}-12`;
+        }
+        if (cardStart && cardEnd) {
+          const monthCards = cardRecords.filter(c => {
+            const cd = normalizeLedgerDate(c.date);
+            return cd >= cardStart && cd <= cardEnd;
+          });
+          if (monthCards.length > 0) {
+            return {
+              ...r,
+              hasCardAccordion: true,
+              subRecords: [...monthCards].sort(compareLedgerRecords)
+            };
+          }
+        }
+      }
+      return r;
+    });
+    return filterLedgerRecords(enrichedBank, ledgerState.filterType, ledgerState.filterValue);
   }
   const records = ledgerDataSources[ledgerState.source] || [];
   return filterLedgerRecords(records, ledgerState.filterType, ledgerState.filterValue);

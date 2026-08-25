@@ -300,6 +300,7 @@ export function generateForecastRecords(ledgerDataSources = {}) {
 
 /**
  * 이번 달의 고정비 및 상계 묶음을 다음 달로 넘기는 원클릭 Push 엔진
+ * (기업카드 13일~12일 결제주기 고정비 자동 연동 포함!)
  */
 export async function copyMonthFixedRecordsToNextMonth(sourceMonthKey, ledgerDataSources = {}, options = {}) {
   const [sy, sm] = sourceMonthKey.split('-').map(Number);
@@ -310,26 +311,26 @@ export async function copyMonthFixedRecordsToNextMonth(sourceMonthKey, ledgerDat
 
   const currentSource = options.source || 'forecast';
 
-  // 1. 소스 월(sourceMonthKey) 거래 풀 추출
+  // 1. 데이터 소스 분류
   const cardList = ledgerDataSources.card || [];
   const tossRecords = cardList.filter(r => r.payment === '토스은행' || r.sheetName === '토스은행');
   const cardRecords = cardList.filter(r => r.payment === '기업카드' || r.sheetName === '기업카드');
   const bankRecords = ledgerDataSources.bank || [];
   const cashRecords = ledgerDataSources.cash || [];
 
-  let candidates = [];
+  // A. 일반 통장 거래 풀 (토스은행, 기업은행, 현금)
+  let bankCandidates = [];
   if (currentSource === 'forecast') {
-    candidates = [...tossRecords, ...bankRecords, ...cardRecords];
+    bankCandidates = [...tossRecords, ...bankRecords];
   } else if (currentSource === 'bank') {
-    candidates = [...bankRecords];
+    bankCandidates = [...bankRecords];
   } else if (currentSource === 'cash') {
-    candidates = [...cashRecords];
-  } else if (currentSource === 'card') {
-    const isCompanyCard = options.payment === '기업카드';
-    candidates = isCompanyCard ? [...cardRecords] : [...tossRecords];
+    bankCandidates = [...cashRecords];
+  } else if (currentSource === 'card' && options.payment !== '기업카드') {
+    bankCandidates = [...tossRecords];
   }
 
-  const sourceCandidates = candidates.filter(r => {
+  const sourceBankCandidates = bankCandidates.filter(r => {
     const d = normalizeLedgerDate(r.date);
     return d.startsWith(sourceMonthKey) && !r.id.startsWith('fc-');
   });
@@ -345,23 +346,47 @@ export async function copyMonthFixedRecordsToNextMonth(sourceMonthKey, ledgerDat
     }
   });
 
-  const toCopy = sourceCandidates.filter(r => {
-    if (isManualCardPayment(r)) return false;
+  const toCopyBank = sourceBankCandidates.filter(r => {
+    if (isManualCardPayment(r)) return false; // 수기 통장 카드출금은 제외하여 9/27 자동집계 보호
     const isFixed = isFixedRecord(r);
     const isOffset = sourceOffsetRecordIds.has(String(r.id)) || sourceOffsetRecordIds.has(String(r.originalId));
     const isSalaryOrTransfer = isTransferOrSalaryRecord(r);
     return isFixed || isOffset || isSalaryOrTransfer;
   });
 
-  if (toCopy.length === 0) {
+  // B. 기업카드 고정비 거래 풀 (결제주기 13일~12일 기반!)
+  let toCopyCard = [];
+  if (currentSource === 'forecast' || currentSource === 'bank' || (currentSource === 'card' && options.payment === '기업카드')) {
+    let cardStart = null, cardEnd = null;
+    if (sm === 2) {
+      cardStart = `${sy}-01-01`;
+      cardEnd = `${sy}-02-12`;
+    } else {
+      const pStr = `${sy}-${String(sm - 1).padStart(2, '0')}`;
+      cardStart = `${pStr}-13`;
+      cardEnd = `${sourceMonthKey}-12`;
+    }
+
+    if (cardStart && cardEnd) {
+      const cycleCards = cardRecords.filter(c => {
+        const cd = normalizeLedgerDate(c.date);
+        return cd >= cardStart && cd <= cardEnd && !c.id.startsWith('fc-');
+      });
+      toCopyCard = cycleCards.filter(isFixedRecord);
+    }
+  }
+
+  const totalCount = toCopyBank.length + toCopyCard.length;
+  if (totalCount === 0) {
     return { ok: false, message: `${sm}월에 다음 달로 넘길 고정비/상계 거래가 없습니다.` };
   }
 
-  // 2. 다음 달(targetMonthKey) 날짜로 새 레코드 매핑 생성
+  // 2. 새 레코드 매핑 생성
   const newRecordsBySheet = {};
   const idMapping = {}; // oldId -> newId
 
-  toCopy.forEach((r, idx) => {
+  // 2-1. 일반 통장 거래 복사 매핑
+  toCopyBank.forEach((r, idx) => {
     const oldDateStr = normalizeLedgerDate(r.date);
     const day = oldDateStr.slice(8);
     const maxDaysInTargetMonth = new Date(ty, tm, 0).getDate();
@@ -372,7 +397,7 @@ export async function copyMonthFixedRecordsToNextMonth(sourceMonthKey, ledgerDat
     idMapping[String(r.id)] = newId;
     if (r.originalId) idMapping[String(r.originalId)] = newId;
 
-    const sheetName = r.sheetName || (r.payment === '기업은행' ? '기업은행' : r.payment === '기업카드' ? '기업카드' : r.payment === '현금' ? '현금' : '토스은행');
+    const sheetName = r.sheetName || (r.payment === '기업은행' ? '기업은행' : r.payment === '현금' ? '현금' : '토스은행');
 
     const newRecord = {
       id: newId,
@@ -380,12 +405,12 @@ export async function copyMonthFixedRecordsToNextMonth(sourceMonthKey, ledgerDat
       type: r.type,
       amount: Number(r.amount || 0),
       balance: 0,
-      payment: r.payment || (sheetName === '기업은행' ? '기업은행' : sheetName === '기업카드' ? '기업카드' : sheetName === '현금' ? '현금' : '토스은행'),
+      payment: r.payment || (sheetName === '기업은행' ? '기업은행' : sheetName === '현금' ? '현금' : '토스은행'),
       item: r.item || '',
       person: r.person || r.user_name || '기타',
       category: r.category || '',
       memo: r.memo || '',
-      fixedCost: r.fixedCost || '고정비',
+      fixedCost: r.fixedCost || '', // 원래 고정비였던 것만 고정비 유지!
       orderIndex: (idx + 1) * 10,
       createdAt: (idx + 1) * 10,
       source: 'supabase',
@@ -393,6 +418,45 @@ export async function copyMonthFixedRecordsToNextMonth(sourceMonthKey, ledgerDat
     };
 
     (newRecordsBySheet[sheetName] ||= []).push(newRecord);
+  });
+
+  // 2-2. 기업카드 고정비 거래 복사 매핑 (+1 month)
+  toCopyCard.forEach((c, idx) => {
+    const oldDateStr = normalizeLedgerDate(c.date);
+    const [cy, cm, cd] = oldDateStr.split('-').map(Number);
+    let nextY = cy;
+    let nextM = cm + 1;
+    if (nextM > 12) {
+      nextM = 1;
+      nextY += 1;
+    }
+    const maxDays = new Date(nextY, nextM, 0).getDate();
+    const safeDay = Math.min(cd, maxDays);
+    const newDateStr = `${nextY}-${String(nextM).padStart(2, '0')}-${String(safeDay).padStart(2, '0')}`;
+
+    const newId = `cp_card_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 6)}`;
+    idMapping[String(c.id)] = newId;
+    if (c.originalId) idMapping[String(c.originalId)] = newId;
+
+    const newCardRecord = {
+      id: newId,
+      date: newDateStr,
+      type: c.type || 'expense',
+      amount: Number(c.amount || 0),
+      balance: 0,
+      payment: '기업카드',
+      item: c.item || '',
+      person: c.person || c.user_name || '기타',
+      category: c.category || '',
+      memo: c.memo || '',
+      fixedCost: '고정비',
+      orderIndex: (idx + 1) * 10,
+      createdAt: (idx + 1) * 10,
+      source: 'supabase',
+      sheetName: '기업카드'
+    };
+
+    (newRecordsBySheet['기업카드'] ||= []).push(newCardRecord);
   });
 
   // 3. Supabase DB 일괄 삽입
@@ -428,5 +492,5 @@ export async function copyMonthFixedRecordsToNextMonth(sourceMonthKey, ledgerDat
   }
   saveOffsetGroups(offsetGroups);
 
-  return { ok: true, count: toCopy.length, sourceMonthKey, targetMonthKey, targetMonthNum: tm, sourceMonthNum: sm };
+  return { ok: true, count: totalCount, sourceMonthKey, targetMonthKey, targetMonthNum: tm, sourceMonthNum: sm };
 }
