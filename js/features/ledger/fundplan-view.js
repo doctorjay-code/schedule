@@ -1,7 +1,7 @@
 import { toIso, formatMoney, recalculateRunningBalances, normalizeLedgerDate, compareLedgerRecords } from './ledger-utils.js';
 import { createLedgerTableHead, renderTransactionRow } from './transaction-view.js';
 import { loadOffsetGroups, deleteOffsetGroup, createOffsetGroupRow } from './ledger-offset-groups.js';
-import { copyPreviousMonthFixedRecords } from './ledger-forecast.js';
+import { copyMonthFixedRecordsToNextMonth } from './ledger-forecast.js';
 
 export function getRecordMonthGroup(record, isCompanyCard) {
   const dStr = normalizeLedgerDate(record.date);
@@ -427,9 +427,9 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
         }
       });
 
-      // 3. 월별 하단 액션 바: 지난달 고정비/상계 거래 가져오기 버튼 (불필요한 회색 잔액행 완전 대체!)
+      // 3. 월별 하단 액션 바: 당월 고정비/상계 거래 다음 달로 넘기기 버튼 (Push 방식!)
       const [y, m] = month.split('-').map(Number);
-      const prevMonthNum = m === 1 ? 12 : m - 1;
+      const nextMonthNum = m === 12 ? 1 : m + 1;
 
       const actionRow = document.createElement('tr');
       actionRow.className = 'schedule-row ledger-month-action-row';
@@ -455,18 +455,18 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
       copyBtn.style.fontWeight = 'bold';
       copyBtn.style.cursor = 'pointer';
       copyBtn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
-      copyBtn.innerHTML = `📋 <strong>${prevMonthNum}월</strong> 고정비 & 상계 묶음 <strong>${m}월</strong>로 가져오기`;
+      copyBtn.innerHTML = `🚀 <strong>${m}월</strong> 고정비 & 상계 묶음 <strong>${nextMonthNum}월</strong>로 넘기기`;
 
       copyBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        if (confirm(`지난달(${prevMonthNum}월)의 고정비 및 상계 묶음 거래들을 ${m}월로 복사해 올까요?`)) {
+        if (confirm(`${m}월의 고정비 및 상계 묶음 거래들을 다음 달(${nextMonthNum}월)로 복사해 넘길까요?`)) {
           copyBtn.disabled = true;
           copyBtn.textContent = '⏳ 복사 중...';
           try {
-            const res = await copyPreviousMonthFixedRecords(month, ledgerDataSources, { source, payment: ledgerState.payment });
+            const res = await copyMonthFixedRecordsToNextMonth(month, ledgerDataSources, { source, payment: ledgerState.payment });
             if (res.ok) {
               if (typeof showLedgerToast === 'function') {
-                showLedgerToast(`🎉 ${prevMonthNum}월 고정비/상계 거래 (${res.count}건)가 ${m}월로 완벽 복사되었습니다!`);
+                showLedgerToast(`🎉 ${m}월 고정비/상계 거래 (${res.count}건)가 ${res.targetMonthNum}월로 완벽 복사되었습니다!`);
               }
               if (typeof refreshLedgerSheetData === 'function') {
                 await refreshLedgerSheetData();
@@ -479,13 +479,13 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
             } else {
               alert(res.message || '복사할 거래가 없습니다.');
               copyBtn.disabled = false;
-              copyBtn.innerHTML = `📋 <strong>${prevMonthNum}월</strong> 고정비 & 상계 묶음 <strong>${m}월</strong>로 가져오기`;
+              copyBtn.innerHTML = `🚀 <strong>${m}월</strong> 고정비 & 상계 묶음 <strong>${nextMonthNum}월</strong>로 넘기기`;
             }
           } catch (err) {
-            console.error('Failed to copy previous month records:', err);
+            console.error('Failed to copy records to next month:', err);
             alert('복사 중 오류가 발생했습니다: ' + err.message);
             copyBtn.disabled = false;
-            copyBtn.innerHTML = `📋 <strong>${prevMonthNum}월</strong> 고정비 & 상계 묶음 <strong>${m}월</strong>로 가져오기`;
+            copyBtn.innerHTML = `🚀 <strong>${m}월</strong> 고정비 & 상계 묶음 <strong>${nextMonthNum}월</strong>로 넘기기`;
           }
         }
       });

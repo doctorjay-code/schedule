@@ -49,7 +49,6 @@ export function isTransferOrSalaryRecord(r) {
 
 /**
  * 기업은행 시트에 적힌 수기 카드 결제/선결제 출금 건 여부 확인
- * (잔액전망에서는 27일에 실시간 집계되는 기업카드(고정/가변)로 대체되므로 중복 방지를 위해 제외)
  */
 export function isManualCardPayment(r) {
   if (!r || r.type !== 'expense') return false;
@@ -59,10 +58,7 @@ export function isManualCardPayment(r) {
 }
 
 /**
- * 토스은행 + 기업은행 통합 잔액전망 엔진:
- * - 3대 통합 아코디언 행: 매월 1일 [생활비(가변)], 매월 27일 [기업카드(고정)], [기업카드(가변)]
- * - 단독 중요 거래: 모든 고정비, 모든 이체/송금/급여/월급/대출원리금상환 풀 코스 100% 표시!
- * - 현금: 완전 제외
+ * 토스은행 + 기업은행 통합 잔액전망 엔진
  */
 export function generateForecastRecords(ledgerDataSources = {}) {
   const cardList = ledgerDataSources.card || [];
@@ -302,19 +298,19 @@ export function generateForecastRecords(ledgerDataSources = {}) {
   return forecastPool;
 }
 
-
 /**
- * 지난달의 고정비 및 상계 묶음을 당월로 일괄 복사하는 원클릭 엔진
+ * 이번 달의 고정비 및 상계 묶음을 다음 달로 넘기는 원클릭 Push 엔진
  */
-export async function copyPreviousMonthFixedRecords(targetMonthKey, ledgerDataSources = {}, options = {}) {
+export async function copyMonthFixedRecordsToNextMonth(sourceMonthKey, ledgerDataSources = {}, options = {}) {
+  const [sy, sm] = sourceMonthKey.split('-').map(Number);
+  const targetMonthKey = sm === 12
+    ? `${sy + 1}-01`
+    : `${sy}-${String(sm + 1).padStart(2, '0')}`;
   const [ty, tm] = targetMonthKey.split('-').map(Number);
-  const prevMonthKey = tm === 1
-    ? `${ty - 1}-12`
-    : `${ty}-${String(tm - 1).padStart(2, '0')}`;
 
   const currentSource = options.source || 'forecast';
 
-  // 1. 이전 달 거래 풀 추출
+  // 1. 소스 월(sourceMonthKey) 거래 풀 추출
   const cardList = ledgerDataSources.card || [];
   const tossRecords = cardList.filter(r => r.payment === '토스은행' || r.sheetName === '토스은행');
   const cardRecords = cardList.filter(r => r.payment === '기업카드' || r.sheetName === '기업카드');
@@ -333,36 +329,35 @@ export async function copyPreviousMonthFixedRecords(targetMonthKey, ledgerDataSo
     candidates = isCompanyCard ? [...cardRecords] : [...tossRecords];
   }
 
-  const prevCandidates = candidates.filter(r => {
+  const sourceCandidates = candidates.filter(r => {
     const d = normalizeLedgerDate(r.date);
-    return d.startsWith(prevMonthKey) && !r.id.startsWith('fc-');
+    return d.startsWith(sourceMonthKey) && !r.id.startsWith('fc-');
   });
 
   const offsetGroups = loadOffsetGroups();
-  const prevOffsetGroupIds = new Set();
-  const prevOffsetRecordIds = new Set();
+  const sourceOffsetGroupIds = new Set();
+  const sourceOffsetRecordIds = new Set();
 
   Object.values(offsetGroups).forEach(g => {
-    if (g.date && g.date.startsWith(prevMonthKey) && Array.isArray(g.recordIds)) {
-      prevOffsetGroupIds.add(g.id);
-      g.recordIds.forEach(id => prevOffsetRecordIds.add(String(id)));
+    if (g.date && g.date.startsWith(sourceMonthKey) && Array.isArray(g.recordIds)) {
+      sourceOffsetGroupIds.add(g.id);
+      g.recordIds.forEach(id => sourceOffsetRecordIds.add(String(id)));
     }
   });
 
-  // 대상 거래 필터링: 고정비이거나, 상계 그룹에 속한 거래이거나, 이체/월급인 거래! (수기 카드출금은 제외하여 9/27 자동집계 보호)
-  const toCopy = prevCandidates.filter(r => {
+  const toCopy = sourceCandidates.filter(r => {
     if (isManualCardPayment(r)) return false;
     const isFixed = isFixedRecord(r);
-    const isOffset = prevOffsetRecordIds.has(String(r.id)) || prevOffsetRecordIds.has(String(r.originalId));
+    const isOffset = sourceOffsetRecordIds.has(String(r.id)) || sourceOffsetRecordIds.has(String(r.originalId));
     const isSalaryOrTransfer = isTransferOrSalaryRecord(r);
     return isFixed || isOffset || isSalaryOrTransfer;
   });
 
   if (toCopy.length === 0) {
-    return { ok: false, message: `${Number(prevMonthKey.slice(5))}월에 복사할 고정비/상계 거래가 없습니다.` };
+    return { ok: false, message: `${sm}월에 다음 달로 넘길 고정비/상계 거래가 없습니다.` };
   }
 
-  // 2. 당월 날짜로 새 레코드 매핑 생성
+  // 2. 다음 달(targetMonthKey) 날짜로 새 레코드 매핑 생성
   const newRecordsBySheet = {};
   const idMapping = {}; // oldId -> newId
 
@@ -406,8 +401,8 @@ export async function copyPreviousMonthFixedRecords(targetMonthKey, ledgerDataSo
     await insertLedgerRecordsBatch(sheetName, list);
   }
 
-  // 4. 상계 묶음 9월 버전 자동 복제
-  for (const gId of prevOffsetGroupIds) {
+  // 4. 상계 묶음 다음 달 버전 자동 복제
+  for (const gId of sourceOffsetGroupIds) {
     const oldGroup = offsetGroups[gId];
     if (!oldGroup || !Array.isArray(oldGroup.recordIds)) continue;
 
@@ -420,7 +415,7 @@ export async function copyPreviousMonthFixedRecords(targetMonthKey, ledgerDataSo
       const newGroup = {
         id: newGroupId,
         date: newGroupDate,
-        title: oldGroup.title.replace(new RegExp(`${Number(prevMonthKey.slice(5))}월|${Number(prevMonthKey.slice(5))}\\.`), `${tm}월`),
+        title: oldGroup.title.replace(new RegExp(`${sm}월|${sm}\\.`), `${tm}월`),
         inAmount: oldGroup.inAmount,
         outAmount: oldGroup.outAmount,
         recordIds: newMappedIds,
@@ -433,5 +428,5 @@ export async function copyPreviousMonthFixedRecords(targetMonthKey, ledgerDataSo
   }
   saveOffsetGroups(offsetGroups);
 
-  return { ok: true, count: toCopy.length, prevMonthKey, targetMonthKey };
+  return { ok: true, count: toCopy.length, sourceMonthKey, targetMonthKey, targetMonthNum: tm, sourceMonthNum: sm };
 }
