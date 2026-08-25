@@ -165,8 +165,13 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
       return;
     }
 
-    // Group records by calculated month (YYYY-MM)
-    const grouped = records.reduce((map, record) => {
+    // 1. 전체 레코드를 날짜순으로 정렬하고 실시간 연속 누적 잔액(Running Balance)을 먼저 일괄 계산!
+    const sortedAndCalculated = source === 'forecast'
+      ? [...records].sort(compareLedgerRecords)
+      : recalculateRunningBalances([...records].sort(compareLedgerRecords), isCompanyCard);
+
+    // 2. Group records by calculated month (YYYY-MM)
+    const grouped = sortedAndCalculated.reduce((map, record) => {
       const monthKey = getRecordMonthGroup(record, isCompanyCard);
       (map[monthKey] ||= []).push(record);
       return map;
