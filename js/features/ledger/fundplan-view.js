@@ -86,7 +86,7 @@ export function createLedgerMonthDividerRow({
   expenseCell.textContent = monthExpense > 0 ? formatMoney(monthExpense) : '';
   dividerRow.appendChild(expenseCell);
 
-  // Column 7 (사용액 / 잔액 - 옵션 B: 월별 입출금 차액/순사용액)
+  // Column 7 (사용액 / 잔액 - 해당 월의 최종 누적 잔액 / 기업카드는 당월 순청구액)
   const balanceCell = document.createElement('td');
   balanceCell.className = 'ledger-month-divider-num-cell ledger-month-balance-cell';
   if (isCompanyCard) {
@@ -94,12 +94,16 @@ export function createLedgerMonthDividerRow({
     balanceCell.textContent = netUsage !== 0 ? `${netUsage < 0 ? '-' : ''}${formatMoney(netUsage)}` : '';
     if (netUsage < 0) balanceCell.style.color = '#15803D';
   } else {
-    const netBalance = monthIncome - monthExpense;
-    balanceCell.textContent = netBalance !== 0 ? `${netBalance < 0 ? '-' : ''}${formatMoney(netBalance)}` : '';
-    if (netBalance < 0) {
+    // 해당 월의 마지막 레코드의 최종 누적 잔액(Ending Balance)
+    const validRecordsWithBal = monthRecords.filter(r => Number.isFinite(Number(r.balance)));
+    const lastRecord = validRecordsWithBal.length > 0 ? validRecordsWithBal[validRecordsWithBal.length - 1] : null;
+    const endingBalance = lastRecord ? Number(lastRecord.balance) : (monthIncome - monthExpense);
+
+    balanceCell.textContent = Number.isFinite(endingBalance)
+      ? `${endingBalance < 0 ? '-' : ''}${formatMoney(endingBalance)}`
+      : '';
+    if (endingBalance < 0) {
       balanceCell.style.color = '#DC2626';
-    } else if (netBalance > 0) {
-      balanceCell.style.color = '#15803D';
     }
   }
   dividerRow.appendChild(balanceCell);
