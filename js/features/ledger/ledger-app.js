@@ -1,4 +1,5 @@
 import { state, pastelPalette, saveColorSettings, defaultColorSettings } from '../../services/schedule/state.js';
+import { registerColorUpdateCallback } from '../../services/schedule/api.js';
 import { switchViewModeUI } from '../schedule/render.js';
 import { openWeekSelectModal } from '../schedule/modals/week-picker.js';
 import { openMonthSelectModal } from '../schedule/modals/month-picker.js';
@@ -854,6 +855,13 @@ export function initLedgerView() {
       onLedgerChange: () => {
         refreshLedgerSheetData().catch(e => console.warn('Realtime refresh warn:', e));
       }
+    });
+    registerColorUpdateCallback(() => {
+      syncLedgerCardButtons();
+      renderWeekly();
+      renderMonthly();
+      getFundplanView()?.render();
+      getLedgerColorSettings()?.renderModalContent();
     });
   } catch (e) {
     console.warn('initLedgerView data load warn:', e);

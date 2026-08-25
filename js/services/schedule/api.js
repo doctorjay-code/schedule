@@ -3,12 +3,23 @@ import { setSyncStatus } from '../../shared/sync-ui.js';
 import { supabaseRest } from '../ledger/supabase-client.js';
 
 let apiLoadWeekDataFn = null;
+let colorUpdateCallbacks = new Set();
 let saveTimer = null;
 let saveInProgress = false;
 let saveQueued = false;
 
 export function setApiLoadWeekDataCallback(fn) {
   apiLoadWeekDataFn = fn;
+}
+
+export function registerColorUpdateCallback(fn) {
+  if (typeof fn === 'function') colorUpdateCallbacks.add(fn);
+}
+
+function notifyColorUpdated() {
+  colorUpdateCallbacks.forEach(fn => {
+    try { fn(state.colorSettings); } catch (e) { console.warn('Color callback err:', e); }
+  });
 }
 
 export function syncScheduleToSupabase() {
@@ -63,6 +74,7 @@ export async function syncScheduleFromSupabase() {
       state.colorSettings = normalizeColorSettings(colorSettingRows[0]?.value);
       saveColorSettings();
       if (apiLoadWeekDataFn) apiLoadWeekDataFn(state.currentWeekIndex);
+      notifyColorUpdated();
     }
 
     if (fetched && !saveInProgress && !saveQueued) setSyncStatus('saved', '최신 일정 반영');
@@ -82,6 +94,7 @@ export async function syncColorSettingsFromSupabase() {
       state.colorSettings = normalizeColorSettings(colorSettingRows[0]?.value);
       saveColorSettings();
       if (apiLoadWeekDataFn) apiLoadWeekDataFn(state.currentWeekIndex);
+      notifyColorUpdated();
     }
   } catch (e) {
     console.warn('Color settings sync error:', e);
@@ -94,6 +107,7 @@ export async function syncColorSettingsToSupabase() {
     const payload = normalizeColorSettings(state.colorSettings);
     state.colorSettings = payload;
     saveColorSettings();
+    notifyColorUpdated();
 
     await supabaseRest('schedule_settings', {
       method: 'POST',

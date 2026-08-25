@@ -88,6 +88,12 @@ export function renderPaletteChipsRows() {
 
         container.querySelectorAll('.color-chip').forEach(c => c.classList.remove('selected'));
         chip.classList.add('selected');
+
+        // 원터치 즉시 로컬 + 클라우드 DB 실시간 영구 자동 저장!
+        saveColorSettings();
+        syncColorSettingsToSheets();
+        if (renderTableFn) renderTableFn();
+        renderMonthlyCalendar();
       });
 
       container.appendChild(chip);

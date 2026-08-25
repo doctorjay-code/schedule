@@ -22,7 +22,7 @@ export const defaultColorSettings = {
   regionColors: {
     '서울': '#E0E7FF',
     '진주': '#FEF3C7',
-    '대구': '#DBEAFE',
+    '대구': '#D9E1F2',
     '이동': '#D1FAE5',
     '기타': '#FFEDD5'
   },
@@ -30,17 +30,33 @@ export const defaultColorSettings = {
     'O': '#FEF3C7',
     '행정': '#E0F2FE',
     '당직': '#E0E7FF',
-    '주말': '#FEE2E2',
+    '주말': '#FCE4D6',
     '휴일': '#FFEDD5',
-    '연가': '#EDE9FE',
+    '연가': '#EFE5FD',
     '청원휴가': '#FCE7F3',
     '위로휴가': '#D1FAE5',
     '당직OFF': '#F3E8FF',
-    '기타': '#F1F5F9'
+    '기타': '#D9E1F2'
   },
   wordRules: [],
-  ledgerPersonColors: {},
-  ledgerCategoryColors: {},
+  ledgerPersonColors: {
+    '쥬쥬': '#FCE7F3',
+    '콩콩': '#E0E7FF',
+    '지니': '#FEF3C7',
+    '기타': '#D9E1F2'
+  },
+  ledgerCategoryColors: {
+    '식비': '#FEF3C7',
+    '교통': '#E0F2FE',
+    '문화': '#EFE5FD',
+    '생활': '#D1FAE5',
+    '보험': '#FFEDD5',
+    '월급': '#D1FAE5',
+    '상환': '#FCE4D6',
+    '저축': '#D9E1F2',
+    '입금': '#F3E8FF',
+    '기타': '#FCE7F3'
+  },
   ledgerPaymentColors: {
     '현금': '#D1FAE5',
     '기업카드': '#FFEDD5',
@@ -49,9 +65,9 @@ export const defaultColorSettings = {
     '잔액전망': '#FEF3C7'
   },
   scheduleAlertColors: {
-    '미결제': '#FEF2F2',
-    '미신청': '#FFFBEB',
-    '미승인': '#F0FDF4'
+    '미결제': '#FCE4D6',
+    '미신청': '#FEF3C7',
+    '미승인': '#D1FAE5'
   },
   ledgerWordRules: []
 };
@@ -78,17 +94,27 @@ export const state = {
   scheduleDataState: 'loading'
 };
 
+function sanitizeColorMap(savedMap, defaultMap) {
+  const result = { ...defaultMap };
+  Object.entries(savedMap || {}).forEach(([k, v]) => {
+    if (pastelPalette.some(p => p.toLowerCase() === String(v || '').toLowerCase())) {
+      result[k] = v;
+    }
+  });
+  return result;
+}
+
 // Master Color Normalization Helper (Clean Architecture - Single Source of Truth)
 export function normalizeColorSettings(raw = {}) {
   const safe = raw && typeof raw === 'object' ? raw : {};
   return {
-    regionColors: { ...defaultColorSettings.regionColors, ...(safe.regionColors || {}) },
-    clinicColors: { ...defaultColorSettings.clinicColors, ...(safe.clinicColors || {}) },
+    regionColors: sanitizeColorMap(safe.regionColors, defaultColorSettings.regionColors),
+    clinicColors: sanitizeColorMap(safe.clinicColors, defaultColorSettings.clinicColors),
     wordRules: Array.isArray(safe.wordRules) ? safe.wordRules : [],
-    ledgerPersonColors: { ...defaultColorSettings.ledgerPersonColors, ...(safe.ledgerPersonColors || {}) },
-    ledgerCategoryColors: { ...defaultColorSettings.ledgerCategoryColors, ...(safe.ledgerCategoryColors || {}) },
-    ledgerPaymentColors: { ...defaultColorSettings.ledgerPaymentColors, ...(safe.ledgerPaymentColors || {}) },
-    scheduleAlertColors: { ...defaultColorSettings.scheduleAlertColors, ...(safe.scheduleAlertColors || {}) },
+    ledgerPersonColors: sanitizeColorMap(safe.ledgerPersonColors, defaultColorSettings.ledgerPersonColors),
+    ledgerCategoryColors: sanitizeColorMap(safe.ledgerCategoryColors, defaultColorSettings.ledgerCategoryColors),
+    ledgerPaymentColors: sanitizeColorMap(safe.ledgerPaymentColors, defaultColorSettings.ledgerPaymentColors),
+    scheduleAlertColors: sanitizeColorMap(safe.scheduleAlertColors, defaultColorSettings.scheduleAlertColors),
     ledgerWordRules: Array.isArray(safe.ledgerWordRules) ? safe.ledgerWordRules : []
   };
 }

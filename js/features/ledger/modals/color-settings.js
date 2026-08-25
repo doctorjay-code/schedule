@@ -43,6 +43,7 @@ export function createLedgerColorSettings({ state, pastelPalette, defaultColorSe
       chip.addEventListener('click', () => {
         state.colorSettings[key] = { ...(state.colorSettings[key] || {}), [name]: hex };
         saveColorSettings();
+        syncColorSettingsToSupabase();
         chips.querySelectorAll('.color-chip').forEach(item => item.classList.remove('selected'));
         chip.classList.add('selected');
         renderLedgerViews();
@@ -125,7 +126,10 @@ export function createLedgerColorSettings({ state, pastelPalette, defaultColorSe
       remove.addEventListener('click', event => {
         event.stopPropagation();
         state.colorSettings.ledgerWordRules = getWordRules().filter(item => item.id !== rule.id);
+        saveColorSettings();
+        syncColorSettingsToSupabase();
         renderWordRulesList();
+        renderLedgerViews();
       });
       tag.append(word, remove);
       container.appendChild(tag);
@@ -159,7 +163,10 @@ export function createLedgerColorSettings({ state, pastelPalette, defaultColorSe
       if (!word) return;
       getWordRules().push({ id: Date.now(), word, color: ruleColor });
       input.value = '';
+      saveColorSettings();
+      syncColorSettingsToSupabase();
       renderWordRulesList();
+      renderLedgerViews();
     });
     document.getElementById('ledgerColorSaveBtn')?.addEventListener('click', () => {
       saveColorSettings();

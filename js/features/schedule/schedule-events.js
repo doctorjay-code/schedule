@@ -1,10 +1,10 @@
 import { getVersionedUrl } from '../../version.js';
 import { state, getTodayWeekIndex, loadLastScheduleSheetSnapshot, loadColorSettings, updateSummaryCounts } from '../../services/schedule/state.js';
-import { syncFromGoogleSheets, syncToGoogleSheets, setApiLoadWeekDataCallback } from '../../services/schedule/api.js';
+import { syncFromGoogleSheets, syncToGoogleSheets, setApiLoadWeekDataCallback, registerColorUpdateCallback } from '../../services/schedule/api.js';
 import { loadWeekData, renderTable, isCellSelected, renderMonthlyCalendar, switchViewModeUI } from './render.js';
 import { initAverageBalanceModal } from '../ledger/modals/average-balance.js';
 import { openModal, closeModal, openSummaryModal, closeSummaryModal, openWeekSelectModal, closeWeekSelectModal, saveModalToActiveItem, setupBtnGroupEvents, setupToggleEvents, setModalRenderCallback, setModalLoadWeekDataCallback } from './modals/index.js';
-import { applyScheduleAlertChipColors } from './modals/color-settings.js';
+import { applyScheduleAlertChipColors, renderPaletteChipsRows } from './modals/color-settings.js';
 import { openMonthSelectModal, closeMonthSelectModal } from './modals/month-picker.js';
 import { bindScheduleNavigation } from './events/navigation.js';
 import { bindScheduleModalCloseEvents, bindScheduleFilterEvents } from './events/modal-filter-events.js';
@@ -109,6 +109,10 @@ export function initializeScheduleApp() {
   initAverageBalanceModal();
   initNetworkStatusListener();
   updateSummaryCounts();
+  registerColorUpdateCallback(() => {
+    applyScheduleAlertChipColors();
+    renderPaletteChipsRows();
+  });
   syncFromGoogleSheets();
   registerRealtimeCallbacks({
     onScheduleChange: () => {
