@@ -274,7 +274,8 @@ export function generateForecastRecords(ledgerDataSources = {}) {
     const rawBal = Number(first.balance);
     if (!Number.isFinite(rawBal)) return 0;
     const firstAmt = Number(first.amount || 0);
-    return rawBal - (first.type === 'income' ? firstAmt : -firstAmt);
+    const opening = rawBal - (first.type === 'income' ? firstAmt : -firstAmt);
+    return Math.max(0, opening);
   };
 
   const tossOpening = getAccountOpeningBalance(tossRecords);
