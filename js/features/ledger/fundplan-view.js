@@ -45,12 +45,24 @@ export function createLedgerMonthDividerRow({
   isCompanyCard = false,
   isExpanded = true,
   monthRecords = [],
+  offsetRecordIds = new Set(),
   onToggle = null
 }) {
   const monthIncome = monthRecords.reduce((sum, x) => {
+    const rawId = String(x.id || '').replace(/^fc-(toss|bank)-/, '');
+    const origId = String(x.originalId || '');
+    if (offsetRecordIds.has(rawId) || offsetRecordIds.has(origId) || offsetRecordIds.has(String(x.id))) {
+      return sum; // 상계 처리된 거래는 수입 합계에서 제외!
+    }
     return sum + (x.incomeAmount !== undefined ? Number(x.incomeAmount || 0) : (x.type === 'income' ? Number(x.amount || 0) : 0));
   }, 0);
+
   const monthExpense = monthRecords.reduce((sum, x) => {
+    const rawId = String(x.id || '').replace(/^fc-(toss|bank)-/, '');
+    const origId = String(x.originalId || '');
+    if (offsetRecordIds.has(rawId) || offsetRecordIds.has(origId) || offsetRecordIds.has(String(x.id))) {
+      return sum; // 상계 처리된 거래는 지출 합계에서 제외!
+    }
     return sum + (x.expenseAmount !== undefined ? Number(x.expenseAmount || 0) : (x.type === 'expense' ? Number(x.amount || 0) : 0));
   }, 0);
 
@@ -195,11 +207,23 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
       const isExpanded = monthExpandedState[month] !== false;
       const monthRowElements = [];
 
+      // 상계 묶음 그룹 정보 추출
+      const offsetGroups = (source === 'forecast') ? loadOffsetGroups() : {};
+      const offsetRecordIds = new Set();
+      if (source === 'forecast') {
+        Object.values(offsetGroups).forEach(g => {
+          if (Array.isArray(g.recordIds)) {
+            g.recordIds.forEach(id => offsetRecordIds.add(String(id)));
+          }
+        });
+      }
+
       const dividerRow = createLedgerMonthDividerRow({
         monthKey: month,
         isCompanyCard,
         isExpanded,
         monthRecords,
+        offsetRecordIds,
         onToggle: toggleIcon => {
           const currentlyExpanded = monthExpandedState[month] !== false;
           const willExpand = !currentlyExpanded;
@@ -221,7 +245,6 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
       list.appendChild(dividerRow);
 
       // 2. Month Transaction Rows (상계 묶음 그룹핑 지원)
-      const offsetGroups = (source === 'forecast') ? loadOffsetGroups() : {};
       const handledGroupIds = new Set();
 
       const calculatedMonthRecords = (source === 'forecast') ? monthRecords : recalculateRunningBalances(monthRecords, isCompanyCard);
