@@ -6,18 +6,12 @@ export function isFixedRecord(r) {
 }
 
 /**
- * 이체 / 송금 / 월급 관련 중요 거래인지 확인
- * (통장 간 돈의 이동 흐름이므로 생활비에 뭉개지 않고 100% 단독 행으로 표시)
+ * 이체 / 월급 카테고리 거래인지 확인 (오직 카테고리 필드만 기준!)
  */
 export function isTransferOrSalaryRecord(r) {
   if (!r) return false;
   const category = String(r.category || '').trim();
-  const item = String(r.item || '').trim();
-  const memo = String(r.memo || '').trim();
-  if (category === '이체' || category === '월급') return true;
-  if (item.includes('박주하') || item.includes('모임통장') || item.includes('급여') || item.includes('재정관리단')) return true;
-  if (memo.includes('이체') || memo.includes('월급') || memo.includes('송금') || memo.includes('카드값') || memo.includes('대출이자')) return true;
-  return false;
+  return category === '이체' || category === '월급';
 }
 
 /**
