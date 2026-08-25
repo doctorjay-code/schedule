@@ -968,10 +968,15 @@ td.cell-selected,
   border: 1px solid #FDE047;
 }
 
+/* Table Row Border Architecture (CSS 변수 기반 동적 보더 시스템) */
+tr.schedule-row {
+  --row-border-bottom: 2px solid #1E3A8A;
+}
+
 tr.row-day-end td,
 td.cell-day-end-border,
 td.cell-date {
-  border-bottom: 2px solid #1E3A8A !important;
+  border-bottom: var(--row-border-bottom, 2px solid #1E3A8A) !important;
 }
 
 /* Bottom Action Group (Copy Toast Bar stacked right above Multi Action Bar) */
@@ -1427,32 +1432,37 @@ td.cell-date {
 .ledger-aggregate-row:hover {
   background-color: #F1F5F9 !important;
 }
-.ledger-subdetail-row {
+/* 세부 거래 내역 행 (Subdetail - 모든 보더가 보라색 인디케이터로 100% 일원화) */
+tr.schedule-row.ledger-subdetail-row {
+  --row-border-bottom: 1.5px solid #818CF8;
   background-color: #F8FAFC !important;
   font-size: 1.0em !important;
   transition: background-color 0.15s ease;
 }
-.ledger-subdetail-row:hover {
+tr.schedule-row.ledger-subdetail-row:hover {
   background-color: #F1F5F9 !important;
 }
+
 /* 좌측 보라색 세로 인디케이터 라인 */
-.ledger-subdetail-row td.cell-date {
+tr.schedule-row.ledger-subdetail-row td.cell-date {
   color: #475569 !important;
   font-size: 1.0em !important;
   border-left: 4px solid #818CF8 !important;
   padding-left: 6px !important;
 }
+
 /* 우측 보라색 세로 인디케이터 라인 */
-.ledger-subdetail-row td:last-child {
+tr.schedule-row.ledger-subdetail-row td:last-child {
   border-right: 4px solid #818CF8 !important;
 }
-/* 각 세부 거래(행) 사이 및 날짜셀 하단의 보라색 가로 구분선 인디케이터 라인 */
-tr.ledger-subdetail-row td.cell-date,
-tr.ledger-subdetail-row td.cell-day-end-border,
-tr.schedule-row-tag.ledger-subdetail-row td,
-tr.schedule-row-tag.ledger-subdetail-row {
+
+/* 세부 거래 내역 행의 모든 하단 셀 구분선 일원화 (변수 적용) */
+tr.schedule-row.ledger-subdetail-row td.cell-day-end-border,
+tr.schedule-row.ledger-subdetail-row td.cell-date,
+tr.schedule-row-tag.ledger-subdetail-row td {
   border-bottom: 1.5px solid #818CF8 !important;
 }
+
 .ledger-subdetail-indicator {
   display: inline-block;
   margin-right: 4px;
