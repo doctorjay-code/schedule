@@ -6,22 +6,30 @@ export function isFixedRecord(r) {
 }
 
 /**
- * 기업은행 <-> 토스은행 간의 단순 내부 통장 이체 거래 여부 확인
- * (통합 총잔액 기준으로는 돈이 나간 것도 들어온 것도 아니므로 잔액전망 표에서 제외)
+ * 기업은행 <-> 토스은행 간의 단순 본인 통장 이동 거래만 핀포인트 제외
+ * (일반 송금, 김지은/김민지 등 사람에게 보낸 생활비 이체, 캐시백, 이자, ATM입금 등은 100% 정상 포함!)
  */
 export function isInternalTransfer(r) {
   if (!r) return false;
-  const category = String(r.category || '').trim();
-  if (category === '이체') return true;
-
   const item = String(r.item || '').trim();
   const memo = String(r.memo || '').trim();
   const payment = String(r.payment || r.sheetName || '').trim();
 
-  // 기업은행 모임통장 이체 등 추가 방어
+  // 1. 기업은행 -> 토스 이체 출금 (모임통장)
   if (payment === '기업은행' && r.type === 'expense' && (item.includes('모임통장') || item.includes('모임통 장') || memo.includes('토스뱅크 이체') || memo.includes('토스 이체'))) {
     return true;
   }
+
+  // 2. 토스은행 -> 기업은행 카드값/대출금 송금 출금 (박주하 본인 계좌 송금)
+  if (payment === '토스은행' && r.type === 'expense' && item === '박주하' && (memo.includes('기업카드') || memo.includes('대출이자') || memo.includes('이체'))) {
+    return true;
+  }
+
+  // 3. 기업은행 <- 토스 송금 입금 (박주하 본인 계좌 송금)
+  if (payment === '기업은행' && r.type === 'income' && item === '박주하' && (memo.includes('토스') || memo.includes('이체'))) {
+    return true;
+  }
+
   return false;
 }
 
