@@ -16,7 +16,7 @@ import { fetchLedgerData, fetchLedgerSheetData, upsertLedgerRecord, upsertLedger
 import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js';
 import { showLedgerToast, findLedgerRecordById, executeLedgerCopy, executeLedgerDelete, executeLedgerPaste } from './ledger-clipboard.js';
 import { generateForecastRecords } from './ledger-forecast.js';
-import { createOffsetGroupFromRecords } from './ledger-offset-groups.js';
+import { createOffsetGroupFromRecords, syncOffsetGroupsFromDB } from './ledger-offset-groups.js';
 
 const ledgerDataSources = {
   card: [],
@@ -961,6 +961,9 @@ function showSchedule() {
 export function initLedgerView() {
   try {
     loadLedgerSheetSnapshot();
+    syncOffsetGroupsFromDB().then(() => {
+      renderActiveLedgerPeriod();
+    }).catch(e => console.warn('syncOffsetGroupsFromDB warn:', e));
     refreshLedgerSheetData().catch(e => console.warn('refreshLedgerSheetData warn:', e));
     registerRealtimeCallbacks({
       onLedgerChange: () => {

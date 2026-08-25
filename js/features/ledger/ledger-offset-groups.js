@@ -1,4 +1,5 @@
 import { formatMoney, normalizeLedgerDate } from './ledger-utils.js';
+import { fetchLedgerOffsetGroups, upsertLedgerOffsetGroup, deleteLedgerOffsetGroup as deleteOffsetGroupFromDB } from '../../services/ledger/ledger-api.js';
 
 const OFFSET_GROUPS_STORAGE_KEY = 'LEDGER_OFFSET_GROUPS_V1';
 
@@ -21,6 +22,21 @@ export function saveOffsetGroups(groups) {
   }
 }
 
+export async function syncOffsetGroupsFromDB() {
+  try {
+    const dbGroups = await fetchLedgerOffsetGroups();
+    if (dbGroups && typeof dbGroups === 'object' && Object.keys(dbGroups).length > 0) {
+      const localGroups = loadOffsetGroups();
+      const merged = { ...localGroups, ...dbGroups };
+      saveOffsetGroups(merged);
+      return merged;
+    }
+  } catch (err) {
+    console.warn('DB offset groups sync fallback to local:', err);
+  }
+  return loadOffsetGroups();
+}
+
 export function createOffsetGroupFromRecords(records) {
   if (!Array.isArray(records) || records.length < 2) {
     return { ok: false, message: '상계 묶음을 만들려면 2개 이상의 거래를 선택해야 합니다.' };
@@ -40,7 +56,12 @@ export function createOffsetGroupFromRecords(records) {
   const firstDate = normalizeLedgerDate(sorted[0].date);
   const [y, m, d] = firstDate.split('-').map(Number);
   const groupId = `offset-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-  const recordIds = records.map(r => String(r.id || r.originalId));
+
+  // ID 정규화 (fc- 접두어 제거하여 원본 DB ID로 일치)
+  const recordIds = records.map(r => {
+    const sId = String(r.id || r.originalId || '');
+    return sId.replace(/^fc-(toss|bank)-/, '');
+  });
 
   const itemsSummary = records.map(r => r.item || '항목').slice(0, 2).join(', ');
   const etcCount = records.length > 2 ? ` 외 ${records.length - 2}건` : '';
@@ -60,6 +81,11 @@ export function createOffsetGroupFromRecords(records) {
   groups[groupId] = group;
   saveOffsetGroups(groups);
 
+  // Supabase DB에 비동기 영구 저장
+  upsertLedgerOffsetGroup(group).catch(err => {
+    console.error('Supabase offset group save error:', err);
+  });
+
   return { ok: true, group };
 }
 
@@ -68,6 +94,12 @@ export function deleteOffsetGroup(groupId) {
   if (groups[groupId]) {
     delete groups[groupId];
     saveOffsetGroups(groups);
+
+    // Supabase DB에서도 영구 삭제
+    deleteOffsetGroupFromDB(groupId).catch(err => {
+      console.error('Supabase offset group delete error:', err);
+    });
+
     return true;
   }
   return false;
@@ -86,8 +118,8 @@ export function createOffsetGroupRow({
   tr.className = 'schedule-row ledger-offset-group-row';
   tr.dataset.offsetGroupId = group.id;
   tr.style.backgroundColor = '#F8FAFC';
-  tr.style.borderLeft = '3.5px solid #6366F1';
-  tr.style.borderBottom = '1px solid #E2E8F0';
+  tr.style.borderLeft = '4px solid #6366F1';
+  tr.style.borderBottom = '1px solid #CBD5E1';
   tr.style.cursor = 'pointer';
   tr.style.fontWeight = '600';
   tr.style.height = '32px';
@@ -104,6 +136,7 @@ export function createOffsetGroupRow({
   wrap.style.display = 'flex';
   wrap.style.alignItems = 'center';
   wrap.style.justifyContent = 'space-between';
+  wrap.style.width = '100%';
 
   const leftBox = document.createElement('div');
   leftBox.style.display = 'flex';
@@ -123,7 +156,7 @@ export function createOffsetGroupRow({
   tagBadge.style.padding = '1px 5px';
   tagBadge.style.borderRadius = '4px';
   tagBadge.style.fontWeight = 'bold';
-  tagBadge.textContent = '상계';
+  tagBadge.textContent = '0원 상계';
 
   const titleText = document.createElement('span');
   titleText.textContent = group.title;
@@ -132,16 +165,18 @@ export function createOffsetGroupRow({
   leftBox.appendChild(tagBadge);
   leftBox.appendChild(titleText);
 
+  // 우측 상계 풀기 버튼 (명확하고 예쁜 버튼)
   const unlinkBtn = document.createElement('button');
   unlinkBtn.type = 'button';
   unlinkBtn.title = '이 상계 묶음을 해제하여 원래 개별 거래들로 되돌립니다';
-  unlinkBtn.style.background = 'transparent';
+  unlinkBtn.style.backgroundColor = '#FFFFFF';
   unlinkBtn.style.border = '1px solid #CBD5E1';
   unlinkBtn.style.borderRadius = '4px';
-  unlinkBtn.style.padding = '1px 6px';
+  unlinkBtn.style.padding = '2px 8px';
   unlinkBtn.style.fontSize = '0.75em';
-  unlinkBtn.style.color = '#64748B';
+  unlinkBtn.style.color = '#475569';
   unlinkBtn.style.cursor = 'pointer';
+  unlinkBtn.style.fontWeight = 'bold';
   unlinkBtn.textContent = '🔓 묶음 풀기';
   unlinkBtn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -186,7 +221,10 @@ export function createOffsetGroupRow({
   tr.appendChild(balCell);
 
   if (onToggle) {
-    tr.addEventListener('click', () => onToggle(icon));
+    tr.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      onToggle(icon);
+    });
   }
 
   return tr;

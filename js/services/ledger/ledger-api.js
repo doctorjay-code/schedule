@@ -190,3 +190,65 @@ export async function reorderLedgerRecords(sheetName, orderedIds, fetchImpl = fe
   return { ok: true };
 }
 export const reorderLedgerSheetRecords = reorderLedgerRecords;
+
+/**
+ * Supabase DB 상계 묶음 CRUD 함수
+ */
+export async function fetchLedgerOffsetGroups(fetchImpl = fetch) {
+  try {
+    const res = await supabaseRest('ledger_offset_groups?select=*', { fetchImpl });
+    if (!Array.isArray(res)) return {};
+    const groups = {};
+    res.forEach(row => {
+      groups[row.id] = {
+        id: row.id,
+        date: normalizeLedgerDate(row.date),
+        title: row.title,
+        inAmount: Number(row.in_amount || 0),
+        outAmount: Number(row.out_amount || 0),
+        recordIds: Array.isArray(row.record_ids) ? row.record_ids.map(String) : [],
+        createdAt: row.created_at
+      };
+    });
+    return groups;
+  } catch (err) {
+    console.warn('Failed to fetch ledger offset groups from DB:', err);
+    return {};
+  }
+}
+
+export async function upsertLedgerOffsetGroup(group, fetchImpl = fetch) {
+  try {
+    const row = {
+      id: group.id,
+      date: group.date,
+      title: group.title,
+      in_amount: group.inAmount,
+      out_amount: group.outAmount,
+      record_ids: group.recordIds
+    };
+    await supabaseRest('ledger_offset_groups', {
+      method: 'POST',
+      fetchImpl,
+      prefer: 'resolution=merge-duplicates',
+      body: row
+    });
+    return { ok: true };
+  } catch (err) {
+    console.error('Failed to upsert ledger offset group to DB:', err);
+    return { ok: false, error: err };
+  }
+}
+
+export async function deleteLedgerOffsetGroup(groupId, fetchImpl = fetch) {
+  try {
+    await supabaseRest(`ledger_offset_groups?id=eq.${encodeURIComponent(groupId)}`, {
+      method: 'DELETE',
+      fetchImpl
+    });
+    return { ok: true };
+  } catch (err) {
+    console.error('Failed to delete ledger offset group from DB:', err);
+    return { ok: false, error: err };
+  }
+}
