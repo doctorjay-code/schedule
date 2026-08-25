@@ -140,7 +140,7 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
     tagRow.appendChild(afternoonCell);
   }
   const personCell = makeDayEndCell();
-  const personText = String(item.person || '').trim();
+  const personText = String(item.person || item.user_name || '기타').trim();
   const personTag = makeTag(personText);
   if (personTag) {
     personTag.style.backgroundColor = getLedgerTagColor(colorSettings, 'person', personText);

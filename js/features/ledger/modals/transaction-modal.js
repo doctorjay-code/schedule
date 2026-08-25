@@ -28,8 +28,8 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
     const rawMemo = String(memoValue || '').trim();
     let person = String(personValue || '').trim();
     const personMatch = rawMemo.match(/콩콩|쥬쥬|지니/);
-    if (!person && personMatch) {
-      person = personMatch[0];
+    if (!person || person === '기타') {
+      person = personMatch ? personMatch[0] : (person || '기타');
     }
     const detail = rawMemo.replace(/콩콩|쥬쥬|지니/g, '').trim().replace(/\s{2,}/g, ' ');
     return { person, detail };
@@ -39,9 +39,18 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
     const selectedPerson = String(document.getElementById('ledgerModalPerson')?.value || '').trim();
     const rawDetail = String(document.getElementById('ledgerModalMemo')?.value || '').trim();
     const personMatch = rawDetail.match(/콩콩|쥬쥬|지니/);
-    const finalPerson = selectedPerson || (personMatch ? personMatch[0] : '');
+    
+    let finalPerson = '기타';
+    if (selectedPerson && selectedPerson !== '기타') {
+      finalPerson = selectedPerson;
+    } else if (personMatch) {
+      finalPerson = personMatch[0];
+    } else if (selectedPerson === '기타') {
+      finalPerson = '기타';
+    }
+
     const cleanedDetail = rawDetail.replace(/콩콩|쥬쥬|지니/g, '').trim().replace(/\s{2,}/g, ' ');
-    const finalMemo = [finalPerson, cleanedDetail].filter(Boolean).join(' ');
+    const finalMemo = (finalPerson && finalPerson !== '기타') ? [finalPerson, cleanedDetail].filter(Boolean).join(' ') : cleanedDetail;
     return { person: finalPerson, memo: finalMemo, detail: cleanedDetail };
   }
 

@@ -509,12 +509,14 @@ function saveLedgerRecord(form, overrides = {}) {
   const isEdit = Boolean(values.ledgerEditId);
   const existing = ledgerState.records.find(record => record.id === values.ledgerEditId);
   
-  // 스마트 사용자 추출 & 비고 중복 방지
+  // 스마트 사용자 추출 & 비고 중복 방지 (기본값: '기타')
   const rawMemo = String(values.memo || '').trim();
   const personMatch = rawMemo.match(/콩콩|쥬쥬|지니/);
-  const finalPerson = String(values.person || (personMatch ? personMatch[0] : '')).trim();
+  let finalPerson = String(values.person || (personMatch ? personMatch[0] : '기타')).trim();
+  if (!finalPerson) finalPerson = '기타';
+
   const cleanedDetail = rawMemo.replace(/콩콩|쥬쥬|지니/g, '').trim().replace(/\s{2,}/g, ' ');
-  const finalMemo = [finalPerson, cleanedDetail].filter(Boolean).join(' ');
+  const finalMemo = (finalPerson && finalPerson !== '기타') ? [finalPerson, cleanedDetail].filter(Boolean).join(' ') : cleanedDetail;
 
   const payment = values.payment || ledgerState.payment || '토스은행';
   const record = {
