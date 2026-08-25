@@ -14,11 +14,10 @@ export function generateForecastRecords(ledgerDataSources = {}) {
   const cardList = ledgerDataSources.card || [];
   const tossRecords = cardList.filter(r => r.payment === '토스은행' || r.sheetName === '토스은행');
   const bankRecords = ledgerDataSources.bank || [];
-  const cashRecords = ledgerDataSources.cash || [];
 
   const forecastPool = [];
 
-  // 1. 토스은행의 '모든' 거래 100% 추가 (숨김 전혀 없음!)
+  // 1. 토스은행의 '모든' 거래 100% 추가
   tossRecords.forEach(r => {
     forecastPool.push({
       ...r,
@@ -29,7 +28,7 @@ export function generateForecastRecords(ledgerDataSources = {}) {
     });
   });
 
-  // 2. 기업은행의 '모든' 거래 100% 추가 (숨김 전혀 없음!)
+  // 2. 기업은행의 '모든' 거래 100% 추가
   bankRecords.forEach(r => {
     forecastPool.push({
       ...r,
@@ -40,21 +39,10 @@ export function generateForecastRecords(ledgerDataSources = {}) {
     });
   });
 
-  // 3. 현금의 '모든' 거래 100% 추가 (숨김 전혀 없음!)
-  cashRecords.forEach(r => {
-    forecastPool.push({
-      ...r,
-      id: `fc-cash-${r.id}`,
-      originalId: r.id,
-      source: 'forecast',
-      payment: '현금'
-    });
-  });
-
-  // 4. 날짜순 표준 정렬
+  // 3. 날짜순 표준 정렬
   forecastPool.sort(compareLedgerRecords);
 
-  // 5. 각 계좌의 시작 잔액 합산 (2026년 통합 시작 잔액)
+  // 4. 통장 계좌(토스은행, 기업은행)의 2026년 시작 잔액 합산
   const getAccountOpeningBalance = (records) => {
     if (!Array.isArray(records) || records.length === 0) return 0;
     const sorted = [...records].filter(r => normalizeLedgerDate(r.date) >= '2026-01-01').sort(compareLedgerRecords);
@@ -68,10 +56,9 @@ export function generateForecastRecords(ledgerDataSources = {}) {
 
   const tossOpening = getAccountOpeningBalance(tossRecords);
   const bankOpening = getAccountOpeningBalance(bankRecords);
-  const cashOpening = getAccountOpeningBalance(cashRecords);
-  const totalOpeningBalance = tossOpening + bankOpening + cashOpening;
+  const totalOpeningBalance = tossOpening + bankOpening;
 
-  // 6. 통합 시작 잔액에서 출발하여 전체 실시간 연속 누적 잔액(Running Balance) 계산!
+  // 5. 통합 통장 시작 잔액에서 출발하여 전체 실시간 연속 누적 잔액(Running Balance) 계산!
   let runningBalance = totalOpeningBalance;
   forecastPool.forEach(r => {
     const amt = Number(r.amount || 0);
