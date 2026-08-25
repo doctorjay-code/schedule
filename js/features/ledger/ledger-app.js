@@ -886,6 +886,7 @@ function getFundplanView() {
       minDate: LEDGER_MIN_DATE,
       setText,
       ledgerDataSources,
+      getLedgerDataSources: () => ledgerDataSources,
       refreshLedgerSheetData,
       renderActiveLedgerPeriod,
       showLedgerToast

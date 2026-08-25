@@ -132,7 +132,7 @@ export function createLedgerMonthDividerRow({
 }
 
 // Bank, cash, and card all-time ledger rendering responsibility.
-export function createFundplanView({ ledgerState, getColorSettings, colorSettings, getActiveSourceRecords, clampLedgerDate, minDate, setText, ledgerDataSources, refreshLedgerSheetData, renderActiveLedgerPeriod, showLedgerToast }) {
+export function createFundplanView({ ledgerState, getColorSettings, colorSettings, getActiveSourceRecords, clampLedgerDate, minDate, setText, ledgerDataSources, getLedgerDataSources, refreshLedgerSheetData, renderActiveLedgerPeriod, showLedgerToast }) {
   const monthExpandedState = {};
 
   function render() {
@@ -463,13 +463,17 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
           copyBtn.disabled = true;
           copyBtn.textContent = '⏳ 복사 중...';
           try {
-            const res = await copyMonthFixedRecordsToNextMonth(month, ledgerDataSources, { source, payment: ledgerState.payment });
+            const currentSources = (typeof getLedgerDataSources === 'function' ? getLedgerDataSources() : ledgerDataSources) || {};
+            const res = await copyMonthFixedRecordsToNextMonth(month, currentSources, { source, payment: ledgerState.payment });
             if (res.ok) {
               if (typeof showLedgerToast === 'function') {
                 showLedgerToast(`🎉 ${m}월 고정비/상계 거래 (${res.count}건)가 ${res.targetMonthNum}월로 완벽 복사되었습니다!`);
               }
               if (typeof refreshLedgerSheetData === 'function') {
                 await refreshLedgerSheetData();
+              }
+              if (res.targetMonthKey) {
+                monthExpandedState[res.targetMonthKey] = true;
               }
               if (typeof renderActiveLedgerPeriod === 'function') {
                 renderActiveLedgerPeriod();
