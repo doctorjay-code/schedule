@@ -46,8 +46,12 @@ export function createLedgerMonthDividerRow({
   monthRecords = [],
   onToggle = null
 }) {
-  const monthIncome = monthRecords.filter(x => x.type === 'income').reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
-  const monthExpense = monthRecords.filter(x => x.type === 'expense').reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
+  const monthIncome = monthRecords.reduce((sum, x) => {
+    return sum + (x.incomeAmount !== undefined ? Number(x.incomeAmount || 0) : (x.type === 'income' ? Number(x.amount || 0) : 0));
+  }, 0);
+  const monthExpense = monthRecords.reduce((sum, x) => {
+    return sum + (x.expenseAmount !== undefined ? Number(x.expenseAmount || 0) : (x.type === 'expense' ? Number(x.amount || 0) : 0));
+  }, 0);
 
   const dividerRow = document.createElement('tr');
   dividerRow.className = 'ledger-month-divider-row';
