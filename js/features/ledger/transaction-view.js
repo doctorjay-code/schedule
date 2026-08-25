@@ -59,6 +59,8 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
   if (item.isAggregate) {
     detailRow.classList.add('ledger-aggregate-row');
     tagRow.classList.add('ledger-aggregate-row');
+    detailRow.dataset.ledgerReadOnly = 'true';
+    tagRow.dataset.ledgerReadOnly = 'true';
   }
   if (item.isSubDetail) {
     detailRow.classList.add('ledger-subdetail-row');

@@ -439,15 +439,43 @@ function reorderLedgerRecord(orderedIds) {
   const currentSheetName = getCurrentLedgerSheetName();
   showLedgerToast('↕️ 거래 순서가 저장되었습니다.');
 
-  // 1. 현재 결제수단에 속한 모든 거래에 대해 고유한 orderIndex(10, 20, 30...) 부여
+  // 1. orderedIds 분석 및 매핑 생성 (잔액전망용 fc- 접두어 해제 및 각 통장별 정렬 리스트 추출)
   const idMap = new Map();
-  orderedIds.forEach((id, idx) => idMap.set(String(id), (idx + 1) * 10));
+  const tossOrderedRawIds = [];
+  const bankOrderedRawIds = [];
+
+  orderedIds.forEach((rawId, idx) => {
+    const sId = String(rawId);
+    let realId = sId;
+
+    if (sId.startsWith('fc-toss-')) {
+      realId = sId.replace('fc-toss-', '');
+      tossOrderedRawIds.push(realId);
+    } else if (sId.startsWith('fc-bank-')) {
+      realId = sId.replace('fc-bank-', '');
+      bankOrderedRawIds.push(realId);
+    } else if (sId.startsWith('fc-var-') || sId.startsWith('fc-fix-')) {
+      // 가상 통합행은 제외
+      return;
+    } else {
+      if (currentSheetName === '토스은행') tossOrderedRawIds.push(realId);
+      else if (currentSheetName === '기업은행') bankOrderedRawIds.push(realId);
+    }
+
+    const orderVal = (idx + 1) * 10;
+    idMap.set(realId, orderVal);
+    idMap.set(sId, orderVal);
+  });
 
   const updateOrderInList = (list) => {
     if (!Array.isArray(list)) return list;
     return list.map(item => {
-      if (idMap.has(String(item.id))) {
-        return { ...item, orderIndex: idMap.get(String(item.id)) };
+      const iId = String(item.id || '');
+      const oId = String(item.originalId || '');
+      if (idMap.has(iId)) {
+        return { ...item, orderIndex: idMap.get(iId) };
+      } else if (oId && idMap.has(oId)) {
+        return { ...item, orderIndex: idMap.get(oId) };
       }
       return item;
     }).sort(compareLedgerRecords);
@@ -461,7 +489,18 @@ function reorderLedgerRecord(orderedIds) {
   saveLedgerSheetSnapshot();
 
   // 2. Supabase DB 비동기 초고속 일괄 영구 저장
-  if (currentSheetName && currentSheetName !== '잔액전망') {
+  if (currentSheetName === '잔액전망') {
+    if (tossOrderedRawIds.length > 0) {
+      reorderLedgerSheetRecords('토스은행', tossOrderedRawIds).catch(err => {
+        console.error('Supabase Toss reorder sync error from Forecast:', err);
+      });
+    }
+    if (bankOrderedRawIds.length > 0) {
+      reorderLedgerSheetRecords('기업은행', bankOrderedRawIds).catch(err => {
+        console.error('Supabase Bank reorder sync error from Forecast:', err);
+      });
+    }
+  } else if (currentSheetName) {
     reorderLedgerSheetRecords(currentSheetName, orderedIds).catch(err => {
       console.error('Supabase reorder sync error:', err);
     });
