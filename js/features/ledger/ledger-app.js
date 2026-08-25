@@ -16,6 +16,7 @@ import { fetchLedgerData, fetchLedgerSheetData, upsertLedgerRecord, upsertLedger
 import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js';
 import { showLedgerToast, findLedgerRecordById, executeLedgerCopy, executeLedgerDelete, executeLedgerPaste } from './ledger-clipboard.js';
 import { generateForecastRecords } from './ledger-forecast.js';
+import { createOffsetGroupFromRecords } from './ledger-offset-groups.js';
 
 const ledgerDataSources = {
   card: [],
@@ -648,12 +649,56 @@ let copiedLedgerRecords = [];
 function updateLedgerSelectionUI() {
   const count = selectedLedgerIds.size;
   const label = document.getElementById('ledgerSelectedCountLabel');
+  const diffLabel = document.getElementById('ledgerSelectedDiffLabel');
+  const offsetBtn = document.getElementById('ledgerBulkOffsetBtn');
+
   if (label) label.textContent = `${count}건 선택됨`;
+
+  // 선택된 레코드들의 수입과 지출 합계 실시간 계산
+  const selectedRecords = Array.from(selectedLedgerIds).map(id => getRecordById(id)).filter(Boolean);
+  const inSum = selectedRecords.filter(r => r.type === 'income').reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const outSum = selectedRecords.filter(r => r.type === 'expense').reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const diff = inSum - outSum;
+
+  if (diffLabel) {
+    if (count >= 1) {
+      const diffText = diff === 0
+        ? '<span style="color:#15803D; font-weight:bold;">⚖️ 차액 0원 (상계 가능)</span>'
+        : `<span style="color:#EA580C;">차액: ${diff > 0 ? '+' : ''}${diff.toLocaleString('ko-KR')}원</span>`;
+      diffLabel.innerHTML = `📥 ${inSum.toLocaleString('ko-KR')} | 📤 ${outSum.toLocaleString('ko-KR')} · ${diffText}`;
+      diffLabel.classList.remove('hidden');
+    } else {
+      diffLabel.innerHTML = '';
+      diffLabel.classList.add('hidden');
+    }
+  }
+
+  // 합계가 정확히 0원이고 2건 이상 선택되었을 때만 상계 묶기 버튼 표시!
+  if (offsetBtn) {
+    if (count >= 2 && diff === 0 && inSum > 0 && outSum > 0) {
+      offsetBtn.classList.remove('hidden');
+    } else {
+      offsetBtn.classList.add('hidden');
+    }
+  }
 
   document.querySelectorAll('tr[data-ledger-id]').forEach(row => {
     const id = row.dataset.ledgerId;
     row.classList.toggle('ledger-row-selected', selectedLedgerIds.has(id));
   });
+}
+
+function createOffsetGroupFromSelected() {
+  const selectedRecords = Array.from(selectedLedgerIds).map(id => getRecordById(id)).filter(Boolean);
+  const res = createOffsetGroupFromRecords(selectedRecords);
+  if (!res.ok) {
+    alert(res.message || '상계 묶음을 생성하지 못했습니다.');
+    return;
+  }
+
+  showLedgerToast(`🔗 ${selectedRecords.length}건의 거래가 0원 상계 묶음으로 정리되었습니다!`);
+  setLedgerMultiEditMode(false);
+  renderActiveLedgerPeriod();
 }
 
 function setLedgerMultiEditMode(active) {
@@ -773,6 +818,7 @@ function bindLedgerEvents() {
   document.getElementById('ledgerToggleMultiEditBtn')?.addEventListener('click', toggleLedgerMultiEdit);
   document.getElementById('ledgerBulkCopyBtn')?.addEventListener('click', copySelectedLedgerRecords);
   document.getElementById('ledgerBulkDeleteBtn')?.addEventListener('click', deleteSelectedLedgerRecords);
+  document.getElementById('ledgerBulkOffsetBtn')?.addEventListener('click', createOffsetGroupFromSelected);
   document.getElementById('ledgerCancelMultiEditBtn')?.addEventListener('click', () => setLedgerMultiEditMode(false));
   document.getElementById('ledgerBulkPasteBtn')?.addEventListener('click', pasteCopiedLedgerRecords);
   document.getElementById('ledgerClearCopyBtn')?.addEventListener('click', clearLedgerCopyBuffer);

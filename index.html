@@ -298,10 +298,14 @@
         <button class="clear-copy-btn" id="ledgerClearCopyBtn" title="복사 취소" type="button">✕</button>
       </div>
 
-      <!-- Multi-Edit Action Bottom Bar (Copy, Delete, Cancel) -->
+      <!-- Multi-Edit Action Bottom Bar (Copy, Delete, Offset Group, Cancel) -->
       <div class="multi-action-bar hidden" id="ledgerMultiActionBar">
-        <span id="ledgerSelectedCountLabel">0건 선택됨</span>
+        <div style="display:flex; flex-direction:column; gap:2px;">
+          <span id="ledgerSelectedCountLabel" style="font-weight:bold; color:#1E293B;">0건 선택됨</span>
+          <span id="ledgerSelectedDiffLabel" style="font-size:0.8em; color:#64748B;"></span>
+        </div>
         <div class="multi-btn-row">
+          <button class="multi-action-btn offset-btn hidden" id="ledgerBulkOffsetBtn" type="button" style="background:#6366F1; color:#fff; font-weight:bold; border:none; padding:6px 12px; border-radius:6px; cursor:pointer;">🔗 0원 상계 묶기</button>
           <button class="multi-action-btn copy-btn" id="ledgerBulkCopyBtn" type="button">📋 복사</button>
           <button class="multi-action-btn delete-btn" id="ledgerBulkDeleteBtn" type="button" style="background:#EF4444; color:#fff;">🗑️ 삭제</button>
           <button class="multi-action-btn cancel-btn" id="ledgerCancelMultiEditBtn" type="button" style="background:#64748B; color:#fff;">✕ 취소</button>

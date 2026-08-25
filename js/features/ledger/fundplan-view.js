@@ -1,5 +1,6 @@
 import { toIso, formatMoney, recalculateRunningBalances, normalizeLedgerDate, compareLedgerRecords } from './ledger-utils.js';
 import { createLedgerTableHead, renderTransactionRow } from './transaction-view.js';
+import { loadOffsetGroups, deleteOffsetGroup, createOffsetGroupRow } from './ledger-offset-groups.js';
 
 export function getRecordMonthGroup(record, isCompanyCard) {
   const dStr = normalizeLedgerDate(record.date);
@@ -219,9 +220,83 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
       });
       list.appendChild(dividerRow);
 
-      // 2. Month Transaction Rows
+      // 2. Month Transaction Rows (상계 묶음 그룹핑 지원)
+      const offsetGroups = (source === 'forecast') ? loadOffsetGroups() : {};
+      const handledGroupIds = new Set();
+
       const calculatedMonthRecords = (source === 'forecast') ? monthRecords : recalculateRunningBalances(monthRecords, isCompanyCard);
       calculatedMonthRecords.forEach(record => {
+        const rawId = String(record.id || '').replace(/^fc-(toss|bank)-/, '');
+        const origId = String(record.originalId || '');
+
+        // 상계 묶음에 속한 거래인지 확인
+        let matchedGroup = null;
+        if (source === 'forecast') {
+          for (const gId of Object.keys(offsetGroups)) {
+            const g = offsetGroups[gId];
+            if (Array.isArray(g.recordIds) && (g.recordIds.includes(rawId) || g.recordIds.includes(origId) || g.recordIds.includes(record.id))) {
+              matchedGroup = g;
+              break;
+            }
+          }
+        }
+
+        if (matchedGroup) {
+          // 이미 이 그룹의 얇은 1줄 슬림 바가 렌더링되었으면 개별 렌더링은 건너뜀 (서브 행으로 이미 들어감)
+          if (handledGroupIds.has(matchedGroup.id)) {
+            return;
+          }
+          handledGroupIds.add(matchedGroup.id);
+
+          // 이 그룹에 속한 이번 달 거래들 모으기
+          const groupRecords = calculatedMonthRecords.filter(r => {
+            const rId = String(r.id || '').replace(/^fc-(toss|bank)-/, '');
+            const oId = String(r.originalId || '');
+            return matchedGroup.recordIds.includes(rId) || matchedGroup.recordIds.includes(oId) || matchedGroup.recordIds.includes(r.id);
+          });
+
+          // 월별행 스타일의 얇은 1줄 슬림 상계 바 렌더링
+          let isGroupExpanded = false;
+          const groupRow = createOffsetGroupRow({
+            group: matchedGroup,
+            isExpanded: isGroupExpanded,
+            onToggle: (iconEl) => {
+              isGroupExpanded = !isGroupExpanded;
+              if (iconEl) iconEl.textContent = isGroupExpanded ? '▼' : '▶';
+              subGroupRows.forEach(subEl => {
+                subEl.style.display = isGroupExpanded ? '' : 'none';
+              });
+            },
+            onUnlink: (gId) => {
+              deleteOffsetGroup(gId);
+              render();
+            }
+          });
+
+          groupRow.dataset.monthGroup = month;
+          if (!isExpanded) groupRow.style.display = 'none';
+          list.appendChild(groupRow);
+          monthRowElements.push(groupRow);
+
+          // 묶인 세부 거래들 렌더링 (기본 접힘: display: none)
+          const subGroupRows = [];
+          groupRecords.forEach(sub => {
+            const subPrev = list.children.length;
+            renderTransactionRow({ ...sub, isSubDetail: true }, 'fundplanAllTimeList', { source, colorSettings: activeColorSettings });
+            const subNew = list.children.length;
+            for (let j = subPrev; j < subNew; j++) {
+              const subEl = list.children[j];
+              subEl.dataset.monthGroup = month;
+              subEl.dataset.parentOffsetGroupId = matchedGroup.id;
+              subEl.style.display = 'none'; // 기본 닫힘
+              monthRowElements.push(subEl);
+              subGroupRows.push(subEl);
+            }
+          });
+
+          return;
+        }
+
         const prevCount = list.children.length;
         renderTransactionRow(record, 'fundplanAllTimeList', { source, colorSettings: activeColorSettings });
         const newCount = list.children.length;
