@@ -97,14 +97,15 @@ export function generateForecastRecords(ledgerDataSources = {}) {
       });
     }
 
-    // B. 기업카드 청구분 (매월 27일) - 고정비 행과 변동비 행을 각각 분리 생성
-    // 정산 주기: 전달 14일 ~ 이번달 13일 (1월/2월 예외 포함)
-    let cardStart;
-    let cardEnd;
+    // B. 기업카드 청구분 (매월 27일) - 1월은 결제 없음, 1월 1일~2월 13일 전체가 2월 27일에 결제됨
+    let cardStart = null;
+    let cardEnd = null;
     if (m === 1) {
-      cardStart = `${y}-01-01`;
-      cardEnd = `${y}-01-13`;
+      // 1월에는 기업카드 청구가 없음 (2월에 합산)
+      cardStart = null;
+      cardEnd = null;
     } else if (m === 2) {
+      // 2월 27일 청구: 1월 1일 ~ 2월 13일 전체 거래 합산
       cardStart = `${y}-01-01`;
       cardEnd = `${y}-02-13`;
     } else {
@@ -113,54 +114,56 @@ export function generateForecastRecords(ledgerDataSources = {}) {
       cardEnd = `${mStr}-13`;
     }
 
-    // 1) 기업카드 고정비 통합 행 (27일)
-    const cardMonthFixed = cardRecords.filter(r => {
-      const d = normalizeLedgerDate(r.date);
-      return d >= cardStart && d <= cardEnd && isFixedRecord(r);
-    });
-    const cardFixedTotal = cardMonthFixed.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
-
-    if (cardMonthFixed.length > 0) {
-      forecastPool.push({
-        id: `fc-fix-card-${mStr}`,
-        date: `${mStr}-27`,
-        item: '기업카드(고정)',
-        amount: cardFixedTotal,
-        type: 'expense',
-        payment: '기업은행',
-        category: '',
-        person: '',
-        memo: `${mNum}월 기업카드 고정비 (${cardMonthFixed.length}건)`,
-        fixedCost: '고정비',
-        source: 'forecast',
-        isAggregate: true,
-        subRecords: [...cardMonthFixed].sort(compareLedgerRecords)
+    if (cardStart && cardEnd) {
+      // 1) 기업카드 고정비 통합 행 (27일)
+      const cardMonthFixed = cardRecords.filter(r => {
+        const d = normalizeLedgerDate(r.date);
+        return d >= cardStart && d <= cardEnd && isFixedRecord(r);
       });
-    }
+      const cardFixedTotal = cardMonthFixed.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
 
-    // 2) 기업카드 변동비 통합 행 (27일)
-    const cardMonthVars = cardRecords.filter(r => {
-      const d = normalizeLedgerDate(r.date);
-      return d >= cardStart && d <= cardEnd && !isFixedRecord(r);
-    });
-    const cardVarTotal = cardMonthVars.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
+      if (cardMonthFixed.length > 0) {
+        forecastPool.push({
+          id: `fc-fix-card-${mStr}`,
+          date: `${mStr}-27`,
+          item: '기업카드(고정)',
+          amount: cardFixedTotal,
+          type: 'expense',
+          payment: '기업은행',
+          category: '',
+          person: '',
+          memo: `${mNum}월 기업카드 고정비 (${cardMonthFixed.length}건)`,
+          fixedCost: '고정비',
+          source: 'forecast',
+          isAggregate: true,
+          subRecords: [...cardMonthFixed].sort(compareLedgerRecords)
+        });
+      }
 
-    if (cardMonthVars.length > 0) {
-      forecastPool.push({
-        id: `fc-var-card-${mStr}`,
-        date: `${mStr}-27`,
-        item: '기업카드(가변)',
-        amount: cardVarTotal,
-        type: 'expense',
-        payment: '기업은행',
-        category: '',
-        person: '',
-        memo: `${mNum}월 기업카드 변동비 (${cardMonthVars.length}건)`,
-        fixedCost: '',
-        source: 'forecast',
-        isAggregate: true,
-        subRecords: [...cardMonthVars].sort(compareLedgerRecords)
+      // 2) 기업카드 변동비 통합 행 (27일)
+      const cardMonthVars = cardRecords.filter(r => {
+        const d = normalizeLedgerDate(r.date);
+        return d >= cardStart && d <= cardEnd && !isFixedRecord(r);
       });
+      const cardVarTotal = cardMonthVars.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
+
+      if (cardMonthVars.length > 0) {
+        forecastPool.push({
+          id: `fc-var-card-${mStr}`,
+          date: `${mStr}-27`,
+          item: '기업카드(가변)',
+          amount: cardVarTotal,
+          type: 'expense',
+          payment: '기업은행',
+          category: '',
+          person: '',
+          memo: `${mNum}월 기업카드 변동비 (${cardMonthVars.length}건)`,
+          fixedCost: '',
+          source: 'forecast',
+          isAggregate: true,
+          subRecords: [...cardMonthVars].sort(compareLedgerRecords)
+        });
+      }
     }
   });
 
