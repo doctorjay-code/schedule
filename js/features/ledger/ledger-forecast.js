@@ -6,6 +6,47 @@ export function isFixedRecord(r) {
 }
 
 /**
+ * 기업은행 <-> 토스은행 간의 단순 내부 통장 이체 거래 여부 확인
+ * (통합 총잔액 기준으로는 돈이 나간 것도 들어온 것도 아니므로 잔액전망 표에서 제외)
+ */
+export function isInternalTransfer(r) {
+  if (!r) return false;
+  const item = String(r.item || '').trim();
+  const memo = String(r.memo || '').trim();
+  const payment = String(r.payment || r.sheetName || '').trim();
+
+  // 1. 기업은행 -> 토스은행 이체 출금 (예: '박주하（모임통 장）', memo: '토스뱅크 이체')
+  if (payment === '기업은행' && r.type === 'expense') {
+    if (item.includes('모임통장') || item.includes('모임통 장') || memo.includes('토스뱅크 이체') || memo.includes('토스 이체')) {
+      return true;
+    }
+  }
+
+  // 2. 토스은행 <- 기업은행 이체 입금 (예: '박주하', memo: '쥬쥬 월급')
+  if (payment === '토스은행' && r.type === 'income') {
+    if (item.includes('박주하') || memo.includes('월급') || memo.includes('급여') || memo.includes('토스뱅크 이체') || memo.includes('토스 이체')) {
+      return true;
+    }
+  }
+
+  // 3. 토스은행 -> 기업은행 이체 출금 (예: '박주하', memo: '쥬쥬 기업카드', '쥬쥬 대출이자')
+  if (payment === '토스은행' && r.type === 'expense') {
+    if (item.includes('박주하') && (memo.includes('기업카드') || memo.includes('대출이자') || memo.includes('이체'))) {
+      return true;
+    }
+  }
+
+  // 4. 기업은행 <- 토스은행 이체 입금 (예: '박주하', memo: '토스뱅크 이체')
+  if (payment === '기업은행' && r.type === 'income') {
+    if (item.includes('박주하') && (memo.includes('토스') || memo.includes('이체'))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * 기업은행, 토스은행, 기업카드, 현금의 전체 데이터를 바탕으로
  * 고정비 분리 + 실시간 가변 생활비/카드값 자동 집계 + 통합 누적 잔액(Running Balance)을 계산한
  * 잔액전망 레코드 목록을 실시간 동적으로 생성합니다.
@@ -32,8 +73,8 @@ export function generateForecastRecords(ledgerDataSources = {}) {
 
   const forecastPool = [];
 
-  // 1. 토스은행 고정비 항목들 단독 행으로 추가
-  tossRecords.filter(isFixedRecord).forEach(r => {
+  // 1. 토스은행 고정비 항목들 단독 행으로 추가 (내부 이체 제외)
+  tossRecords.filter(isFixedRecord).filter(r => !isInternalTransfer(r)).forEach(r => {
     forecastPool.push({
       ...r,
       id: `fc-toss-${r.id}`,
@@ -43,10 +84,11 @@ export function generateForecastRecords(ledgerDataSources = {}) {
     });
   });
 
-  // 2. 기업은행 수입/지출 항목들 추가 (수기 카드결제 중복 제외)
+  // 2. 기업은행 수입/지출 항목들 추가 (수기 카드결제 및 통장 간 내부이체 중복 제외)
   bankRecords.forEach(r => {
     const isManualCardPay = r.item && (r.item.includes('비씨카드') || r.item.includes('기업카드출금'));
-    if (isManualCardPay) return; // 기업카드(가변) 및 고정비와 중복 방지
+    if (isManualCardPay) return; // 기업카드(가변/고정)와 중복 방지
+    if (isInternalTransfer(r)) return; // 통장 간 내부 이체 제외
 
     forecastPool.push({
       ...r,
@@ -58,7 +100,7 @@ export function generateForecastRecords(ledgerDataSources = {}) {
   });
 
   // 3. 현금 고정비/주요 항목 추가
-  cashRecords.filter(isFixedRecord).forEach(r => {
+  cashRecords.filter(isFixedRecord).filter(r => !isInternalTransfer(r)).forEach(r => {
     forecastPool.push({
       ...r,
       id: `fc-cash-${r.id}`,
@@ -73,8 +115,8 @@ export function generateForecastRecords(ledgerDataSources = {}) {
     const [y, m] = mStr.split('-').map(Number);
     const mNum = m;
 
-    // A. 토스은행 생활비(가변) (매월 1일)
-    const tossMonthVars = tossRecords.filter(r => normalizeLedgerDate(r.date).startsWith(mStr) && !isFixedRecord(r));
+    // A. 토스은행 생활비(가변) (매월 1일) - 내부이체 제외
+    const tossMonthVars = tossRecords.filter(r => normalizeLedgerDate(r.date).startsWith(mStr) && !isFixedRecord(r) && !isInternalTransfer(r));
     const tossVarExpense = tossMonthVars.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
     const tossVarIncome = tossMonthVars.reduce((sum, r) => sum + (r.type === 'income' ? Number(r.amount || 0) : 0), 0);
     const netTossVar = tossVarExpense - tossVarIncome;
