@@ -398,7 +398,7 @@ export async function copyMonthFixedRecordsToNextMonth(sourceMonthKey, ledgerDat
   // 3. Supabase DB 일괄 삽입
   for (const sheetName of Object.keys(newRecordsBySheet)) {
     const list = newRecordsBySheet[sheetName];
-    await insertLedgerRecordsBatch(sheetName, list);
+    await insertLedgerRecordsBatch(list);
   }
 
   // 4. 상계 묶음 다음 달 버전 자동 복제
