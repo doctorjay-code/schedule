@@ -231,8 +231,8 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
           monthExpandedState[month] = willExpand;
           toggleIcon.textContent = willExpand ? '\u25BC' : '\u25B6';
           monthRowElements.forEach(r => {
-            if (r.classList.contains('ledger-subdetail-row')) {
-              r.style.display = 'none'; // 서브 세부행은 항상 닫힌 상태 유지
+            if (r.classList.contains('ledger-subdetail-row') || r.dataset.parentOffsetGroupId || r.dataset.parentAggregateId) {
+              r.style.display = 'none'; // 서브 세부행과 상계 묶음 속 거래들은 항상 닫힌 상태 유지
             } else {
               r.style.display = willExpand ? '' : 'none';
             }
@@ -322,45 +322,6 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
               subGroupRows.push(subEl);
             }
           });
-
-          // 세부 거래 목록 맨 아래에 '묶음 해제' 액션 바 행 추가 (방법 A 완벽 지원!)
-          const unlinkActionRow = document.createElement('tr');
-          unlinkActionRow.className = 'schedule-row ledger-offset-unlink-row';
-          unlinkActionRow.dataset.monthGroup = month;
-          unlinkActionRow.dataset.parentOffsetGroupId = matchedGroup.id;
-          unlinkActionRow.style.display = 'none';
-          unlinkActionRow.style.backgroundColor = '#F8FAFC';
-          unlinkActionRow.style.borderBottom = '1.5px dashed #CBD5E1';
-
-          const actionTd = document.createElement('td');
-          actionTd.colSpan = 7;
-          actionTd.style.padding = '6px 12px';
-          actionTd.style.textAlign = 'center';
-
-          const bigUnlinkBtn = document.createElement('button');
-          bigUnlinkBtn.type = 'button';
-          bigUnlinkBtn.style.backgroundColor = '#FFFFFF';
-          bigUnlinkBtn.style.color = '#EF4444';
-          bigUnlinkBtn.style.border = '1px solid #FCA5A5';
-          bigUnlinkBtn.style.borderRadius = '6px';
-          bigUnlinkBtn.style.padding = '4px 14px';
-          bigUnlinkBtn.style.fontSize = '0.82em';
-          bigUnlinkBtn.style.fontWeight = 'bold';
-          bigUnlinkBtn.style.cursor = 'pointer';
-          bigUnlinkBtn.textContent = '🔓 이 상계 묶음 해제하기 (개별 거래로 복귀)';
-          bigUnlinkBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (confirm('이 상계 묶음을 해제할까요? (원래 개별 거래들로 돌아갑니다)')) {
-              deleteOffsetGroup(matchedGroup.id);
-              render();
-            }
-          });
-
-          actionTd.appendChild(bigUnlinkBtn);
-          unlinkActionRow.appendChild(actionTd);
-          list.appendChild(unlinkActionRow);
-          monthRowElements.push(unlinkActionRow);
-          subGroupRows.push(unlinkActionRow);
 
           return;
         }
