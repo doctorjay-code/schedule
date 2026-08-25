@@ -16,7 +16,7 @@ export function showLedgerToast(message) {
   }, 1800);
 }
 
-export function findLedgerRecordById(id, { ledgerState, ledgerDataSources }) {
+export function findLedgerRecordById(id, { ledgerState = {}, ledgerDataSources = {} } = {}) {
   const allPool = [
     ...(ledgerState.records || []),
     ...(ledgerDataSources.card || []),

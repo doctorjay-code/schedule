@@ -519,7 +519,7 @@ function saveLedgerRecord(form, overrides = {}) {
   const payment = values.payment || ledgerState.payment || '토스은행';
   const record = {
     ...(existing || {}),
-    id: values.ledgerEditId || '',
+    id: values.ledgerEditId || existing?.id || `ledger-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     date: values.date,
     type: values.type,
     amount,
@@ -548,7 +548,7 @@ function saveLedgerRecord(form, overrides = {}) {
 }
 
 function deleteRecord(id) {
-  const record = findLedgerRecordById(id) || ledgerState.records.find(item => String(item.id) === String(id));
+  const record = findLedgerTransaction(id);
   if (!record) {
     showLedgerToast('⚠️ 삭제할 거래 정보를 찾을 수 없습니다.');
     return;
