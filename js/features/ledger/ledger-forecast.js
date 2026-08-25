@@ -1,4 +1,36 @@
+import { fetchForecastOrders, saveForecastOrders } from '../../services/ledger/ledger-api.js';
 import { compareLedgerRecords, normalizeLedgerDate } from './ledger-utils.js';
+
+const FORECAST_ORDER_STORAGE_KEY = 'LEDGER_FORECAST_ORDER_MAP_V1';
+
+export function loadForecastOrderMap() {
+  try {
+    const raw = localStorage.getItem(FORECAST_ORDER_STORAGE_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) || {};
+  } catch (err) {
+    return {};
+  }
+}
+
+export function saveForecastOrderMap(map) {
+  try {
+    localStorage.setItem(FORECAST_ORDER_STORAGE_KEY, JSON.stringify(map || {}));
+  } catch (err) {}
+}
+
+export async function syncForecastOrdersFromDB() {
+  try {
+    const dbOrders = await fetchForecastOrders();
+    if (dbOrders && typeof dbOrders === 'object' && Object.keys(dbOrders).length > 0) {
+      const local = loadForecastOrderMap();
+      const merged = { ...local, ...dbOrders };
+      saveForecastOrderMap(merged);
+      return merged;
+    }
+  } catch (err) {}
+  return loadForecastOrderMap();
+}
 
 export function isFixedRecord(r) {
   if (!r) return false;
@@ -209,7 +241,20 @@ export function generateForecastRecords(ledgerDataSources = {}) {
     }
   });
 
-  // 4. 날짜순 정렬
+  // 4. 잔액전망 전용 독립 순서 매핑 적용 후 날짜순 정렬
+  const forecastOrderMap = loadForecastOrderMap();
+  forecastPool.forEach(r => {
+    const rawId = String(r.id || '').replace(/^fc-(toss|bank)-/, '');
+    const origId = String(r.originalId || '');
+    if (forecastOrderMap[rawId] !== undefined) {
+      r.orderIndex = forecastOrderMap[rawId];
+    } else if (forecastOrderMap[origId] !== undefined) {
+      r.orderIndex = forecastOrderMap[origId];
+    } else if (forecastOrderMap[r.id] !== undefined) {
+      r.orderIndex = forecastOrderMap[r.id];
+    }
+  });
+
   forecastPool.sort(compareLedgerRecords);
 
   // 5. 각 계좌의 시작 잔액 합산 (2026년 통합 시작 잔액 - 토스 + 기업)

@@ -252,3 +252,41 @@ export async function deleteLedgerOffsetGroup(groupId, fetchImpl = fetch) {
     return { ok: false, error: err };
   }
 }
+
+/**
+ * 잔액전망 전용 독립 정렬 순서 CRUD (Supabase DB)
+ */
+export async function fetchForecastOrders(fetchImpl = fetch) {
+  try {
+    const res = await supabaseRest('ledger_forecast_order?select=*', { fetchImpl });
+    if (!Array.isArray(res)) return {};
+    const orderMap = {};
+    res.forEach(row => {
+      orderMap[row.id] = Number(row.order_index || 0);
+    });
+    return orderMap;
+  } catch (err) {
+    console.warn('Failed to fetch forecast orders from DB:', err);
+    return {};
+  }
+}
+
+export async function saveForecastOrders(orderedIds, fetchImpl = fetch) {
+  if (!Array.isArray(orderedIds) || !orderedIds.length) return { ok: true };
+  try {
+    const rows = orderedIds.map((id, idx) => ({
+      id: String(id),
+      order_index: (idx + 1) * 10
+    }));
+    await supabaseRest('ledger_forecast_order', {
+      method: 'POST',
+      fetchImpl,
+      prefer: 'resolution=merge-duplicates',
+      body: rows
+    });
+    return { ok: true };
+  } catch (err) {
+    console.error('Failed to save forecast orders to DB:', err);
+    return { ok: false, error: err };
+  }
+}

@@ -12,10 +12,10 @@ import { createLedgerTransactionModal } from './modals/transaction-modal.js';
 import { createLedgerColorSettings } from './modals/color-settings.js';
 import { bindLedgerListActions } from './ledger-events.js';
 import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js';
-import { fetchLedgerData, fetchLedgerSheetData, upsertLedgerRecord, upsertLedgerSheetRecord, deleteLedgerRecord, deleteLedgerSheetRecord, reorderLedgerRecords, reorderLedgerSheetRecords, deleteLedgerRecordsBatch, insertLedgerRecordsBatch } from '../../services/ledger/ledger-api.js';
+import { fetchLedgerData, fetchLedgerSheetData, upsertLedgerRecord, upsertLedgerSheetRecord, deleteLedgerRecord, deleteLedgerSheetRecord, reorderLedgerRecords, reorderLedgerSheetRecords, deleteLedgerRecordsBatch, insertLedgerRecordsBatch, saveForecastOrders } from '../../services/ledger/ledger-api.js';
 import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js';
 import { showLedgerToast, findLedgerRecordById, executeLedgerCopy, executeLedgerDelete, executeLedgerPaste } from './ledger-clipboard.js';
-import { generateForecastRecords } from './ledger-forecast.js';
+import { generateForecastRecords, loadForecastOrderMap, saveForecastOrderMap, syncForecastOrdersFromDB } from './ledger-forecast.js';
 import { createOffsetGroupFromRecords, syncOffsetGroupsFromDB } from './ledger-offset-groups.js';
 
 const ledgerDataSources = {
@@ -459,56 +459,59 @@ function reorderLedgerRecord(orderedIds) {
   const currentSheetName = getCurrentLedgerSheetName();
   showLedgerToast('↕️ 거래 순서가 저장되었습니다.');
 
-  // 1. orderedIds 분석 및 매핑 생성 (잔액전망용 fc- 접두어 해제 및 전체 원본 ID 순서 추출)
-  const idMap = new Map();
-  const rawOrderedIds = [];
+  // [CASE 1: 잔액전망 탭 전용 독립 순서 관리 - 토스/기업 통장 원본 순서는 전혀 건드리지 않음!]
+  if (currentSheetName === '잔액전망') {
+    const forecastOrderMap = loadForecastOrderMap();
+    const rawOrderedIds = [];
 
-  orderedIds.forEach((rawId, idx) => {
-    const sId = String(rawId);
-    let realId = sId;
+    orderedIds.forEach((rawId, idx) => {
+      const sId = String(rawId);
+      let realId = sId;
+      if (sId.startsWith('fc-toss-')) realId = sId.replace('fc-toss-', '');
+      else if (sId.startsWith('fc-bank-')) realId = sId.replace('fc-bank-', '');
+      else if (sId.startsWith('fc-var-') || sId.startsWith('fc-fix-')) return;
 
-    if (sId.startsWith('fc-toss-')) {
-      realId = sId.replace('fc-toss-', '');
-    } else if (sId.startsWith('fc-bank-')) {
-      realId = sId.replace('fc-bank-', '');
-    } else if (sId.startsWith('fc-var-') || sId.startsWith('fc-fix-')) {
-      // 가상 통합행은 제외
-      return;
+      const orderVal = (idx + 1) * 10;
+      forecastOrderMap[realId] = orderVal;
+      forecastOrderMap[sId] = orderVal;
+      rawOrderedIds.push(realId);
+    });
+
+    saveForecastOrderMap(forecastOrderMap);
+    applyLedgerDataSources();
+    saveLedgerSheetSnapshot();
+
+    if (rawOrderedIds.length > 0) {
+      saveForecastOrders(rawOrderedIds).catch(err => {
+        console.error('Supabase forecast order sync error:', err);
+      });
     }
+    return;
+  }
 
-    rawOrderedIds.push(realId);
-    const orderVal = (idx + 1) * 10;
-    idMap.set(realId, orderVal);
-    idMap.set(sId, orderVal);
+  // [CASE 2: 단독 통장 탭 (토스은행 / 기업은행 / 현금) 전용 순서 관리 - 잔액전망 순서는 전혀 건드리지 않음!]
+  const idMap = new Map();
+  orderedIds.forEach((id, idx) => {
+    idMap.set(String(id), (idx + 1) * 10);
   });
 
-  const updateOrderInList = (list) => {
-    if (!Array.isArray(list)) return list;
-    return list.map(item => {
+  const targetKey = currentSheetName === '토스은행' ? 'card' : currentSheetName === '기업은행' ? 'bank' : currentSheetName === '현금' ? 'cash' : 'card';
+  if (Array.isArray(ledgerDataSources[targetKey])) {
+    ledgerDataSources[targetKey] = ledgerDataSources[targetKey].map(item => {
       const iId = String(item.id || '');
-      const oId = String(item.originalId || '');
       if (idMap.has(iId)) {
         return { ...item, orderIndex: idMap.get(iId) };
-      } else if (oId && idMap.has(oId)) {
-        return { ...item, orderIndex: idMap.get(oId) };
       }
       return item;
     }).sort(compareLedgerRecords);
-  };
-
-  for (const key of Object.keys(ledgerDataSources)) {
-    ledgerDataSources[key] = updateOrderInList(ledgerDataSources[key]);
   }
 
   applyLedgerDataSources();
   saveLedgerSheetSnapshot();
 
-  // 2. Supabase DB 비동기 초고속 일괄 영구 저장 (시트 구분 없이 단일 트랜잭션으로 order_index 원자적 갱신!)
-  if (rawOrderedIds.length > 0) {
-    reorderLedgerRecords(currentSheetName || '잔액전망', rawOrderedIds).catch(err => {
-      console.error('Supabase reorder sync error:', err);
-    });
-  }
+  reorderLedgerRecords(currentSheetName, orderedIds).catch(err => {
+    console.error('Supabase sheet reorder sync error:', err);
+  });
 }
 
 function upsertLocalRecord(records, record) {
@@ -961,9 +964,12 @@ function showSchedule() {
 export function initLedgerView() {
   try {
     loadLedgerSheetSnapshot();
-    syncOffsetGroupsFromDB().then(() => {
+    Promise.all([
+      syncOffsetGroupsFromDB(),
+      syncForecastOrdersFromDB()
+    ]).then(() => {
       renderActiveLedgerPeriod();
-    }).catch(e => console.warn('syncOffsetGroupsFromDB warn:', e));
+    }).catch(e => console.warn('syncFromDB warn:', e));
     refreshLedgerSheetData().catch(e => console.warn('refreshLedgerSheetData warn:', e));
     registerRealtimeCallbacks({
       onLedgerChange: () => {
