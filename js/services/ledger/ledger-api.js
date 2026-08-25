@@ -29,8 +29,8 @@ function mapForecastRow(row) {
     type: row.type || 'balance',
     amount: Number(row.amount || 0),
     balance: Number(row.balance || 0),
-    payment: row.account || '토스은행',
-    account: row.account || '토스은행',
+    payment: '잔액전망',
+    account: row.account || '잔액전망',
     item: row.item || '',
     memo: row.memo || '',
     isConfirmed: Boolean(row.is_confirmed),
@@ -55,7 +55,9 @@ export async function fetchLedgerData(fetchImpl = fetch, sheetName = '') {
     supabaseRest('ledger_balance_forecast?select=*&order=date.asc,order_index.asc', { fetchImpl })
   ]);
 
-  const transRecords = Array.isArray(transactions) ? transactions.map(mapTransactionRow) : [];
+  const transRecords = Array.isArray(transactions)
+    ? transactions.filter(r => !String(r.id || '').startsWith('fc-')).map(mapTransactionRow)
+    : [];
   const forecastRecords = Array.isArray(forecasts) ? forecasts.map(mapForecastRow) : [];
   const records = [...transRecords, ...forecastRecords];
 
