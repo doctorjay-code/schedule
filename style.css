@@ -1429,7 +1429,7 @@ td.cell-date {
 }
 .ledger-subdetail-row {
   background-color: #F8FAFC !important;
-  font-size: 0.95em;
+  font-size: 1.0em !important;
   transition: background-color 0.15s ease;
 }
 .ledger-subdetail-row:hover {
@@ -1437,25 +1437,33 @@ td.cell-date {
 }
 /* 좌측 보라색 세로 인디케이터 라인 */
 .ledger-subdetail-row td.cell-date {
-  color: #64748B !important;
-  font-size: 11px;
-  border-left: 3.5px solid #818CF8 !important;
+  color: #475569 !important;
+  font-size: 1.0em !important;
+  border-left: 4px solid #818CF8 !important;
   padding-left: 6px !important;
 }
 /* 우측 보라색 세로 인디케이터 라인 */
 .ledger-subdetail-row td:last-child {
-  border-right: 3.5px solid #818CF8 !important;
+  border-right: 4px solid #818CF8 !important;
 }
-/* 각 거래(행) 사이의 보라색 가로 구분선 인디케이터 라인 */
+/* 각 세부 거래(행) 사이 및 날짜셀 하단의 보라색 가로 구분선 인디케이터 라인 */
+tr.ledger-subdetail-row td.cell-date,
+tr.ledger-subdetail-row td.cell-day-end-border,
 tr.schedule-row-tag.ledger-subdetail-row td,
 tr.schedule-row-tag.ledger-subdetail-row {
-  border-bottom: 1.5px solid #C7D2FE !important;
+  border-bottom: 1.5px solid #818CF8 !important;
 }
 .ledger-subdetail-indicator {
   display: inline-block;
   margin-right: 4px;
   color: #818CF8;
   font-weight: 800;
+}
+.ledger-subdetail-row strong {
+  font-size: 1.0em !important;
+}
+.ledger-subdetail-row .ledger-cell-money {
+  font-size: 1.0em !important;
 }
 
 /* Summary Collector List Cards */
