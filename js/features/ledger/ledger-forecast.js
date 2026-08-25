@@ -11,44 +11,23 @@ export function isFixedRecord(r) {
  */
 export function isInternalTransfer(r) {
   if (!r) return false;
+  const category = String(r.category || '').trim();
+  if (category === '이체') return true;
+
   const item = String(r.item || '').trim();
   const memo = String(r.memo || '').trim();
   const payment = String(r.payment || r.sheetName || '').trim();
 
-  // 1. 기업은행 -> 토스은행 이체 출금 (예: '박주하（모임통 장）', memo: '토스뱅크 이체')
-  if (payment === '기업은행' && r.type === 'expense') {
-    if (item.includes('모임통장') || item.includes('모임통 장') || memo.includes('토스뱅크 이체') || memo.includes('토스 이체')) {
-      return true;
-    }
+  // 기업은행 모임통장 이체 등 추가 방어
+  if (payment === '기업은행' && r.type === 'expense' && (item.includes('모임통장') || item.includes('모임통 장') || memo.includes('토스뱅크 이체') || memo.includes('토스 이체'))) {
+    return true;
   }
-
-  // 2. 토스은행 <- 기업은행 이체 입금 (예: '박주하', memo: '쥬쥬 월급')
-  if (payment === '토스은행' && r.type === 'income') {
-    if (item.includes('박주하') || memo.includes('월급') || memo.includes('급여') || memo.includes('토스뱅크 이체') || memo.includes('토스 이체')) {
-      return true;
-    }
-  }
-
-  // 3. 토스은행 -> 기업은행 이체 출금 (예: '박주하', memo: '쥬쥬 기업카드', '쥬쥬 대출이자')
-  if (payment === '토스은행' && r.type === 'expense') {
-    if (item.includes('박주하') && (memo.includes('기업카드') || memo.includes('대출이자') || memo.includes('이체'))) {
-      return true;
-    }
-  }
-
-  // 4. 기업은행 <- 토스은행 이체 입금 (예: '박주하', memo: '토스뱅크 이체')
-  if (payment === '기업은행' && r.type === 'income') {
-    if (item.includes('박주하') && (memo.includes('토스') || memo.includes('이체'))) {
-      return true;
-    }
-  }
-
   return false;
 }
 
 /**
  * 기업은행, 토스은행, 기업카드, 현금의 전체 데이터를 바탕으로
- * 고정비 분리 + 실시간 가변 생활비/카드값 자동 집계 + 통합 누적 잔액(Running Balance)을 계산한
+ * 고정비 분리 + 토스 월급 수입 분리 + 이체 제외 + 실시간 가변 생활비/카드값 자동 집계 + 통합 누적 잔액(Running Balance)을 계산한
  * 잔액전망 레코드 목록을 실시간 동적으로 생성합니다.
  */
 export function generateForecastRecords(ledgerDataSources = {}) {
@@ -73,8 +52,20 @@ export function generateForecastRecords(ledgerDataSources = {}) {
 
   const forecastPool = [];
 
-  // 1. 토스은행 고정비 항목들 단독 행으로 추가 (내부 이체 제외)
-  tossRecords.filter(isFixedRecord).filter(r => !isInternalTransfer(r)).forEach(r => {
+  // 1. 토스은행 월급 수입 항목들 단독 행으로 추가 (이체 제외)
+  tossRecords.filter(r => r.type === 'income' && (r.category === '월급' || r.memo?.includes('월급')) && !isInternalTransfer(r)).forEach(r => {
+    forecastPool.push({
+      ...r,
+      id: `fc-toss-salary-${r.id}`,
+      originalId: r.id,
+      source: 'forecast',
+      payment: '토스은행',
+      category: '월급'
+    });
+  });
+
+  // 2. 토스은행 고정비 항목들 단독 행으로 추가 (월급 및 이체 제외)
+  tossRecords.filter(isFixedRecord).filter(r => r.category !== '월급' && !r.memo?.includes('월급') && !isInternalTransfer(r)).forEach(r => {
     forecastPool.push({
       ...r,
       id: `fc-toss-${r.id}`,
@@ -84,7 +75,7 @@ export function generateForecastRecords(ledgerDataSources = {}) {
     });
   });
 
-  // 2. 기업은행 수입/지출 항목들 추가 (수기 카드결제 및 통장 간 내부이체 중복 제외)
+  // 3. 기업은행 수입/지출 항목들 추가 (수기 카드결제 및 이체 제외)
   bankRecords.forEach(r => {
     const isManualCardPay = r.item && (r.item.includes('비씨카드') || r.item.includes('기업카드출금'));
     if (isManualCardPay) return; // 기업카드(가변/고정)와 중복 방지
@@ -99,7 +90,7 @@ export function generateForecastRecords(ledgerDataSources = {}) {
     });
   });
 
-  // 3. 현금 고정비/주요 항목 추가
+  // 4. 현금 고정비/주요 항목 추가 (이체 제외)
   cashRecords.filter(isFixedRecord).filter(r => !isInternalTransfer(r)).forEach(r => {
     forecastPool.push({
       ...r,
@@ -110,13 +101,17 @@ export function generateForecastRecords(ledgerDataSources = {}) {
     });
   });
 
-  // 4. 월별 가변비 합산 생성 (토스 생활비 & 기업카드 결제액)
+  // 5. 월별 가변비 합산 생성 (토스 생활비 & 기업카드 결제액)
   months.forEach(mStr => {
     const [y, m] = mStr.split('-').map(Number);
     const mNum = m;
 
-    // A. 토스은행 생활비(가변) (매월 1일) - 내부이체 제외
-    const tossMonthVars = tossRecords.filter(r => normalizeLedgerDate(r.date).startsWith(mStr) && !isFixedRecord(r) && !isInternalTransfer(r));
+    // A. 토스은행 생활비(가변) (매월 1일) - 고정비, 월급, 이체 제외한 순수 생활비만 집계!
+    const tossMonthVars = tossRecords.filter(r => {
+      const d = normalizeLedgerDate(r.date);
+      const isSalary = r.type === 'income' && (r.category === '월급' || r.memo?.includes('월급'));
+      return d.startsWith(mStr) && !isFixedRecord(r) && !isSalary && !isInternalTransfer(r);
+    });
     const tossVarExpense = tossMonthVars.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
     const tossVarIncome = tossMonthVars.reduce((sum, r) => sum + (r.type === 'income' ? Number(r.amount || 0) : 0), 0);
     const netTossVar = tossVarExpense - tossVarIncome;
