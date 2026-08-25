@@ -420,11 +420,12 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
               rowEl.addEventListener('click', toggleSubAccordion);
             });
           } else if (record.hasCardAccordion) {
-            // 실제 통장 출금 거래(비씨카드출금 등): 항목 앞 [ ▶ ] 아이콘 클릭 시 펼침/접기, 행 클릭 시 수정 모달 오픈!
+            // 실제 통장 출금 거래(비씨카드출금 등): 항목 칸(.ledger-accordion-toggle-cell) 클릭 시 펼침/접기!
             mainRows.forEach(rowEl => {
-              const iconEl = rowEl.querySelector('.ledger-accordion-icon');
-              if (iconEl) {
-                iconEl.addEventListener('click', toggleSubAccordion);
+              const toggleCell = rowEl.querySelector('.ledger-accordion-toggle-cell') || rowEl.querySelector('.ledger-accordion-icon');
+              if (toggleCell) {
+                toggleCell.style.cursor = 'pointer';
+                toggleCell.addEventListener('click', toggleSubAccordion);
               }
             });
           }

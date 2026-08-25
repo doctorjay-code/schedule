@@ -182,15 +182,15 @@ export function generateForecastRecords(ledgerDataSources = {}) {
       forecastPool.push({
         id: `fc-var-toss-${mStr}`,
         date: `${mStr}-01`,
-        item: '생활비(가변)',
+        item: '생활비',
         amount: tossVarExpense - tossVarIncome,
         incomeAmount: tossVarIncome,
         expenseAmount: tossVarExpense,
         type: 'aggregate',
         payment: '토스은행',
-        category: '',
-        person: '',
-        memo: `${mNum}월 토스 생활비 (${tossMonthVars.length}건)`,
+        category: '생활',
+        person: '쥬쥬',
+        memo: '쥬쥬 토스 생활비',
         fixedCost: '',
         source: 'forecast',
         isAggregate: true,
@@ -220,21 +220,19 @@ export function generateForecastRecords(ledgerDataSources = {}) {
         if (monthCards.length > 0) {
           const cardExp = monthCards.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
           const cardInc = monthCards.reduce((sum, r) => sum + (r.type === 'income' ? Number(r.amount || 0) : 0), 0);
-          const fixCount = monthCards.filter(isFixedRecord).length;
-          const varCount = monthCards.length - fixCount;
 
           forecastPool.push({
             id: `fc-est-card-${mStr}`,
             date: `${mStr}-27`,
-            item: '기업카드(예상결제)',
+            item: '기업카드',
             amount: cardExp - cardInc,
             incomeAmount: cardInc,
             expenseAmount: cardExp,
             type: 'aggregate',
             payment: '기업은행',
-            category: '카드대금',
-            person: '',
-            memo: `${mNum}월 기업카드 청구예상 (고정 ${fixCount}건, 가변 ${varCount}건)`,
+            category: '상환',
+            person: '쥬쥬',
+            memo: '쥬쥬 기업카드 결제',
             fixedCost: '',
             source: 'forecast',
             isAggregate: true,

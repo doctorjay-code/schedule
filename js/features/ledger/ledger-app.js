@@ -1318,8 +1318,11 @@ function renderMonthlyList(items) {
         });
       } else if (item.hasCardAccordion) {
         mainRows.forEach(rowEl => {
-          const iconEl = rowEl.querySelector('.ledger-accordion-icon');
-          if (iconEl) iconEl.addEventListener('click', toggleSubAccordion);
+          const toggleCell = rowEl.querySelector('.ledger-accordion-toggle-cell') || rowEl.querySelector('.ledger-accordion-icon');
+          if (toggleCell) {
+            toggleCell.style.cursor = 'pointer';
+            toggleCell.addEventListener('click', toggleSubAccordion);
+          }
         });
       }
     }

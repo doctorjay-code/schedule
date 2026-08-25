@@ -107,10 +107,10 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
   itemCell.style.paddingLeft = item.isSubDetail ? '1.0em' : '0.5em';
   const title = document.createElement('strong');
   if (item.isAggregate || item.hasCardAccordion) {
-    const countBadge = (Array.isArray(item.subRecords) && item.subRecords.length > 0)
-      ? ` <span style="font-size:0.85em;font-weight:normal;color:#64748B;">(${item.subRecords.length}건)</span>`
-      : '';
-    title.innerHTML = `<span class="ledger-accordion-icon" data-ledger-toggle-id="${item.id}" style="margin-right:6px;font-size:11px;color:#4F46E5;display:inline-block;cursor:pointer;padding:1px 5px;border-radius:4px;background:#EEF2FF;border:1px solid #C7D2FE;font-weight:bold;user-select:none;" title="카드 세부내역 펼치기/접기">▶</span>${item.item || ''}${countBadge}`;
+    itemCell.classList.add('ledger-accordion-toggle-cell');
+    itemCell.style.cursor = 'pointer';
+    itemCell.title = '클릭하여 세부 거래 내역 펼치기/접기';
+    title.innerHTML = `<span class="ledger-accordion-icon" data-ledger-toggle-id="${item.id}" style="margin-right:4px;font-size:10px;color:#6366F1;display:inline-block;cursor:pointer;font-weight:bold;user-select:none;" title="세부내역 펼치기/접기">▶</span>${item.item || ''}`;
   } else if (item.isSubDetail) {
     title.innerHTML = `<span style="color:#6366F1;margin-right:4px;font-weight:900;">↳</span>${item.item || ''}`;
   } else {
