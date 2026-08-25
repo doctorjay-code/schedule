@@ -1080,11 +1080,13 @@ function getMonthlyRecords() {
   });
 }function renderMonthly() {
   const items = getMonthlyRecords();
-  const offsetGroups = loadOffsetGroups();
+  const offsetGroups = (ledgerState.source === 'forecast') ? loadOffsetGroups() : {};
   const offsetRecordIds = new Set();
-  Object.values(offsetGroups).forEach(g => {
-    if (Array.isArray(g.recordIds)) g.recordIds.forEach(id => offsetRecordIds.add(String(id)));
-  });
+  if (ledgerState.source === 'forecast') {
+    Object.values(offsetGroups).forEach(g => {
+      if (Array.isArray(g.recordIds)) g.recordIds.forEach(id => offsetRecordIds.add(String(id)));
+    });
+  }
 
   const income = items.filter(x => {
     const rawId = String(x.id || '').replace(/^fc-(toss|bank)-/, '');
@@ -1139,11 +1141,13 @@ function renderMonthlyList(items) {
   let monthlyExpanded = true;
   const monthRowElements = [];
 
-  const offsetGroups = loadOffsetGroups();
+  const offsetGroups = (ledgerState.source === 'forecast') ? loadOffsetGroups() : {};
   const offsetRecordIds = new Set();
-  Object.values(offsetGroups).forEach(g => {
-    if (Array.isArray(g.recordIds)) g.recordIds.forEach(id => offsetRecordIds.add(String(id)));
-  });
+  if (ledgerState.source === 'forecast') {
+    Object.values(offsetGroups).forEach(g => {
+      if (Array.isArray(g.recordIds)) g.recordIds.forEach(id => offsetRecordIds.add(String(id)));
+    });
+  }
 
   const dividerRow = createLedgerMonthDividerRow({
     monthKey,
