@@ -57,11 +57,7 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
     tagRow.classList.add('ledger-fixed-row');
   }
 
-  const isReadOnlySource = source === 'forecast';
-  if (isReadOnlySource) {
-    detailRow.dataset.ledgerReadOnly = 'true';
-    tagRow.dataset.ledgerReadOnly = 'true';
-  }
+
   const dateCell = document.createElement('td');
   dateCell.className = 'cell-date';
   const dateObject = new Date(item.date + 'T00:00:00');

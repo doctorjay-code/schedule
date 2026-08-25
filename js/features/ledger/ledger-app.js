@@ -406,6 +406,11 @@ function renderWeekly() {
 }
 
 function findLedgerTransaction(id) {
+  if (ledgerState.source === 'forecast' || String(id).startsWith('fc-')) {
+    const forecastRecords = generateForecastRecords(ledgerDataSources);
+    const found = forecastRecords.find(item => item && String(item.id) === String(id));
+    if (found) return found;
+  }
   return findLedgerRecordById(id, { ledgerState, ledgerDataSources });
 }
 let ledgerTransactionModal = null;
@@ -637,6 +642,111 @@ function toggleLedgerMultiEdit() {
   setLedgerMultiEditMode(!isLedgerMultiEdit);
 }
 
+function openForecastDetailModal(record) {
+  const overlay = document.getElementById('ledgerForecastDetailModalOverlay');
+  const titleEl = document.getElementById('ledgerForecastDetailModalTitle');
+  const listEl = document.getElementById('ledgerForecastDetailList');
+  if (!overlay || !listEl) return;
+
+  const subRecords = record.subRecords || [];
+  const count = subRecords.length;
+  const totalAmount = formatMoney(record.amount || 0);
+
+  if (titleEl) {
+    titleEl.textContent = `📊 [${record.item}] 세부 내역 (${count}건 · ${totalAmount}원)`;
+  }
+
+  listEl.replaceChildren();
+
+  if (count === 0) {
+    const empty = document.createElement('div');
+    empty.style.padding = '24px 12px';
+    empty.style.textAlign = 'center';
+    empty.style.color = '#64748B';
+    empty.textContent = '세부 거래 내역이 없습니다.';
+    listEl.appendChild(empty);
+  } else {
+    subRecords.forEach(sub => {
+      const card = document.createElement('div');
+      card.style.margin = '6px 0';
+      card.style.padding = '10px 14px';
+      card.style.background = '#F8FAFC';
+      card.style.border = '1px solid #E2E8F0';
+      card.style.borderRadius = '10px';
+      card.style.display = 'flex';
+      card.style.justifyContent = 'space-between';
+      card.style.alignItems = 'center';
+
+      const left = document.createElement('div');
+      left.style.display = 'flex';
+      left.style.flexDirection = 'column';
+      left.style.gap = '3px';
+
+      const dateSpan = document.createElement('span');
+      dateSpan.style.fontSize = '11px';
+      dateSpan.style.fontWeight = '700';
+      dateSpan.style.color = '#64748B';
+      dateSpan.textContent = formatLedgerScheduleDate(sub.date);
+
+      const titleStrong = document.createElement('strong');
+      titleStrong.style.fontSize = '13px';
+      titleStrong.style.fontWeight = '800';
+      titleStrong.style.color = '#1E293B';
+      titleStrong.textContent = sub.item || '항목 없음';
+
+      const tagWrapper = document.createElement('div');
+      tagWrapper.style.display = 'flex';
+      tagWrapper.style.gap = '4px';
+      tagWrapper.style.alignItems = 'center';
+
+      if (sub.person) {
+        const pTag = document.createElement('span');
+        pTag.className = 'ledger-bottom-tag';
+        pTag.style.backgroundColor = getLedgerTagColor(state.colorSettings, 'person', sub.person);
+        pTag.style.color = '#0F172A';
+        pTag.textContent = sub.person;
+        tagWrapper.appendChild(pTag);
+      }
+
+      if (sub.category) {
+        const cTag = document.createElement('span');
+        cTag.className = 'ledger-bottom-tag';
+        cTag.style.backgroundColor = getLedgerTagColor(state.colorSettings, 'category', sub.category);
+        cTag.style.color = '#0F172A';
+        cTag.textContent = sub.category;
+        tagWrapper.appendChild(cTag);
+      }
+
+      if (sub.memo) {
+        const memoSpan = document.createElement('span');
+        memoSpan.style.fontSize = '11px';
+        memoSpan.style.color = '#64748B';
+        memoSpan.textContent = sub.memo;
+        tagWrapper.appendChild(memoSpan);
+      }
+
+      left.appendChild(dateSpan);
+      left.appendChild(titleStrong);
+      left.appendChild(tagWrapper);
+
+      const right = document.createElement('div');
+      right.style.textAlign = 'right';
+      const amtEl = document.createElement('strong');
+      amtEl.style.fontSize = '14px';
+      amtEl.style.fontWeight = '800';
+      amtEl.style.color = sub.type === 'income' ? '#15803D' : '#DC2626';
+      amtEl.textContent = `${sub.type === 'income' ? '+' : '-'}${formatMoney(sub.amount)}원`;
+      right.appendChild(amtEl);
+
+      card.appendChild(left);
+      card.appendChild(right);
+      listEl.appendChild(card);
+    });
+  }
+
+  overlay.classList.add('active');
+}
+
 function handleLedgerRowClick(id, event) {
   if (isLedgerMultiEdit) {
     if (selectedLedgerIds.has(id)) {
@@ -645,9 +755,16 @@ function handleLedgerRowClick(id, event) {
       selectedLedgerIds.add(id);
     }
     updateLedgerSelectionUI();
-  } else {
-    getLedgerTransactionModal().open(id);
+    return;
   }
+
+  const record = findLedgerTransaction(id);
+  if (record && record.isAggregate) {
+    openForecastDetailModal(record);
+    return;
+  }
+
+  getLedgerTransactionModal().open(id);
 }
 
 function getRecordById(id) {
@@ -737,6 +854,10 @@ function bindLedgerEvents() {
   document.getElementById('ledgerReportOverlay')?.addEventListener('click', event => {
     if (event.target.id === 'ledgerReportOverlay') event.currentTarget.classList.remove('active');
   });
+  document.getElementById('ledgerForecastDetailCloseBtn')?.addEventListener('click', () => document.getElementById('ledgerForecastDetailModalOverlay')?.classList.remove('active'));
+  document.getElementById('ledgerForecastDetailModalOverlay')?.addEventListener('click', event => {
+    if (event.target.id === 'ledgerForecastDetailModalOverlay') event.currentTarget.classList.remove('active');
+  });
   const ledgerPeriodTitle = document.getElementById('ledgerPeriodTitle');
   if (ledgerPeriodTitle) {
     ledgerPeriodTitle.addEventListener('pointerup', openLedgerPeriodPicker);
@@ -773,7 +894,8 @@ function getFundplanView() {
       getActiveSourceRecords,
       clampLedgerDate,
       minDate: LEDGER_MIN_DATE,
-      setText
+      setText,
+      onOpenForecastDetail: openForecastDetailModal
     });
   }
   return fundplanView;

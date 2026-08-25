@@ -12,8 +12,8 @@ export function isFixedRecord(r) {
  */
 export function generateForecastRecords(ledgerDataSources = {}) {
   const cardList = ledgerDataSources.card || [];
-  const tossRecords = cardList.filter(r => r.payment === '토스은행');
-  const cardRecords = cardList.filter(r => r.payment === '기업카드');
+  const tossRecords = cardList.filter(r => r.payment === '토스은행' || r.sheetName === '토스은행');
+  const cardRecords = cardList.filter(r => r.payment === '기업카드' || r.sheetName === '기업카드');
   const bankRecords = ledgerDataSources.bank || [];
   const cashRecords = ledgerDataSources.cash || [];
 
@@ -91,7 +91,9 @@ export function generateForecastRecords(ledgerDataSources = {}) {
         person: '기타',
         memo: `${mNum}월 토스 생활비 실시간 합산 (${tossMonthVars.length}건)`,
         fixedCost: '',
-        source: 'forecast'
+        source: 'forecast',
+        isAggregate: true,
+        subRecords: [...tossMonthVars].sort(compareLedgerRecords)
       });
     }
 
@@ -146,7 +148,9 @@ export function generateForecastRecords(ledgerDataSources = {}) {
         person: '기타',
         memo: `${mNum}월 기업카드 실시간 청구 합산 (${cardMonthVars.length}건)`,
         fixedCost: '',
-        source: 'forecast'
+        source: 'forecast',
+        isAggregate: true,
+        subRecords: [...cardMonthVars].sort(compareLedgerRecords)
       });
     }
   });

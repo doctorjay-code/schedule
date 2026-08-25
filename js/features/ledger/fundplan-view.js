@@ -114,7 +114,7 @@ export function createLedgerMonthDividerRow({
 }
 
 // Bank, cash, and card all-time ledger rendering responsibility.
-export function createFundplanView({ ledgerState, getColorSettings, colorSettings, getActiveSourceRecords, clampLedgerDate, minDate, setText }) {
+export function createFundplanView({ ledgerState, getColorSettings, colorSettings, getActiveSourceRecords, clampLedgerDate, minDate, setText, onOpenForecastDetail }) {
   const monthExpandedState = {};
 
   function render() {
@@ -212,6 +212,14 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
           const rowEl = list.children[i];
           rowEl.dataset.monthGroup = month;
           if (!isExpanded) rowEl.style.display = 'none';
+          if (record.isAggregate && typeof onOpenForecastDetail === 'function') {
+            rowEl.style.cursor = 'pointer';
+            rowEl.title = '📊 클릭하여 세부 거래 내역 확인';
+            rowEl.addEventListener('click', (e) => {
+              e.stopPropagation();
+              onOpenForecastDetail(record);
+            });
+          }
           monthRowElements.push(rowEl);
         }
       });

@@ -1,11 +1,14 @@
 // Ledger list action event responsibility (Global Event Delegation Engine).
 let isEngineBound = false;
+let activeHandler = null;
+let activeReorder = null;
 
 export function bindLedgerListActions({ onRowClick, onOpen, onReorder }) {
+  if (onRowClick || onOpen) activeHandler = onRowClick || onOpen;
+  if (onReorder) activeReorder = onReorder;
   if (isEngineBound) return;
   isEngineBound = true;
 
-  const handler = onRowClick || onOpen;
   let globalJustDragged = false;
 
   let activeContainer = null;
@@ -21,12 +24,12 @@ export function bindLedgerListActions({ onRowClick, onOpen, onReorder }) {
     if (!el) return null;
     if (el.closest('button, input, select, textarea, a, .color-indicator, .ledger-month-divider-row')) return null;
     const row = el.closest('tr[data-ledger-id]');
-    if (!row || row.dataset.ledgerReadOnly === 'true') return null;
+    if (!row) return null;
     return row;
   }
 
   function startDrag(row) {
-    if (isDragging || !row) return;
+    if (isDragging || !row || row.dataset.ledgerReadOnly === 'true') return;
     activeContainer = row.parentNode;
     draggedId = row.dataset.ledgerId;
     if (!draggedId || !activeContainer) return;
@@ -86,11 +89,11 @@ export function bindLedgerListActions({ onRowClick, onOpen, onReorder }) {
       longTouchTimer = null;
     }
 
-    if (isDragging && draggedId && activeContainer) {
+    if (isDragging) {
       globalJustDragged = true;
       setTimeout(() => { globalJustDragged = false; }, 200);
 
-      if (hasMoved && onReorder) {
+      if (hasMoved && activeReorder) {
         const orderedIds = [];
         const seen = new Set();
         activeContainer.querySelectorAll('tr[data-ledger-id]').forEach(r => {
@@ -101,7 +104,7 @@ export function bindLedgerListActions({ onRowClick, onOpen, onReorder }) {
           }
         });
         if (orderedIds.length > 0) {
-          onReorder(orderedIds);
+          activeReorder(orderedIds);
         }
       }
     }
@@ -114,12 +117,12 @@ export function bindLedgerListActions({ onRowClick, onOpen, onReorder }) {
     hasMoved = false;
   }
 
-  // 1. 단일 클릭(Tap) 이벤트 -> 거래 수정 모달 열기
+  // 1. 단일 클릭(Tap) 이벤트 -> 거래 수정 또는 가변비 세부 모달 열기
   document.addEventListener('click', event => {
     if (globalJustDragged || isDragging) return;
     const row = isLedgerRow(event.target);
-    if (row && handler) {
-      handler(row.dataset.ledgerId, event);
+    if (row && activeHandler) {
+      activeHandler(row.dataset.ledgerId, event);
     }
   });
 
