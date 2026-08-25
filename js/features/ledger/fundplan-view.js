@@ -196,7 +196,15 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
           monthExpandedState[month] = willExpand;
           toggleIcon.textContent = willExpand ? '\u25BC' : '\u25B6';
           monthRowElements.forEach(r => {
-            r.style.display = willExpand ? '' : 'none';
+            if (r.classList.contains('ledger-subdetail-row')) {
+              r.style.display = 'none'; // 서브 세부행은 항상 닫힌 상태 유지
+            } else {
+              r.style.display = willExpand ? '' : 'none';
+            }
+          });
+          // 통합 행들의 화살표 아이콘도 모두 '▶'(접힘)으로 초기화
+          dividerRow.parentElement?.querySelectorAll(`tr.schedule-row[data-month-group="${month}"] .ledger-accordion-icon`).forEach(icon => {
+            icon.textContent = '▶';
           });
         }
       });
