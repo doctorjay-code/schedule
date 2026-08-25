@@ -86,7 +86,7 @@ export function createLedgerMonthDividerRow({
   expenseCell.textContent = monthExpense > 0 ? formatMoney(monthExpense) : '';
   dividerRow.appendChild(expenseCell);
 
-  // Column 7 (사용액 / 잔액 - 해당 월의 최종 누적 잔액 / 기업카드는 당월 순청구액)
+  // Column 7 (사용액 / 차액 - 당월 순손익 차액: 입금 - 출금)
   const balanceCell = document.createElement('td');
   balanceCell.className = 'ledger-month-divider-num-cell ledger-month-balance-cell';
   if (isCompanyCard) {
@@ -94,16 +94,12 @@ export function createLedgerMonthDividerRow({
     balanceCell.textContent = netUsage !== 0 ? `${netUsage < 0 ? '-' : ''}${formatMoney(netUsage)}` : '';
     if (netUsage < 0) balanceCell.style.color = '#15803D';
   } else {
-    // 해당 월의 마지막 레코드의 최종 누적 잔액(Ending Balance)
-    const validRecordsWithBal = monthRecords.filter(r => Number.isFinite(Number(r.balance)));
-    const lastRecord = validRecordsWithBal.length > 0 ? validRecordsWithBal[validRecordsWithBal.length - 1] : null;
-    const endingBalance = lastRecord ? Number(lastRecord.balance) : (monthIncome - monthExpense);
-
-    balanceCell.textContent = Number.isFinite(endingBalance)
-      ? `${endingBalance < 0 ? '-' : ''}${formatMoney(endingBalance)}`
-      : '';
-    if (endingBalance < 0) {
+    const netBalance = monthIncome - monthExpense;
+    balanceCell.textContent = netBalance !== 0 ? `${netBalance < 0 ? '-' : ''}${formatMoney(netBalance)}` : '0';
+    if (netBalance < 0) {
       balanceCell.style.color = '#DC2626';
+    } else if (netBalance > 0) {
+      balanceCell.style.color = '#15803D';
     }
   }
   dividerRow.appendChild(balanceCell);
@@ -271,7 +267,84 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
           });
         }
       });
+
+      // 3. 월 마감 최종 누적 잔액 행 (월이 펼쳐졌을 때 맨 아래에 표시)
+      if (!isCompanyCard) {
+        const validRecordsWithBal = calculatedMonthRecords.filter(r => Number.isFinite(Number(r.balance)));
+        const lastRecord = validRecordsWithBal.length > 0 ? validRecordsWithBal[validRecordsWithBal.length - 1] : null;
+        if (lastRecord) {
+          const endingBal = Number(lastRecord.balance);
+          const footerRow = document.createElement('tr');
+          footerRow.className = 'schedule-row ledger-month-footer-row';
+          footerRow.dataset.monthGroup = month;
+          footerRow.style.display = isExpanded ? '' : 'none';
+          footerRow.style.backgroundColor = '#F1F5F9';
+          footerRow.style.borderBottom = '2px solid #CBD5E1';
+
+          const titleCell = document.createElement('td');
+          titleCell.colSpan = 4;
+          titleCell.style.textAlign = 'right';
+          titleCell.style.padding = '8px 16px';
+          titleCell.style.color = '#334155';
+          titleCell.innerHTML = `<strong>🏁 ${formatMonthTitle(month, false)}말 최종 통장 잔액 :</strong>`;
+
+          const incomeBlank = document.createElement('td');
+          const expenseBlank = document.createElement('td');
+
+          const balCell = document.createElement('td');
+          balCell.className = 'ledger-cell-money ledger-cell-balance';
+          balCell.style.color = '#0F172A';
+          balCell.style.fontWeight = 'bold';
+          balCell.style.padding = '8px 8px';
+          balCell.textContent = `${endingBal < 0 ? '-' : ''}${formatMoney(endingBal)}`;
+
+          footerRow.appendChild(titleCell);
+          footerRow.appendChild(incomeBlank);
+          footerRow.appendChild(expenseBlank);
+          footerRow.appendChild(balCell);
+
+          list.appendChild(footerRow);
+          monthRowElements.push(footerRow);
+        }
+      }
     });
+
+    // 4. 전체 목록 맨 밑바닥 최종 요약 바 (Grand Total Footer)
+    if (!isCompanyCard) {
+      const allValidWithBal = sortedAndCalculated.filter(r => Number.isFinite(Number(r.balance)));
+      const currentFinalRecord = allValidWithBal.length > 0 ? allValidWithBal[allValidWithBal.length - 1] : null;
+      const currentFinalBalance = currentFinalRecord ? Number(currentFinalRecord.balance) : 0;
+
+      const grandFooterRow = document.createElement('tr');
+      grandFooterRow.className = 'ledger-grand-footer-row';
+      grandFooterRow.style.backgroundColor = '#EEF2FF';
+      grandFooterRow.style.borderTop = '2px solid #6366F1';
+      grandFooterRow.style.fontWeight = 'bold';
+
+      const grandTitleCell = document.createElement('td');
+      grandTitleCell.colSpan = 4;
+      grandTitleCell.style.textAlign = 'left';
+      grandTitleCell.style.padding = '10px 16px';
+      grandTitleCell.style.color = '#312E81';
+      grandTitleCell.innerHTML = `<strong>💰 ${title} 현재 최종 통장 잔액</strong>`;
+
+      const grandIncomeCell = document.createElement('td');
+      const grandExpenseCell = document.createElement('td');
+
+      const grandBalanceCell = document.createElement('td');
+      grandBalanceCell.className = 'ledger-cell-money';
+      grandBalanceCell.style.color = '#1E1B4B';
+      grandBalanceCell.style.fontSize = '1.05em';
+      grandBalanceCell.style.padding = '10px 8px';
+      grandBalanceCell.textContent = `${currentFinalBalance < 0 ? '-' : ''}${formatMoney(currentFinalBalance)}`;
+
+      grandFooterRow.appendChild(grandTitleCell);
+      grandFooterRow.appendChild(grandIncomeCell);
+      grandFooterRow.appendChild(grandExpenseCell);
+      grandFooterRow.appendChild(grandBalanceCell);
+
+      list.appendChild(grandFooterRow);
+    }
   }
 
   function setAllExpanded(expanded) {
