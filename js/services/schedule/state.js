@@ -39,24 +39,8 @@ export const defaultColorSettings = {
     '기타': '#D9E1F2'
   },
   wordRules: [],
-  ledgerPersonColors: {
-    '쥬쥬': '#FCE7F3',
-    '콩콩': '#E0E7FF',
-    '지니': '#FEF3C7',
-    '기타': '#D9E1F2'
-  },
-  ledgerCategoryColors: {
-    '식비': '#FEF3C7',
-    '교통': '#E0F2FE',
-    '문화': '#EFE5FD',
-    '생활': '#D1FAE5',
-    '보험': '#FFEDD5',
-    '월급': '#D1FAE5',
-    '상환': '#FCE4D6',
-    '저축': '#D9E1F2',
-    '입금': '#F3E8FF',
-    '기타': '#FCE7F3'
-  },
+  ledgerPersonColors: {},
+  ledgerCategoryColors: {},
   ledgerPaymentColors: {
     '현금': '#D1FAE5',
     '기업카드': '#FFEDD5',
@@ -94,10 +78,10 @@ export const state = {
   scheduleDataState: 'loading'
 };
 
-function sanitizeColorMap(savedMap, defaultMap) {
+function sanitizeColorMap(savedMap, defaultMap = {}) {
   const result = { ...defaultMap };
   Object.entries(savedMap || {}).forEach(([k, v]) => {
-    if (pastelPalette.some(p => p.toLowerCase() === String(v || '').toLowerCase())) {
+    if (v && pastelPalette.some(p => p.toLowerCase() === String(v || '').toLowerCase())) {
       result[k] = v;
     }
   });
@@ -111,8 +95,8 @@ export function normalizeColorSettings(raw = {}) {
     regionColors: sanitizeColorMap(safe.regionColors, defaultColorSettings.regionColors),
     clinicColors: sanitizeColorMap(safe.clinicColors, defaultColorSettings.clinicColors),
     wordRules: Array.isArray(safe.wordRules) ? safe.wordRules : [],
-    ledgerPersonColors: sanitizeColorMap(safe.ledgerPersonColors, defaultColorSettings.ledgerPersonColors),
-    ledgerCategoryColors: sanitizeColorMap(safe.ledgerCategoryColors, defaultColorSettings.ledgerCategoryColors),
+    ledgerPersonColors: sanitizeColorMap(safe.ledgerPersonColors, {}),
+    ledgerCategoryColors: sanitizeColorMap(safe.ledgerCategoryColors, {}),
     ledgerPaymentColors: sanitizeColorMap(safe.ledgerPaymentColors, defaultColorSettings.ledgerPaymentColors),
     scheduleAlertColors: sanitizeColorMap(safe.scheduleAlertColors, defaultColorSettings.scheduleAlertColors),
     ledgerWordRules: Array.isArray(safe.ledgerWordRules) ? safe.ledgerWordRules : []

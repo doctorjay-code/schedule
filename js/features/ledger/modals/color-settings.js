@@ -35,17 +35,30 @@ export function createLedgerColorSettings({ state, pastelPalette, defaultColorSe
     label.textContent = name;
     const chips = document.createElement('div');
     chips.className = 'palette-chips-row';
+    const currentColor = (state.colorSettings?.[key]?.[name] || '').toLowerCase();
+
     pastelPalette.forEach(hex => {
       const chip = document.createElement('div');
       chip.className = 'color-chip';
-      if (getLedgerTagColor(state.colorSettings, field, name).toLowerCase() === hex.toLowerCase()) chip.classList.add('selected');
+      if (currentColor && currentColor === hex.toLowerCase()) {
+        chip.classList.add('selected');
+      }
       chip.style.backgroundColor = hex;
       chip.addEventListener('click', () => {
-        state.colorSettings[key] = { ...(state.colorSettings[key] || {}), [name]: hex };
+        const isAlreadySelected = chip.classList.contains('selected');
+        if (isAlreadySelected) {
+          chip.classList.remove('selected');
+          if (state.colorSettings[key]) {
+            delete state.colorSettings[key][name];
+          }
+        } else {
+          chips.querySelectorAll('.color-chip').forEach(item => item.classList.remove('selected'));
+          chip.classList.add('selected');
+          if (!state.colorSettings[key]) state.colorSettings[key] = {};
+          state.colorSettings[key][name] = hex;
+        }
         saveColorSettings();
         syncColorSettingsToSupabase();
-        chips.querySelectorAll('.color-chip').forEach(item => item.classList.remove('selected'));
-        chip.classList.add('selected');
         renderLedgerViews();
       });
       chips.appendChild(chip);
