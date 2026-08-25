@@ -439,10 +439,9 @@ function reorderLedgerRecord(orderedIds) {
   const currentSheetName = getCurrentLedgerSheetName();
   showLedgerToast('↕️ 거래 순서가 저장되었습니다.');
 
-  // 1. orderedIds 분석 및 매핑 생성 (잔액전망용 fc- 접두어 해제 및 각 통장별 정렬 리스트 추출)
+  // 1. orderedIds 분석 및 매핑 생성 (잔액전망용 fc- 접두어 해제 및 전체 원본 ID 순서 추출)
   const idMap = new Map();
-  const tossOrderedRawIds = [];
-  const bankOrderedRawIds = [];
+  const rawOrderedIds = [];
 
   orderedIds.forEach((rawId, idx) => {
     const sId = String(rawId);
@@ -450,18 +449,14 @@ function reorderLedgerRecord(orderedIds) {
 
     if (sId.startsWith('fc-toss-')) {
       realId = sId.replace('fc-toss-', '');
-      tossOrderedRawIds.push(realId);
     } else if (sId.startsWith('fc-bank-')) {
       realId = sId.replace('fc-bank-', '');
-      bankOrderedRawIds.push(realId);
     } else if (sId.startsWith('fc-var-') || sId.startsWith('fc-fix-')) {
       // 가상 통합행은 제외
       return;
-    } else {
-      if (currentSheetName === '토스은행') tossOrderedRawIds.push(realId);
-      else if (currentSheetName === '기업은행') bankOrderedRawIds.push(realId);
     }
 
+    rawOrderedIds.push(realId);
     const orderVal = (idx + 1) * 10;
     idMap.set(realId, orderVal);
     idMap.set(sId, orderVal);
@@ -488,20 +483,9 @@ function reorderLedgerRecord(orderedIds) {
   applyLedgerDataSources();
   saveLedgerSheetSnapshot();
 
-  // 2. Supabase DB 비동기 초고속 일괄 영구 저장
-  if (currentSheetName === '잔액전망') {
-    if (tossOrderedRawIds.length > 0) {
-      reorderLedgerSheetRecords('토스은행', tossOrderedRawIds).catch(err => {
-        console.error('Supabase Toss reorder sync error from Forecast:', err);
-      });
-    }
-    if (bankOrderedRawIds.length > 0) {
-      reorderLedgerSheetRecords('기업은행', bankOrderedRawIds).catch(err => {
-        console.error('Supabase Bank reorder sync error from Forecast:', err);
-      });
-    }
-  } else if (currentSheetName) {
-    reorderLedgerSheetRecords(currentSheetName, orderedIds).catch(err => {
+  // 2. Supabase DB 비동기 초고속 일괄 영구 저장 (시트 구분 없이 단일 트랜잭션으로 order_index 원자적 갱신!)
+  if (rawOrderedIds.length > 0) {
+    reorderLedgerRecords(currentSheetName || '잔액전망', rawOrderedIds).catch(err => {
       console.error('Supabase reorder sync error:', err);
     });
   }
