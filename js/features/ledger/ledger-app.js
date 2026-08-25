@@ -406,11 +406,29 @@ function renderWeekly() {
 }
 
 function findLedgerTransaction(id) {
-  if (ledgerState.source === 'forecast' || String(id).startsWith('fc-')) {
+  const sId = String(id || '');
+  const realId = sId.startsWith('fc-toss-')
+    ? sId.replace('fc-toss-', '')
+    : (sId.startsWith('fc-bank-') ? sId.replace('fc-bank-', '') : sId);
+
+  // 1. 원본 데이터 소스에서 먼저 검색
+  const rawFound = findLedgerRecordById(realId, { ledgerState, ledgerDataSources });
+  if (rawFound) return rawFound;
+
+  // 2. 잔액전망 풀에서 검색
+  if (ledgerState.source === 'forecast' || sId.startsWith('fc-')) {
     const forecastRecords = generateForecastRecords(ledgerDataSources);
-    const found = forecastRecords.find(item => item && String(item.id) === String(id));
-    if (found) return found;
+    const found = forecastRecords.find(item => item && (String(item.id) === sId || String(item.originalId) === realId));
+    if (found) {
+      if (found.originalId) {
+        const trueRaw = findLedgerRecordById(found.originalId, { ledgerState, ledgerDataSources });
+        if (trueRaw) return trueRaw;
+        return { ...found, id: found.originalId };
+      }
+      return found;
+    }
   }
+
   return findLedgerRecordById(id, { ledgerState, ledgerDataSources });
 }
 let ledgerTransactionModal = null;
@@ -682,7 +700,9 @@ function handleLedgerRowClick(id, event) {
     return;
   }
 
-  getLedgerTransactionModal().open(id);
+  if (record) {
+    getLedgerTransactionModal().open(record.id || id);
+  }
 }
 
 function getRecordById(id) {

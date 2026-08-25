@@ -17,6 +17,11 @@ export function showLedgerToast(message) {
 }
 
 export function findLedgerRecordById(id, { ledgerState = {}, ledgerDataSources = {} } = {}) {
+  const sId = String(id || '');
+  const realId = sId.startsWith('fc-toss-')
+    ? sId.replace('fc-toss-', '')
+    : (sId.startsWith('fc-bank-') ? sId.replace('fc-bank-', '') : sId);
+
   const allPool = [
     ...(ledgerState.records || []),
     ...(ledgerDataSources.card || []),
@@ -24,7 +29,7 @@ export function findLedgerRecordById(id, { ledgerState = {}, ledgerDataSources =
     ...(ledgerDataSources.bank || []),
     ...(ledgerDataSources.forecast || [])
   ];
-  return allPool.find(item => item && String(item.id) === String(id)) || null;
+  return allPool.find(item => item && (String(item.id) === sId || String(item.id) === realId || String(item.originalId) === realId)) || null;
 }
 
 export function executeLedgerCopy({
