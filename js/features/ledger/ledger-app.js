@@ -69,10 +69,17 @@ const ledgerState = {
 };
 function syncLedgerWriteControls() {
   const entryButton = document.getElementById('ledgerToggleEntryBtn');
-  const isWritableTab = ['card', 'cash', 'bank'].includes(ledgerState.source);
-  if (!entryButton) return;
-  entryButton.disabled = !isWritableTab;
-  entryButton.title = isWritableTab ? '새 거래를 등록합니다.' : '잔액전망은 읽기 전용입니다.';
+  const monthlyEntryBtn = document.getElementById('ledgerMonthlyToggleEntryBtn');
+  if (entryButton) {
+    entryButton.disabled = false;
+    entryButton.classList.remove('hidden');
+    entryButton.title = '새 거래를 등록합니다.';
+  }
+  if (monthlyEntryBtn) {
+    monthlyEntryBtn.disabled = false;
+    monthlyEntryBtn.classList.remove('hidden');
+    monthlyEntryBtn.title = '새 거래를 등록합니다.';
+  }
 }
 
 function applyLedgerDataSources() {
@@ -978,9 +985,10 @@ function setLedgerSource(source) {
   document.getElementById('ledgerBankSourceBtn')?.classList.toggle('active', source === 'bank');
   document.getElementById('ledgerCashSourceBtn')?.classList.toggle('active', source === 'cash');
   document.getElementById('ledgerForecastSourceBtn')?.classList.toggle('active', source === 'forecast');
-  document.getElementById('ledgerToggleEntryBtn')?.classList.toggle('hidden', !['card', 'cash', 'bank'].includes(source));
-  document.getElementById('ledgerMonthlyToggleEntryBtn')?.classList.toggle('hidden', !['card', 'cash', 'bank'].includes(source));
+  document.getElementById('ledgerToggleEntryBtn')?.classList.remove('hidden');
+  document.getElementById('ledgerMonthlyToggleEntryBtn')?.classList.remove('hidden');
   syncLedgerCardButtons();
+  syncLedgerWriteControls();
   renderActiveLedgerPeriod();
 }
 

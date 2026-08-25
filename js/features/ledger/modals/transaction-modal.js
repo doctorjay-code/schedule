@@ -70,12 +70,13 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
     const form = document.getElementById('ledgerTransactionForm');
     const overlay = document.getElementById('ledgerTransactionModalOverlay');
     if (!form || !overlay) return;
+    const defaultPayment = (ledgerState.payment === '잔액전망' || ledgerState.source === 'forecast') ? '토스은행' : (ledgerState.payment || '토스은행');
     const defaults = {
       id: '',
       date: toIso(new Date()),
       type: 'expense',
       amount: '',
-      payment: ledgerState.payment,
+      payment: defaultPayment,
       item: '',
       category: '식비',
       memo: '',
@@ -83,7 +84,7 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
     };
     const value = { ...defaults, ...(record || {}) };
     const isExisting = Boolean(record && record.id);
-    const isReadOnly = Boolean(record && (record.sheetName === '잔액전망' || record.source === 'forecast'));
+    const isReadOnly = Boolean(record && (record.isAggregate || record.sheetName === '잔액전망' || record.id?.startsWith('fc-var-') || record.id?.startsWith('fc-est-')));
     document.getElementById('ledgerTransactionModalTitle').textContent = record
       ? formatLedgerScheduleDate(value.date) + ' ' + modalText(0xAC70, 0xB798, 0x20, 0xC0C1, 0xC138)
       : modalText(0xC0C8, 0x20, 0xAC70, 0xB798);
@@ -103,7 +104,8 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
     if (selectedPayment === '토스' || selectedPayment === '토스카드' || selectedPayment === '토스뱅크') selectedPayment = '토스은행';
     if (selectedPayment === '기업' || selectedPayment === '신용카드' || selectedPayment === '카드') selectedPayment = '기업카드';
     if (selectedPayment === '통장' || selectedPayment === '은행') selectedPayment = '기업은행';
-    document.getElementById('ledgerModalPayment').value = selectedPayment || '현금';
+    if (selectedPayment === '잔액전망') selectedPayment = '토스은행';
+    document.getElementById('ledgerModalPayment').value = selectedPayment || '토스은행';
     document.getElementById('ledgerModalPerson').value = memoParts.person || '';
     document.getElementById('ledgerModalMemo').value = memoParts.detail || '';
     setGroup('ledgerModalCategoryGroup', 'ledgerModalCategory', value.category);
