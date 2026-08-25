@@ -1,6 +1,7 @@
 import { toIso, formatMoney, recalculateRunningBalances, normalizeLedgerDate, compareLedgerRecords } from './ledger-utils.js';
 import { createLedgerTableHead, renderTransactionRow } from './transaction-view.js';
 import { loadOffsetGroups, deleteOffsetGroup, createOffsetGroupRow } from './ledger-offset-groups.js';
+import { copyPreviousMonthFixedRecords } from './ledger-forecast.js';
 
 export function getRecordMonthGroup(record, isCompanyCard) {
   const dStr = normalizeLedgerDate(record.date);
@@ -131,7 +132,7 @@ export function createLedgerMonthDividerRow({
 }
 
 // Bank, cash, and card all-time ledger rendering responsibility.
-export function createFundplanView({ ledgerState, getColorSettings, colorSettings, getActiveSourceRecords, clampLedgerDate, minDate, setText }) {
+export function createFundplanView({ ledgerState, getColorSettings, colorSettings, getActiveSourceRecords, clampLedgerDate, minDate, setText, ledgerDataSources, refreshLedgerSheetData, renderActiveLedgerPeriod, showLedgerToast }) {
   const monthExpandedState = {};
 
   function render() {
@@ -426,45 +427,73 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
         }
       });
 
-      // 3. 월 마감 최종 누적 잔액 행 (월이 펼쳐졌을 때 맨 아래에 표시)
-      if (!isCompanyCard) {
-        const validRecordsWithBal = calculatedMonthRecords.filter(r => Number.isFinite(Number(r.balance)));
-        const lastRecord = validRecordsWithBal.length > 0 ? validRecordsWithBal[validRecordsWithBal.length - 1] : null;
-        if (lastRecord) {
-          const endingBal = Number(lastRecord.balance);
-          const footerRow = document.createElement('tr');
-          footerRow.className = 'schedule-row ledger-month-footer-row';
-          footerRow.dataset.monthGroup = month;
-          footerRow.style.display = isExpanded ? '' : 'none';
-          footerRow.style.backgroundColor = '#F1F5F9';
-          footerRow.style.borderBottom = '2px solid #CBD5E1';
+      // 3. 월별 하단 액션 바: 지난달 고정비/상계 거래 가져오기 버튼 (불필요한 회색 잔액행 완전 대체!)
+      const [y, m] = month.split('-').map(Number);
+      const prevMonthNum = m === 1 ? 12 : m - 1;
 
-          const titleCell = document.createElement('td');
-          titleCell.colSpan = 4;
-          titleCell.style.textAlign = 'right';
-          titleCell.style.padding = '8px 16px';
-          titleCell.style.color = '#334155';
-          titleCell.innerHTML = `<strong>🏁 ${formatMonthTitle(month, false)}말 최종 통장 잔액 :</strong>`;
+      const actionRow = document.createElement('tr');
+      actionRow.className = 'schedule-row ledger-month-action-row';
+      actionRow.dataset.monthGroup = month;
+      actionRow.style.display = isExpanded ? '' : 'none';
+      actionRow.style.backgroundColor = '#F8FAFC';
+      actionRow.style.borderBottom = '2px dashed #CBD5E1';
 
-          const incomeBlank = document.createElement('td');
-          const expenseBlank = document.createElement('td');
+      const actionTd = document.createElement('td');
+      actionTd.colSpan = 7;
+      actionTd.style.padding = '8px 12px';
+      actionTd.style.textAlign = 'center';
 
-          const balCell = document.createElement('td');
-          balCell.className = 'ledger-cell-money ledger-cell-balance';
-          balCell.style.color = '#0F172A';
-          balCell.style.fontWeight = 'bold';
-          balCell.style.padding = '8px 8px';
-          balCell.textContent = `${endingBal < 0 ? '-' : ''}${formatMoney(endingBal)}`;
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'ledger-copy-month-btn';
+      copyBtn.style.backgroundColor = '#FFFFFF';
+      copyBtn.style.color = '#2563EB';
+      copyBtn.style.border = '1.5px solid #93C5FD';
+      copyBtn.style.borderRadius = '6px';
+      copyBtn.style.padding = '6px 18px';
+      copyBtn.style.fontSize = '0.86em';
+      copyBtn.style.fontWeight = 'bold';
+      copyBtn.style.cursor = 'pointer';
+      copyBtn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+      copyBtn.innerHTML = `📋 <strong>${prevMonthNum}월</strong> 고정비 & 상계 묶음 <strong>${m}월</strong>로 가져오기`;
 
-          footerRow.appendChild(titleCell);
-          footerRow.appendChild(incomeBlank);
-          footerRow.appendChild(expenseBlank);
-          footerRow.appendChild(balCell);
-
-          list.appendChild(footerRow);
-          monthRowElements.push(footerRow);
+      copyBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (confirm(`지난달(${prevMonthNum}월)의 고정비 및 상계 묶음 거래들을 ${m}월로 복사해 올까요?`)) {
+          copyBtn.disabled = true;
+          copyBtn.textContent = '⏳ 복사 중...';
+          try {
+            const res = await copyPreviousMonthFixedRecords(month, ledgerDataSources, { source, payment: ledgerState.payment });
+            if (res.ok) {
+              if (typeof showLedgerToast === 'function') {
+                showLedgerToast(`🎉 ${prevMonthNum}월 고정비/상계 거래 (${res.count}건)가 ${m}월로 완벽 복사되었습니다!`);
+              }
+              if (typeof refreshLedgerSheetData === 'function') {
+                await refreshLedgerSheetData();
+              }
+              if (typeof renderActiveLedgerPeriod === 'function') {
+                renderActiveLedgerPeriod();
+              } else {
+                render();
+              }
+            } else {
+              alert(res.message || '복사할 거래가 없습니다.');
+              copyBtn.disabled = false;
+              copyBtn.innerHTML = `📋 <strong>${prevMonthNum}월</strong> 고정비 & 상계 묶음 <strong>${m}월</strong>로 가져오기`;
+            }
+          } catch (err) {
+            console.error('Failed to copy previous month records:', err);
+            alert('복사 중 오류가 발생했습니다: ' + err.message);
+            copyBtn.disabled = false;
+            copyBtn.innerHTML = `📋 <strong>${prevMonthNum}월</strong> 고정비 & 상계 묶음 <strong>${m}월</strong>로 가져오기`;
+          }
         }
-      }
+      });
+
+      actionTd.appendChild(copyBtn);
+      actionRow.appendChild(actionTd);
+      list.appendChild(actionRow);
+      monthRowElements.push(actionRow);
     });
 
     // 4. 전체 목록 맨 밑바닥 최종 요약 바 (Grand Total Footer)

@@ -1,4 +1,5 @@
-import { fetchForecastOrders, saveForecastOrders } from '../../services/ledger/ledger-api.js';
+import { fetchForecastOrders, saveForecastOrders, insertLedgerRecordsBatch, upsertLedgerOffsetGroup } from '../../services/ledger/ledger-api.js';
+import { loadOffsetGroups, saveOffsetGroups } from './ledger-offset-groups.js';
 import { compareLedgerRecords, normalizeLedgerDate } from './ledger-utils.js';
 
 const FORECAST_ORDER_STORAGE_KEY = 'LEDGER_FORECAST_ORDER_MAP_V1';
@@ -299,4 +300,138 @@ export function generateForecastRecords(ledgerDataSources = {}) {
   });
 
   return forecastPool;
+}
+
+
+/**
+ * 지난달의 고정비 및 상계 묶음을 당월로 일괄 복사하는 원클릭 엔진
+ */
+export async function copyPreviousMonthFixedRecords(targetMonthKey, ledgerDataSources = {}, options = {}) {
+  const [ty, tm] = targetMonthKey.split('-').map(Number);
+  const prevMonthKey = tm === 1
+    ? `${ty - 1}-12`
+    : `${ty}-${String(tm - 1).padStart(2, '0')}`;
+
+  const currentSource = options.source || 'forecast';
+
+  // 1. 이전 달 거래 풀 추출
+  const cardList = ledgerDataSources.card || [];
+  const tossRecords = cardList.filter(r => r.payment === '토스은행' || r.sheetName === '토스은행');
+  const cardRecords = cardList.filter(r => r.payment === '기업카드' || r.sheetName === '기업카드');
+  const bankRecords = ledgerDataSources.bank || [];
+  const cashRecords = ledgerDataSources.cash || [];
+
+  let candidates = [];
+  if (currentSource === 'forecast') {
+    candidates = [...tossRecords, ...bankRecords, ...cardRecords];
+  } else if (currentSource === 'bank') {
+    candidates = [...bankRecords];
+  } else if (currentSource === 'cash') {
+    candidates = [...cashRecords];
+  } else if (currentSource === 'card') {
+    const isCompanyCard = options.payment === '기업카드';
+    candidates = isCompanyCard ? [...cardRecords] : [...tossRecords];
+  }
+
+  const prevCandidates = candidates.filter(r => {
+    const d = normalizeLedgerDate(r.date);
+    return d.startsWith(prevMonthKey) && !r.id.startsWith('fc-');
+  });
+
+  const offsetGroups = loadOffsetGroups();
+  const prevOffsetGroupIds = new Set();
+  const prevOffsetRecordIds = new Set();
+
+  Object.values(offsetGroups).forEach(g => {
+    if (g.date && g.date.startsWith(prevMonthKey) && Array.isArray(g.recordIds)) {
+      prevOffsetGroupIds.add(g.id);
+      g.recordIds.forEach(id => prevOffsetRecordIds.add(String(id)));
+    }
+  });
+
+  // 대상 거래 필터링: 고정비이거나, 상계 그룹에 속한 거래이거나, 이체/월급인 거래! (수기 카드출금은 제외하여 9/27 자동집계 보호)
+  const toCopy = prevCandidates.filter(r => {
+    if (isManualCardPayment(r)) return false;
+    const isFixed = isFixedRecord(r);
+    const isOffset = prevOffsetRecordIds.has(String(r.id)) || prevOffsetRecordIds.has(String(r.originalId));
+    const isSalaryOrTransfer = isTransferOrSalaryRecord(r);
+    return isFixed || isOffset || isSalaryOrTransfer;
+  });
+
+  if (toCopy.length === 0) {
+    return { ok: false, message: `${Number(prevMonthKey.slice(5))}월에 복사할 고정비/상계 거래가 없습니다.` };
+  }
+
+  // 2. 당월 날짜로 새 레코드 매핑 생성
+  const newRecordsBySheet = {};
+  const idMapping = {}; // oldId -> newId
+
+  toCopy.forEach((r, idx) => {
+    const oldDateStr = normalizeLedgerDate(r.date);
+    const day = oldDateStr.slice(8);
+    const maxDaysInTargetMonth = new Date(ty, tm, 0).getDate();
+    const safeDay = Math.min(Number(day), maxDaysInTargetMonth);
+    const newDateStr = `${targetMonthKey}-${String(safeDay).padStart(2, '0')}`;
+
+    const newId = `cp_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 6)}`;
+    idMapping[String(r.id)] = newId;
+    if (r.originalId) idMapping[String(r.originalId)] = newId;
+
+    const sheetName = r.sheetName || (r.payment === '기업은행' ? '기업은행' : r.payment === '기업카드' ? '기업카드' : r.payment === '현금' ? '현금' : '토스은행');
+
+    const newRecord = {
+      id: newId,
+      date: newDateStr,
+      type: r.type,
+      amount: Number(r.amount || 0),
+      balance: 0,
+      payment: r.payment || (sheetName === '기업은행' ? '기업은행' : sheetName === '기업카드' ? '기업카드' : sheetName === '현금' ? '현금' : '토스은행'),
+      item: r.item || '',
+      person: r.person || r.user_name || '기타',
+      category: r.category || '',
+      memo: r.memo || '',
+      fixedCost: r.fixedCost || '고정비',
+      orderIndex: (idx + 1) * 10,
+      createdAt: (idx + 1) * 10,
+      source: 'supabase',
+      sheetName
+    };
+
+    (newRecordsBySheet[sheetName] ||= []).push(newRecord);
+  });
+
+  // 3. Supabase DB 일괄 삽입
+  for (const sheetName of Object.keys(newRecordsBySheet)) {
+    const list = newRecordsBySheet[sheetName];
+    await insertLedgerRecordsBatch(sheetName, list);
+  }
+
+  // 4. 상계 묶음 9월 버전 자동 복제
+  for (const gId of prevOffsetGroupIds) {
+    const oldGroup = offsetGroups[gId];
+    if (!oldGroup || !Array.isArray(oldGroup.recordIds)) continue;
+
+    const newMappedIds = oldGroup.recordIds.map(oldId => idMapping[String(oldId)]).filter(Boolean);
+    if (newMappedIds.length === oldGroup.recordIds.length) {
+      const oldDay = (oldGroup.date || '').slice(8) || '10';
+      const newGroupDate = `${targetMonthKey}-${oldDay}`;
+      const newGroupId = `og_${newGroupDate}_${Math.random().toString(36).slice(2, 7)}`;
+
+      const newGroup = {
+        id: newGroupId,
+        date: newGroupDate,
+        title: oldGroup.title.replace(new RegExp(`${Number(prevMonthKey.slice(5))}월|${Number(prevMonthKey.slice(5))}\\.`), `${tm}월`),
+        inAmount: oldGroup.inAmount,
+        outAmount: oldGroup.outAmount,
+        recordIds: newMappedIds,
+        createdAt: new Date().toISOString()
+      };
+
+      offsetGroups[newGroupId] = newGroup;
+      upsertLedgerOffsetGroup(newGroup).catch(e => console.warn('upsertOffsetGroup warn:', e));
+    }
+  }
+  saveOffsetGroups(offsetGroups);
+
+  return { ok: true, count: toCopy.length, prevMonthKey, targetMonthKey };
 }

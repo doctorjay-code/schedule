@@ -884,7 +884,11 @@ function getFundplanView() {
       getActiveSourceRecords,
       clampLedgerDate,
       minDate: LEDGER_MIN_DATE,
-      setText
+      setText,
+      ledgerDataSources,
+      refreshLedgerSheetData,
+      renderActiveLedgerPeriod,
+      showLedgerToast
     });
   }
   return fundplanView;
