@@ -968,17 +968,23 @@ td.cell-selected,
 }
 
 /* ==========================================================================
-   [Unified Table Border Pipeline (가계부 테이블 통합 보더 파이프라인)]
-   1개 거래 = detailRow(상세) + tagRow(태그)
-   날짜/수단(rowspan=2)과 태그행의 하단 보더를 단일 파이프라인으로 100% 일치
+   [Schedule Table vs Ledger Table Unified Border System]
    ========================================================================== */
 
-/* 1. 내부선: detailRow와 tagRow 사이의 가로 경계선 (연한 회색 1px) */
+/* 1. [일정(Schedule) 테이블] 날짜별 굵은 실선 구분선 (2px 남색 실선) */
+#weeklyViewWrapper .schedule-table tr.row-day-end td,
+#weeklyViewWrapper .schedule-table td.cell-day-end-border,
+#weeklyViewWrapper .schedule-table td.cell-date {
+  border-bottom: 2px solid #1E3A8A !important;
+}
+
+/* 2. [가계부(Ledger) 테이블] 통합 보더 파이프라인 */
+/* 2-1. 내부선: detailRow와 tagRow 사이의 가로 경계선 (연한 회색 1px) */
 .schedule-table tr.schedule-row-detail td:not(.cell-date):not(.ledger-payment-cell) {
   border-bottom: 1px solid var(--border-grid, #E2E8F0) !important;
 }
 
-/* 2. 일반 거래 (Normal Row): 하단선 전체 2px 남색 실선 */
+/* 2-2. 일반 거래 (Normal Row): 하단선 전체 2px 남색 실선 */
 .schedule-table tr.schedule-row-detail:not(.ledger-subdetail-row) td.cell-date,
 .schedule-table tr.schedule-row-detail:not(.ledger-subdetail-row) td.ledger-payment-cell,
 .schedule-table tr.schedule-row-tag:not(.ledger-subdetail-row) td {
