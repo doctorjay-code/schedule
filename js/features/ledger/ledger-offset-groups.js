@@ -116,7 +116,6 @@ export function createOffsetGroupRow({
   tr.className = 'schedule-row ledger-offset-group-row';
   tr.dataset.offsetGroupId = group.id;
   tr.style.backgroundColor = '#F8FAFC';
-  tr.style.borderLeft = '4px solid #6366F1';
   tr.style.borderBottom = '1px solid #CBD5E1';
   tr.style.cursor = 'pointer';
   tr.style.fontWeight = '600';

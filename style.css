@@ -780,15 +780,21 @@ body {
 .table-wrapper {
   flex: initial;
   overflow-y: auto;
+  overflow-x: hidden;
   background-color: var(--bg-table);
   padding-bottom: 16px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .schedule-table {
   width: 100%;
+  max-width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
   font-size: 12px;
+  box-sizing: border-box;
 }
 
 .schedule-table thead {
@@ -1014,13 +1020,20 @@ td.cell-selected,
   border-bottom: 2.5px solid #818CF8 !important;
 }
 
-/* 5. 세부 거래 블록 좌/우 세로선 (4px 보라색 실선) */
+/* 5. 세부 거래 블록 좌/우 세로선 (보라색 인디케이터 바) */
 .schedule-table tr.ledger-subdetail-row td.cell-date {
-  border-left: 4px solid #818CF8 !important;
-  padding-left: 6px !important;
+  border-left: 3.5px solid #818CF8 !important;
+  box-sizing: border-box !important;
 }
 .schedule-table tr.ledger-subdetail-row td:last-child {
-  border-right: 4px solid #818CF8 !important;
+  border-right: 3.5px solid #818CF8 !important;
+  box-sizing: border-box !important;
+}
+
+/* 5-1. 상계 묶음 행 좌측 인디케이터 바 */
+.schedule-table tr.ledger-offset-group-row td:first-child {
+  border-left: 3.5px solid #6366F1 !important;
+  box-sizing: border-box !important;
 }
 
 /* 6. 카드 결제 상위행 하단선 (세부 거래 시작선: 2.5px 보라색 굵은 실선) */
