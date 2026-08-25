@@ -299,8 +299,59 @@ export function generateForecastRecords(ledgerDataSources = {}) {
 }
 
 /**
+ * 고정비 항목의 핵심 키워드를 정규화하여 추출 (예: 'SKT-자동납부-713178' -> 'SKT')
+ */
+export function normalizeFixedCostItemKey(item = '') {
+  return String(item)
+    .replace(/\([^)]*\)/g, '') // 괄호 안 텍스트 제거 (예: (주), (로켓와우클럽) 등)
+    .replace(/[㈜주식회사\-_\s]/g, '') // 특수문자, 주식회사, 대시, 공백 제거
+    .replace(/자동납부|자동이체|이체용/g, '') // 부가 수식어 제거
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * 다음 달 기존 거래 풀(existingList) 중에 candidate와 동일한 고정비가 이미 존재하는지 검사
+ */
+export function findMatchingExistingFixedRecord(candidate, existingList) {
+  if (!Array.isArray(existingList) || existingList.length === 0) return null;
+
+  const candKey = normalizeFixedCostItemKey(candidate.item);
+  const candAmt = Number(candidate.amount || 0);
+  const candMemo = (candidate.memo || '').trim();
+
+  // 1단계: 핵심 키워드가 일치하는 기존 거래들 필터링
+  const keyMatches = existingList.filter(ex => {
+    const exKey = normalizeFixedCostItemKey(ex.item);
+    if (!candKey || !exKey) return false;
+    return exKey.includes(candKey) || candKey.includes(exKey);
+  });
+
+  if (keyMatches.length === 0) return null;
+
+  // 2단계: 키워드 일치 항목이 1건뿐인 경우
+  if (keyMatches.length === 1) {
+    const single = keyMatches[0];
+    const sameAmount = Number(single.amount || 0) === candAmt;
+    const isBothFixed = isFixedRecord(single) && isFixedRecord(candidate);
+    if (sameAmount || isBothFixed) {
+      return single;
+    }
+  }
+
+  // 3단계: 동일 키워드가 2건 이상인 경우 (예: 메리츠보험 2건 등 다건 고정비)
+  const exactMatch = keyMatches.find(ex => {
+    const sameAmount = Number(ex.amount || 0) === candAmt;
+    const sameMemo = candMemo && ex.memo && ex.memo.trim() === candMemo;
+    return sameAmount || sameMemo;
+  });
+
+  return exactMatch || null;
+}
+
+/**
  * 이번 달의 고정비 및 상계 묶음을 다음 달로 넘기는 원클릭 Push 엔진
- * (기업카드 13일~12일 결제주기 고정비 자동 연동 포함!)
+ * (기업카드 13일~12일 결제주기 고정비 자동 연동 및 스마트 중복 방지 포함!)
  */
 export async function copyMonthFixedRecordsToNextMonth(sourceMonthKey, ledgerDataSources = {}, options = {}) {
   const [sy, sm] = sourceMonthKey.split('-').map(Number);
@@ -335,6 +386,12 @@ export async function copyMonthFixedRecordsToNextMonth(sourceMonthKey, ledgerDat
     return d.startsWith(sourceMonthKey) && !r.id.startsWith('fc-');
   });
 
+  // 대상 월(targetMonthKey)에 이미 존재하는 통장 거래 풀 (중복 방지용)
+  const targetBankExisting = bankCandidates.filter(r => {
+    const d = normalizeLedgerDate(r.date);
+    return d.startsWith(targetMonthKey) && !r.id.startsWith('fc-');
+  });
+
   const offsetGroups = loadOffsetGroups();
   const sourceOffsetGroupIds = new Set();
   const sourceOffsetRecordIds = new Set();
@@ -346,7 +403,8 @@ export async function copyMonthFixedRecordsToNextMonth(sourceMonthKey, ledgerDat
     }
   });
 
-  const toCopyBank = sourceBankCandidates.filter(r => {
+  // 복사 대상 1차 필터링
+  let toCopyBank = sourceBankCandidates.filter(r => {
     if (isManualCardPayment(r)) return false; // 수기 통장 카드출금은 제외하여 9/27 자동집계 보호
     const isFixed = isFixedRecord(r);
     const isOffset = sourceOffsetRecordIds.has(String(r.id)) || sourceOffsetRecordIds.has(String(r.originalId));
@@ -354,10 +412,26 @@ export async function copyMonthFixedRecordsToNextMonth(sourceMonthKey, ledgerDat
     return isFixed || isOffset || isSalaryOrTransfer;
   });
 
+  // 통장 스마트 중복 방지 (이미 대상 월에 등록된 고정비/급여/상계 거래는 제외)
+  const usedTargetBankIds = new Set();
+  toCopyBank = toCopyBank.filter(candidate => {
+    const existing = findMatchingExistingFixedRecord(
+      candidate,
+      targetBankExisting.filter(ex => !usedTargetBankIds.has(ex.id))
+    );
+    if (existing) {
+      usedTargetBankIds.add(existing.id);
+      return false; // 이미 존재하므로 복사 스킵!
+    }
+    return true;
+  });
+
   // B. 기업카드 고정비 거래 풀 (결제주기 13일~12일 기반!)
   let toCopyCard = [];
   if (currentSource === 'forecast' || currentSource === 'bank' || (currentSource === 'card' && options.payment === '기업카드')) {
     let cardStart = null, cardEnd = null;
+    let targetCardStart = null, targetCardEnd = null;
+
     if (sm === 2) {
       cardStart = `${sy}-01-01`;
       cardEnd = `${sy}-02-12`;
@@ -367,18 +441,47 @@ export async function copyMonthFixedRecordsToNextMonth(sourceMonthKey, ledgerDat
       cardEnd = `${sourceMonthKey}-12`;
     }
 
+    if (tm === 2) {
+      targetCardStart = `${ty}-01-01`;
+      targetCardEnd = `${ty}-02-12`;
+    } else {
+      const tpStr = `${ty}-${String(tm - 1).padStart(2, '0')}`;
+      targetCardStart = `${tpStr}-13`;
+      targetCardEnd = `${targetMonthKey}-12`;
+    }
+
     if (cardStart && cardEnd) {
       const cycleCards = cardRecords.filter(c => {
         const cd = normalizeLedgerDate(c.date);
         return cd >= cardStart && cd <= cardEnd && !c.id.startsWith('fc-');
       });
       toCopyCard = cycleCards.filter(isFixedRecord);
+
+      // 대상 월 결제주기에 이미 등록되어 있는 실제 카드 거래 목록
+      const targetCardExisting = cardRecords.filter(c => {
+        const cd = normalizeLedgerDate(c.date);
+        return cd >= targetCardStart && cd <= targetCardEnd && !c.id.startsWith('fc-');
+      });
+
+      // 카드 스마트 중복 방지 (이미 9월 주기에 긁힌 SKT, 쿠팡 등은 제외!)
+      const usedTargetCardIds = new Set();
+      toCopyCard = toCopyCard.filter(candidate => {
+        const existing = findMatchingExistingFixedRecord(
+          candidate,
+          targetCardExisting.filter(ex => !usedTargetCardIds.has(ex.id))
+        );
+        if (existing) {
+          usedTargetCardIds.add(existing.id);
+          return false; // 이미 존재하므로 복사 스킵!
+        }
+        return true;
+      });
     }
   }
 
   const totalCount = toCopyBank.length + toCopyCard.length;
   if (totalCount === 0) {
-    return { ok: false, message: `${sm}월에 다음 달로 넘길 고정비/상계 거래가 없습니다.` };
+    return { ok: false, message: `${sm}월 고정비가 이미 ${tm}월에 모두 등록되어 있어 추가로 복사할 거래가 없습니다 (중복 방지 완료).` };
   }
 
   // 2. 새 레코드 매핑 생성
