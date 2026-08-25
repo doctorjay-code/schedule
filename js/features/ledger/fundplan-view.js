@@ -242,11 +242,16 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
         }
 
         if (matchedGroup) {
-          // 이미 이 그룹의 얇은 1줄 슬림 바가 렌더링되었으면 개별 렌더링은 건너뜀 (서브 행으로 이미 들어감)
+          // 이미 이 그룹이 처리되었으면 건너뜀
           if (handledGroupIds.has(matchedGroup.id)) {
             return;
           }
           handledGroupIds.add(matchedGroup.id);
+
+          // 평소(0원 버튼이 꺼져있을 때)에는 0원 상계 묶음 행 자체를 아예 렌더링하지 않음 (완전 투명 숨김!)
+          if (!ledgerState?.showOffsetGroups) {
+            return;
+          }
 
           // 이 그룹에 속한 이번 달 거래들 모으기
           const groupRecords = calculatedMonthRecords.filter(r => {
@@ -255,7 +260,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
             return matchedGroup.recordIds.includes(rId) || matchedGroup.recordIds.includes(oId) || matchedGroup.recordIds.includes(r.id);
           });
 
-          // 월별행 스타일의 얇은 1줄 슬림 상계 바 렌더링
+          // 0원 버튼이 켜져 있을 때: 월별행 스타일의 얇은 1줄 슬림 상계 바 렌더링
           let isGroupExpanded = false;
           const groupRow = createOffsetGroupRow({
             group: matchedGroup,

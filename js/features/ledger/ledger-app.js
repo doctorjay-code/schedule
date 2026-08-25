@@ -60,6 +60,7 @@ const ledgerState = {
   payment: '\uD1A0\uC2A4\uC740\uD589',
   filterType: 'all',
   filterValue: 'all',
+  showOffsetGroups: false,
   weekStart: startOfWeek(new Date()),
   monthCursor: new Date(),
   records: [],
@@ -806,6 +807,12 @@ function bindLedgerEvents() {
     } else {
       setLedgerFilter('all', 'all');
     }
+  });
+  document.getElementById('ledgerOffsetFilterBtn')?.addEventListener('click', () => {
+    ledgerState.showOffsetGroups = !ledgerState.showOffsetGroups;
+    document.getElementById('ledgerOffsetFilterBtn')?.classList.toggle('active', ledgerState.showOffsetGroups);
+    showLedgerToast(ledgerState.showOffsetGroups ? '👁️ 0원 상계 묶음이 표시됩니다.' : '🙈 0원 상계 묶음이 숨겨졌습니다.');
+    renderActiveLedgerPeriod();
   });
   document.querySelectorAll('[data-ledger-filter-type]').forEach(button => {
     button.addEventListener('click', () => {
