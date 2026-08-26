@@ -1,5 +1,5 @@
 // Dynamic Application Version Hub (Auto Cache-Busting Engine)
-export const APP_BUILD_TIME = '20260826_1530';
+export const APP_BUILD_TIME = '20260826_1532';
 
 export function getVersionedUrl(relativePath) {
   const clean = relativePath.split('?')[0];

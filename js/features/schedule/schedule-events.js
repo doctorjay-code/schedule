@@ -3,7 +3,9 @@ import { state, getTodayWeekIndex, loadLastScheduleSheetSnapshot, loadColorSetti
 import { syncFromGoogleSheets, syncToGoogleSheets, setApiLoadWeekDataCallback, registerColorUpdateCallback } from '../../services/schedule/api.js';
 import { loadWeekData, renderTable, isCellSelected, renderMonthlyCalendar, switchViewModeUI } from './render.js';
 import { initAverageBalanceModal } from '../ledger/modals/average-balance.js';
-import { openModal, closeModal, openSummaryModal, closeSummaryModal, openWeekSelectModal, closeWeekSelectModal, saveModalToActiveItem, setupBtnGroupEvents, setupToggleEvents, setModalRenderCallback, setModalLoadWeekDataCallback } from './modals/index.js';
+import { openModal, closeModal, saveModalToActiveItem, setupBtnGroupEvents, setupToggleEvents, setModalRenderCallback, setModalLoadWeekDataCallback } from './modals/edit.js';
+import { openSummaryModal, closeSummaryModal } from './modals/summary.js';
+import { openWeekSelectModal, closeWeekSelectModal } from './modals/week-picker.js';
 import { applyScheduleAlertChipColors, renderPaletteChipsRows } from './modals/color-settings.js';
 import { openMonthSelectModal, closeMonthSelectModal } from './modals/month-picker.js';
 import { bindScheduleNavigation } from './events/navigation.js';
@@ -24,7 +26,7 @@ let colorLoadPromise = null;
 
 function loadLedgerFeature() {
   if (!ledgerLoadPromise) {
-    ledgerLoadPromise = import(getVersionedUrl('../ledger/index.js'))
+    ledgerLoadPromise = import(getVersionedUrl('../ledger/ledger-app.js'))
       .then(module => {
         ledgerLifecycle = module.initLedgerView();
         return ledgerLifecycle;
