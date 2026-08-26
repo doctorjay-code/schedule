@@ -11,7 +11,7 @@ import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, 
 import { createLedgerTransactionModal } from './modals/transaction-modal.js';
 import { createLedgerColorSettings } from './modals/color-settings.js';
 import { bindLedgerListActions } from './ledger-events.js';
-import { createFundplanView, createLedgerMonthDividerRow } from './fundplan-view.js';
+import { createFundplanView, createLedgerMonthDividerRow, getRecordMonthGroup } from './fundplan-view.js';
 import { fetchLedgerData, fetchLedgerSheetData, upsertLedgerRecord, upsertLedgerSheetRecord, deleteLedgerRecord, deleteLedgerSheetRecord, reorderLedgerRecords, reorderLedgerSheetRecords, deleteLedgerRecordsBatch, insertLedgerRecordsBatch, saveForecastOrders } from '../../services/ledger/ledger-api.js';
 import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js';
 import { showLedgerToast, findLedgerRecordById, executeLedgerCopy, executeLedgerDelete, executeLedgerPaste } from './ledger-clipboard.js';
@@ -1077,10 +1077,13 @@ function getActiveSourceRecords() {
   if (ledgerState.source === 'bank') {
     const bankList = ledgerDataSources.bank || [];
     const cardRecords = (ledgerDataSources.card || []).filter(r => r.payment === '기업카드' || r.sheetName === '기업카드');
+    const monthsWithActualCardPayment = new Set();
+
     const enrichedBank = bankList.map(r => {
       if (isManualCardPayment(r)) {
         const dStr = normalizeLedgerDate(r.date);
         const mStr = dStr.slice(0, 7);
+        monthsWithActualCardPayment.add(mStr);
         const [y, m] = mStr.split('-').map(Number);
         let cardStart = null, cardEnd = null;
         if (m === 2) {
@@ -1094,7 +1097,7 @@ function getActiveSourceRecords() {
         if (cardStart && cardEnd) {
           const monthCards = cardRecords.filter(c => {
             const cd = normalizeLedgerDate(c.date);
-            return cd >= cardStart && cd <= cardEnd;
+            return cd >= cardStart && cd <= cardEnd && !c.id.startsWith('fc-');
           });
           if (monthCards.length > 0) {
             return {
@@ -1107,6 +1110,64 @@ function getActiveSourceRecords() {
       }
       return r;
     });
+
+    // 🌟 실제 카드 출금 내역이 없는 미래 월(9월, 10월 등)에 동일한 기업카드 스마트 집계 행 동적 공유 주입!
+    const allMonths = new Set();
+    cardRecords.forEach(c => {
+      const cd = normalizeLedgerDate(c.date);
+      allMonths.add(getRecordMonthGroup(c, true));
+    });
+    bankList.forEach(b => {
+      const bd = normalizeLedgerDate(b.date);
+      allMonths.add(bd.slice(0, 7));
+    });
+
+    Array.from(allMonths).sort().forEach(mStr => {
+      if (!monthsWithActualCardPayment.has(mStr)) {
+        const [y, m] = mStr.split('-').map(Number);
+        let cardStart = null, cardEnd = null;
+        if (m === 2) {
+          cardStart = `${y}-01-01`;
+          cardEnd = `${y}-02-12`;
+        } else {
+          const pStr = `${y}-${String(m - 1).padStart(2, '0')}`;
+          cardStart = `${pStr}-13`;
+          cardEnd = `${mStr}-12`;
+        }
+
+        if (cardStart && cardEnd) {
+          const monthCards = cardRecords.filter(c => {
+            const cd = normalizeLedgerDate(c.date);
+            return cd >= cardStart && cd <= cardEnd && !c.id.startsWith('fc-');
+          });
+
+          if (monthCards.length > 0) {
+            const cardExp = monthCards.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
+            const cardInc = monthCards.reduce((sum, r) => sum + (r.type === 'income' ? Number(r.amount || 0) : 0), 0);
+
+            enrichedBank.push({
+              id: `fc-est-card-bank-${mStr}`,
+              date: `${mStr}-27`,
+              item: '기업카드',
+              amount: cardExp - cardInc,
+              incomeAmount: cardInc,
+              expenseAmount: cardExp,
+              type: 'aggregate',
+              payment: '기업은행',
+              category: '상환',
+              person: '쥬쥬',
+              memo: '쥬쥬 기업카드 결제',
+              fixedCost: '',
+              source: 'bank',
+              isAggregate: true,
+              hasCardAccordion: true,
+              subRecords: [...monthCards].sort(compareLedgerRecords)
+            });
+          }
+        }
+      }
+    });
+
     return filterLedgerRecords(enrichedBank, ledgerState.filterType, ledgerState.filterValue);
   }
   const records = ledgerDataSources[ledgerState.source] || [];
