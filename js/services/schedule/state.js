@@ -1,4 +1,6 @@
 // Supabase PostgreSQL Realtime Backend
+import { fetchColorSettingsFromDB, saveColorSettingsToDB } from '../ledger/ledger-api.js';
+
 // Standard Preset Categories
 export const standardTransCategories = ['KTX', '고속버스'];
 export const standardHrCategories = ['연가', '청원휴가', '위로휴가', '당직OFF'];
@@ -102,8 +104,6 @@ export function normalizeColorSettings(raw = {}) {
     ledgerWordRules: Array.isArray(safe.ledgerWordRules) ? safe.ledgerWordRules : []
   };
 }
-
-import { fetchColorSettingsFromDB, saveColorSettingsToDB } from '../ledger/ledger-api.js';
 
 // Load Color Settings from Local Storage and DB
 export function loadColorSettings() {
