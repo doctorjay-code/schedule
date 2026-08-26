@@ -196,16 +196,16 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
     const pivotMonth = months.includes(focusMonth) ? focusMonth : (months.find(month => month >= focusMonth) || months[months.length - 1]);
     setText('ledgerPeriodTitle', focusMonth.replace('-', '.'));
 
-    // Default expanded state: if empty for this source, set pivot month to true
+    // Default expanded state: initial view has all months collapsed
     if (Object.keys(monthExpandedState).length === 0) {
       months.forEach(m => {
-        monthExpandedState[m] = (m === pivotMonth);
+        monthExpandedState[m] = false;
       });
     }
 
     months.forEach(month => {
       const monthRecords = (grouped[month] || []).sort(compareLedgerRecords);
-      const isExpanded = monthExpandedState[month] !== false;
+      const isExpanded = Boolean(monthExpandedState[month]);
       const monthRowElements = [];
 
       // 상계 묶음 그룹 정보 추출
@@ -226,7 +226,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
         monthRecords,
         offsetRecordIds,
         onToggle: toggleIcon => {
-          const currentlyExpanded = monthExpandedState[month] !== false;
+          const currentlyExpanded = Boolean(monthExpandedState[month]);
           const willExpand = !currentlyExpanded;
           monthExpandedState[month] = willExpand;
           toggleIcon.textContent = willExpand ? '\u25BC' : '\u25B6';
@@ -477,7 +477,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
       grandTitleCell.style.textAlign = 'left';
       grandTitleCell.style.padding = '10px 16px';
       grandTitleCell.style.color = '#312E81';
-      grandTitleCell.innerHTML = `<strong>💰 ${title} 현재 최종 통장 잔액</strong>`;
+      grandTitleCell.innerHTML = `<strong>💰 최종 예상 잔액</strong>`;
 
       const grandIncomeCell = document.createElement('td');
       const grandExpenseCell = document.createElement('td');
