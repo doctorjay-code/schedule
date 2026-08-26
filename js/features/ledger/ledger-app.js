@@ -15,7 +15,7 @@ import { createFundplanView, createLedgerMonthDividerRow, getRecordMonthGroup } 
 import { fetchLedgerData, fetchLedgerSheetData, upsertLedgerRecord, upsertLedgerSheetRecord, deleteLedgerRecord, deleteLedgerSheetRecord, reorderLedgerRecords, reorderLedgerSheetRecords, deleteLedgerRecordsBatch, insertLedgerRecordsBatch, saveForecastOrders } from '../../services/ledger/ledger-api.js';
 import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js';
 import { showLedgerToast, findLedgerRecordById, executeLedgerCopy, executeLedgerDelete, executeLedgerPaste } from './ledger-clipboard.js';
-import { generateForecastRecords, loadForecastOrderMap, saveForecastOrderMap, syncForecastOrdersFromDB, isManualCardPayment } from './ledger-forecast.js';
+import { generateForecastRecords, loadForecastOrderMap, saveForecastOrderMap, syncForecastOrdersFromDB, isManualCardPayment, saveForecastAggregateOverride, loadForecastAggregateOverrides } from './ledger-forecast.js';
 import { createOffsetGroupFromRecords, syncOffsetGroupsFromDB, loadOffsetGroups, createOffsetGroupRow, deleteOffsetGroup } from './ledger-offset-groups.js';
 
 const ledgerDataSources = {
@@ -627,6 +627,23 @@ function saveLedgerRecord(form, overrides = {}) {
   const cleanedDetail = rawMemo.replace(/콩콩|쥬쥬|지니/g, '').trim().replace(/\s{2,}/g, ' ');
   const finalMemo = (finalPerson && finalPerson !== '기타') ? [finalPerson, cleanedDetail].filter(Boolean).join(' ') : cleanedDetail;
 
+  const editId = String(values.ledgerEditId || '');
+  const isAggregateEdit = editId.startsWith('fc-est-card-') || editId.startsWith('fc-var-toss-');
+  if (isAggregateEdit) {
+    saveForecastAggregateOverride(editId, {
+      date: values.date,
+      item: values.item.trim(),
+      person: finalPerson,
+      category: values.category || '',
+      fixedCost: values.fixedCost === '고정비' ? values.fixedCost : '',
+      memo: finalMemo
+    });
+    getLedgerTransactionModal().close();
+    showLedgerToast('✏️ 결제 정보가 저장되었습니다.');
+    applyLedgerDataSources();
+    return;
+  }
+
   const payment = values.payment || ledgerState.payment || '토스은행';
   const record = {
     ...(existing || {}),
@@ -1133,19 +1150,22 @@ function getActiveSourceRecords() {
             const cardExp = monthCards.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
             const cardInc = monthCards.reduce((sum, r) => sum + (r.type === 'income' ? Number(r.amount || 0) : 0), 0);
 
+            const overrides = loadForecastAggregateOverrides();
+            const ov = overrides[mStr] || overrides[`fc-est-card-${mStr}`] || overrides[`fc-est-card-bank-${mStr}`] || {};
+
             enrichedBank.push({
               id: `fc-est-card-bank-${mStr}`,
-              date: `${mStr}-27`,
-              item: '기업카드',
+              date: ov.date || `${mStr}-27`,
+              item: ov.item || '기업카드',
               amount: cardExp - cardInc,
               incomeAmount: cardInc,
               expenseAmount: cardExp,
               type: 'aggregate',
-              payment: '기업은행',
-              category: '상환',
-              person: '쥬쥬',
-              memo: '쥬쥬 기업카드 결제',
-              fixedCost: '',
+              payment: ov.payment || '기업은행',
+              category: ov.category || '상환',
+              person: ov.person || '쥬쥬',
+              memo: ov.memo || '쥬쥬 기업카드 결제',
+              fixedCost: ov.fixedCost !== undefined ? ov.fixedCost : '',
               source: 'bank',
               isAggregate: true,
               hasCardAccordion: true,

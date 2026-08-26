@@ -54,7 +54,38 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
     return { person: finalPerson, memo: finalMemo, detail: cleanedDetail };
   }
 
-  function setReadOnly(readOnly, isExistingRecord = false) {
+  function setReadOnly(readOnly, isExistingRecord = false, isAggregate = false) {
+    const amountInput = document.getElementById('ledgerModalAmount');
+    const typeSelect = document.getElementById('ledgerModalType');
+
+    if (isAggregate) {
+      // 🌟 가상 집계행(기업카드 결제행, 생활비 등):
+      // 폼 전체는 수정 가능하게 열어두되, 유형은 '지출' 고정 & 금액만 수정 불가(readOnly) 처리!
+      setFormReadOnly(document.getElementById('ledgerTransactionForm'), false);
+      if (amountInput) {
+        amountInput.readOnly = true;
+        amountInput.style.backgroundColor = '#F1F5F9';
+        amountInput.style.cursor = 'not-allowed';
+        amountInput.title = '금액은 카드 세부내역 합계로 자동 계산됩니다.';
+      }
+      if (typeSelect) {
+        typeSelect.disabled = true;
+      }
+      setElementVisible(document.getElementById('ledgerModalSaveBtn'), true);
+      setElementVisible(document.getElementById('ledgerModalDeleteBtn'), false);
+      return;
+    }
+
+    if (amountInput) {
+      amountInput.readOnly = false;
+      amountInput.style.backgroundColor = '';
+      amountInput.style.cursor = '';
+      amountInput.title = '';
+    }
+    if (typeSelect) {
+      typeSelect.disabled = false;
+    }
+
     setFormReadOnly(document.getElementById('ledgerTransactionForm'), readOnly);
     setElementVisible(document.getElementById('ledgerModalSaveBtn'), !readOnly);
     setElementVisible(document.getElementById('ledgerModalDeleteBtn'), Boolean(isExistingRecord && !readOnly));
@@ -84,7 +115,8 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
     };
     const value = { ...defaults, ...(record || {}) };
     const isExisting = Boolean(record && record.id);
-    const isReadOnly = Boolean(record && (record.isAggregate || record.sheetName === '잔액전망' || record.id?.startsWith('fc-var-') || record.id?.startsWith('fc-est-')));
+    const isAggregate = Boolean(record && (record.isAggregate || record.id?.startsWith('fc-est-') || record.id?.startsWith('fc-var-')));
+    const isReadOnly = Boolean(record && (record.sheetName === '잔액전망' && !isAggregate));
     document.getElementById('ledgerTransactionModalTitle').textContent = record
       ? formatLedgerScheduleDate(value.date) + ' ' + modalText(0xAC70, 0xB798, 0x20, 0xC0C1, 0xC138)
       : modalText(0xC0C8, 0x20, 0xAC70, 0xB798);
@@ -110,7 +142,7 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
     document.getElementById('ledgerModalMemo').value = memoParts.detail || '';
     setGroup('ledgerModalCategoryGroup', 'ledgerModalCategory', value.category);
     setGroup('ledgerModalFixedCostGroup', 'ledgerModalFixedCost', value.fixedCost === '\uACE0\uC815\uBE44' ? value.fixedCost : '');
-    setReadOnly(isReadOnly, isExisting);
+    setReadOnly(isReadOnly, isExisting, isAggregate);
     setModalOpen(overlay, true);
   }
 

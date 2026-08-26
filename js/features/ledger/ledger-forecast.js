@@ -3,6 +3,27 @@ import { loadOffsetGroups, saveOffsetGroups } from './ledger-offset-groups.js';
 import { compareLedgerRecords, normalizeLedgerDate } from './ledger-utils.js';
 
 const FORECAST_ORDER_STORAGE_KEY = 'LEDGER_FORECAST_ORDER_MAP_V1';
+const FORECAST_AGGREGATE_OVERRIDES_KEY = 'LEDGER_FORECAST_AGGREGATE_OVERRIDES_V1';
+
+export function loadForecastAggregateOverrides() {
+  try {
+    const raw = localStorage.getItem(FORECAST_AGGREGATE_OVERRIDES_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) || {};
+  } catch (err) {
+    return {};
+  }
+}
+
+export function saveForecastAggregateOverride(idOrMonth, overrideData) {
+  try {
+    const map = loadForecastAggregateOverrides();
+    const cleanKey = String(idOrMonth || '').replace(/^fc-est-card-bank-/, '').replace(/^fc-est-card-/, '');
+    map[cleanKey] = { ...(map[cleanKey] || {}), ...overrideData };
+    map[idOrMonth] = { ...(map[idOrMonth] || {}), ...overrideData };
+    localStorage.setItem(FORECAST_AGGREGATE_OVERRIDES_KEY, JSON.stringify(map));
+  } catch (err) {}
+}
 
 export function loadForecastOrderMap() {
   try {
@@ -220,20 +241,22 @@ export function generateForecastRecords(ledgerDataSources = {}) {
         if (monthCards.length > 0) {
           const cardExp = monthCards.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
           const cardInc = monthCards.reduce((sum, r) => sum + (r.type === 'income' ? Number(r.amount || 0) : 0), 0);
+          const overrides = loadForecastAggregateOverrides();
+          const ov = overrides[mStr] || overrides[`fc-est-card-${mStr}`] || overrides[`fc-est-card-bank-${mStr}`] || {};
 
           forecastPool.push({
             id: `fc-est-card-${mStr}`,
-            date: `${mStr}-27`,
-            item: '기업카드',
+            date: ov.date || `${mStr}-27`,
+            item: ov.item || '기업카드',
             amount: cardExp - cardInc,
             incomeAmount: cardInc,
             expenseAmount: cardExp,
             type: 'aggregate',
-            payment: '기업은행',
-            category: '상환',
-            person: '쥬쥬',
-            memo: '쥬쥬 기업카드 결제',
-            fixedCost: '',
+            payment: ov.payment || '기업은행',
+            category: ov.category || '상환',
+            person: ov.person || '쥬쥬',
+            memo: ov.memo || '쥬쥬 기업카드 결제',
+            fixedCost: ov.fixedCost !== undefined ? ov.fixedCost : '',
             source: 'forecast',
             isAggregate: true,
             hasCardAccordion: true,
