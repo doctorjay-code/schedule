@@ -9,21 +9,37 @@ export function loadForecastAggregateOverrides() {
   try {
     const raw = localStorage.getItem(FORECAST_AGGREGATE_OVERRIDES_KEY);
     if (!raw) return {};
-    return JSON.parse(raw) || {};
+    const map = JSON.parse(raw) || {};
+    let hasContamination = false;
+    for (const key of Object.keys(map)) {
+      if (/^\d{4}-\d{2}$/.test(key)) {
+        delete map[key];
+        hasContamination = true;
+      }
+    }
+    if (hasContamination) {
+      localStorage.setItem(FORECAST_AGGREGATE_OVERRIDES_KEY, JSON.stringify(map));
+    }
+    return map;
   } catch (err) {
     return {};
   }
 }
 
-export function saveForecastAggregateOverride(idOrMonth, overrideData) {
+export function saveForecastAggregateOverride(id, overrideData) {
   try {
     const map = loadForecastAggregateOverrides();
-    const cleanKey = String(idOrMonth || '')
-      .replace(/^fc-est-card-bank-/, '')
-      .replace(/^fc-est-card-/, '')
-      .replace(/^fc-var-toss-/, '');
-    map[cleanKey] = { ...(map[cleanKey] || {}), ...overrideData };
-    map[idOrMonth] = { ...(map[idOrMonth] || {}), ...overrideData };
+    const idStr = String(id || '');
+    if (idStr.startsWith('fc-est-card-')) {
+      const mStr = idStr.replace(/^fc-est-card-bank-/, '').replace(/^fc-est-card-/, '');
+      map[`fc-est-card-${mStr}`] = { ...(map[`fc-est-card-${mStr}`] || {}), ...overrideData };
+      map[`fc-est-card-bank-${mStr}`] = { ...(map[`fc-est-card-bank-${mStr}`] || {}), ...overrideData };
+    } else if (idStr.startsWith('fc-var-toss-')) {
+      const mStr = idStr.replace(/^fc-var-toss-/, '');
+      map[`fc-var-toss-${mStr}`] = { ...(map[`fc-var-toss-${mStr}`] || {}), ...overrideData };
+    } else {
+      map[idStr] = { ...(map[idStr] || {}), ...overrideData };
+    }
     localStorage.setItem(FORECAST_AGGREGATE_OVERRIDES_KEY, JSON.stringify(map));
   } catch (err) {}
 }
@@ -204,7 +220,7 @@ export function generateForecastRecords(ledgerDataSources = {}) {
 
     if (tossMonthVars.length > 0) {
       const overrides = loadForecastAggregateOverrides();
-      const ov = overrides[mStr] || overrides[`fc-var-toss-${mStr}`] || {};
+      const ov = overrides[`fc-var-toss-${mStr}`] || {};
 
       forecastPool.push({
         id: `fc-var-toss-${mStr}`,
@@ -248,7 +264,7 @@ export function generateForecastRecords(ledgerDataSources = {}) {
           const cardExp = monthCards.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
           const cardInc = monthCards.reduce((sum, r) => sum + (r.type === 'income' ? Number(r.amount || 0) : 0), 0);
           const overrides = loadForecastAggregateOverrides();
-          const ov = overrides[mStr] || overrides[`fc-est-card-${mStr}`] || overrides[`fc-est-card-bank-${mStr}`] || {};
+          const ov = overrides[`fc-est-card-${mStr}`] || overrides[`fc-est-card-bank-${mStr}`] || {};
 
           forecastPool.push({
             id: `fc-est-card-${mStr}`,

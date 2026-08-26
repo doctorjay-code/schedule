@@ -1153,7 +1153,7 @@ function getActiveSourceRecords() {
             const cardInc = monthCards.reduce((sum, r) => sum + (r.type === 'income' ? Number(r.amount || 0) : 0), 0);
 
             const overrides = loadForecastAggregateOverrides();
-            const ov = overrides[mStr] || overrides[`fc-est-card-${mStr}`] || overrides[`fc-est-card-bank-${mStr}`] || {};
+            const ov = overrides[`fc-est-card-bank-${mStr}`] || overrides[`fc-est-card-${mStr}`] || {};
 
             enrichedBank.push({
               id: `fc-est-card-bank-${mStr}`,
