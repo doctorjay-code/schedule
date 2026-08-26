@@ -58,6 +58,11 @@ const ledgerState = {
   source: 'card',
   period: 'weekly',
   payment: '\uD1A0\uC2A4\uC740\uD589',
+  filters: {
+    person: new Set(),
+    category: new Set(),
+    fixed: 'all'
+  },
   filterType: 'all',
   filterValue: 'all',
   filterValues: new Set(),
@@ -180,7 +185,7 @@ function loadRecords() {
 
 function getSelectedCardRecords() {
   const cardRecords = ledgerDataSources.card.filter(record => record.payment === ledgerState.payment);
-  return filterLedgerRecords(cardRecords, ledgerState.filterType, ledgerState.filterValue);
+  return filterLedgerRecords(cardRecords, ledgerState.filters);
 }
 function closeLedgerFilterOptions() {
   document.getElementById('ledgerPersonFilterOptions')?.classList.add('hidden');
@@ -190,10 +195,6 @@ function closeLedgerFilterOptions() {
 }
 
 function toggleLedgerFilterOptions(type) {
-  if (ledgerState.filterType === type) {
-    setLedgerFilter('all', 'all');
-    return;
-  }
   const personOptions = document.getElementById('ledgerPersonFilterOptions');
   const categoryOptions = document.getElementById('ledgerCategoryFilterOptions');
   const target = type === 'person' ? personOptions : categoryOptions;
@@ -206,47 +207,50 @@ function toggleLedgerFilterOptions(type) {
 }
 
 function syncLedgerCardButtons() {
-  const activePerson = ledgerState.filterType === 'person';
-  const activeCategory = ledgerState.filterType === 'category';
-  const activeFixed = ledgerState.filterType === 'fixed';
+  const filters = ledgerState.filters || { person: new Set(), category: new Set(), fixed: 'all' };
+  const personCount = filters.person.size;
+  const categoryCount = filters.category.size;
+  const isPersonActive = personCount > 0;
+  const isCategoryActive = categoryCount > 0;
+  const isFixedActive = filters.fixed !== 'all';
+  const isAllActive = !isPersonActive && !isCategoryActive && !isFixedActive;
+
   const allButton = document.getElementById('ledgerFilterAllBtn');
   const personButton = document.getElementById('ledgerPersonFilterToggle');
   const categoryButton = document.getElementById('ledgerCategoryFilterToggle');
   const fixedButton = document.getElementById('ledgerFixedFilterBtn');
-  allButton?.classList.toggle('active', ledgerState.filterType === 'all');
-  personButton?.classList.toggle('active', activePerson);
-  categoryButton?.classList.toggle('active', activeCategory);
+
+  allButton?.classList.toggle('active', isAllActive);
+  personButton?.classList.toggle('active', isPersonActive);
+  categoryButton?.classList.toggle('active', isCategoryActive);
+
+  if (personButton) {
+    personButton.textContent = isPersonActive ? `사용자 (${personCount})` : '사용자';
+  }
+  if (categoryButton) {
+    categoryButton.textContent = isCategoryActive ? `사용처 (${categoryCount})` : '사용처';
+  }
 
   if (fixedButton) {
-    if (activeFixed) {
-      if (ledgerState.filterValue === 'variable') {
-        fixedButton.textContent = '변동비만 ⚪';
-        fixedButton.classList.add('active', 'variable-active');
-      } else {
-        fixedButton.textContent = '고정비만 🟡';
-        fixedButton.classList.add('active');
-        fixedButton.classList.remove('variable-active');
-      }
+    if (filters.fixed === 'fixed') {
+      fixedButton.textContent = '고정비만 🟡';
+      fixedButton.classList.add('active');
+      fixedButton.classList.remove('variable-active');
+    } else if (filters.fixed === 'variable') {
+      fixedButton.textContent = '변동비만 ⚪';
+      fixedButton.classList.add('active', 'variable-active');
     } else {
       fixedButton.textContent = '고정비';
       fixedButton.classList.remove('active', 'variable-active');
     }
   }
 
-  const selectedSet = ledgerState.filterValues || new Set();
-  const count = selectedSet.size;
-
-  if (personButton) {
-    personButton.textContent = (activePerson && count > 0) ? `사용자 (${count})` : '사용자';
-  }
-  if (categoryButton) {
-    categoryButton.textContent = (activeCategory && count > 0) ? `사용처 (${count})` : '사용처';
-  }
-
   document.querySelectorAll('[data-ledger-filter-type]').forEach(button => {
     const bType = button.dataset.ledgerFilterType;
     const bVal = button.dataset.ledgerFilterValue;
-    const isAct = (bType === ledgerState.filterType && selectedSet.has(bVal));
+    let isAct = false;
+    if (bType === 'person') isAct = filters.person.has(bVal);
+    if (bType === 'category') isAct = filters.category.has(bVal);
     button.classList.toggle('active', isAct);
   });
 
@@ -280,62 +284,47 @@ function syncLedgerCardButtons() {
   });
 }
 
-function setLedgerFilter(type, value) {
-  ledgerState.filterType = type;
-  if (type === 'all') {
-    ledgerState.filterValue = 'all';
-    ledgerState.filterValues = new Set();
-    closeLedgerFilterOptions();
-  } else if (type === 'fixed') {
-    ledgerState.filterValue = value;
-    ledgerState.filterValues = new Set([value]);
-    closeLedgerFilterOptions();
+function clearAllLedgerFilters() {
+  if (!ledgerState.filters) {
+    ledgerState.filters = { person: new Set(), category: new Set(), fixed: 'all' };
   } else {
-    // person or category
-    if (value instanceof Set) {
-      ledgerState.filterValues = new Set(value);
-    } else if (Array.isArray(value)) {
-      ledgerState.filterValues = new Set(value);
-    } else if (value && value !== 'all') {
-      ledgerState.filterValues = new Set([value]);
-    } else {
-      ledgerState.filterValues = new Set();
-    }
-    ledgerState.filterValue = ledgerState.filterValues.size > 0 ? Array.from(ledgerState.filterValues).join(',') : 'all';
-
-    const activeOptionsId = type === 'person' ? 'ledgerPersonFilterOptions' : 'ledgerCategoryFilterOptions';
-    const inactiveOptionsId = type === 'person' ? 'ledgerCategoryFilterOptions' : 'ledgerPersonFilterOptions';
-    const activeToggleId = type === 'person' ? 'ledgerPersonFilterToggle' : 'ledgerCategoryFilterToggle';
-    const inactiveToggleId = type === 'person' ? 'ledgerCategoryFilterToggle' : 'ledgerPersonFilterToggle';
-    document.getElementById(inactiveOptionsId)?.classList.add('hidden');
-    document.getElementById(inactiveToggleId)?.setAttribute('aria-expanded', 'false');
-    document.getElementById(activeOptionsId)?.classList.remove('hidden');
-    document.getElementById(activeToggleId)?.setAttribute('aria-expanded', 'true');
+    ledgerState.filters.person.clear();
+    ledgerState.filters.category.clear();
+    ledgerState.filters.fixed = 'all';
   }
+  ledgerState.filterType = 'all';
+  ledgerState.filterValue = 'all';
+  ledgerState.filterValues = new Set();
+  closeLedgerFilterOptions();
   syncLedgerCardButtons();
   renderActiveLedgerPeriod();
 }
 
 function toggleLedgerSubFilter(type, value) {
-  if (ledgerState.filterType !== type) {
-    ledgerState.filterType = type;
-    ledgerState.filterValues = new Set([value]);
-  } else {
-    if (!ledgerState.filterValues) ledgerState.filterValues = new Set();
-    if (ledgerState.filterValues.has(value)) {
-      ledgerState.filterValues.delete(value);
-    } else {
-      ledgerState.filterValues.add(value);
-    }
+  if (!ledgerState.filters) {
+    ledgerState.filters = { person: new Set(), category: new Set(), fixed: 'all' };
   }
-
-  if (ledgerState.filterValues.size === 0) {
-    // 모든 하위 선택이 해제된 경우 상위 탭은 열어두되 필터는 전체 표시
-    ledgerState.filterValue = 'all';
+  const targetSet = type === 'person' ? ledgerState.filters.person : ledgerState.filters.category;
+  if (targetSet.has(value)) {
+    targetSet.delete(value);
   } else {
-    ledgerState.filterValue = Array.from(ledgerState.filterValues).join(',');
+    targetSet.add(value);
   }
+  syncLedgerCardButtons();
+  renderActiveLedgerPeriod();
+}
 
+function toggleFixedCostFilter() {
+  if (!ledgerState.filters) {
+    ledgerState.filters = { person: new Set(), category: new Set(), fixed: 'all' };
+  }
+  if (ledgerState.filters.fixed === 'all') {
+    ledgerState.filters.fixed = 'fixed';
+  } else if (ledgerState.filters.fixed === 'fixed') {
+    ledgerState.filters.fixed = 'variable';
+  } else {
+    ledgerState.filters.fixed = 'all';
+  }
   syncLedgerCardButtons();
   renderActiveLedgerPeriod();
 }function getLedgerWeekStartFromPickerItem(wObj) {
@@ -867,18 +856,10 @@ function clearLedgerCopyBuffer() {
 function bindLedgerEvents() {
   getLedgerTransactionModal().bind();
   document.getElementById('ledgerToggleEntryBtn')?.addEventListener('click', () => toggleLedgerEntry());
-  document.getElementById('ledgerFilterAllBtn')?.addEventListener('click', () => setLedgerFilter('all', 'all'));
+  document.getElementById('ledgerFilterAllBtn')?.addEventListener('click', clearAllLedgerFilters);
   document.getElementById('ledgerPersonFilterToggle')?.addEventListener('click', () => toggleLedgerFilterOptions('person'));
   document.getElementById('ledgerCategoryFilterToggle')?.addEventListener('click', () => toggleLedgerFilterOptions('category'));
-  document.getElementById('ledgerFixedFilterBtn')?.addEventListener('click', () => {
-    if (ledgerState.filterType !== 'fixed') {
-      setLedgerFilter('fixed', 'fixed');
-    } else if (ledgerState.filterValue === 'fixed') {
-      setLedgerFilter('fixed', 'variable');
-    } else {
-      setLedgerFilter('all', 'all');
-    }
-  });
+  document.getElementById('ledgerFixedFilterBtn')?.addEventListener('click', toggleFixedCostFilter);
   document.getElementById('ledgerOffsetFilterBtn')?.addEventListener('click', () => {
     ledgerState.showOffsetGroups = !ledgerState.showOffsetGroups;
     document.getElementById('ledgerOffsetFilterBtn')?.classList.toggle('active', ledgerState.showOffsetGroups);
@@ -1079,7 +1060,7 @@ function getActiveSourceRecords() {
   if (ledgerState.source === 'card') return getSelectedCardRecords();
   if (ledgerState.source === 'forecast') {
     const forecastRecords = generateForecastRecords(ledgerDataSources);
-    return filterLedgerRecords(forecastRecords, ledgerState.filterType, ledgerState.filterValue);
+    return filterLedgerRecords(forecastRecords, ledgerState.filters);
   }
   if (ledgerState.source === 'bank') {
     const bankList = ledgerDataSources.bank || [];
@@ -1175,10 +1156,10 @@ function getActiveSourceRecords() {
       }
     });
 
-    return filterLedgerRecords(enrichedBank, ledgerState.filterType, ledgerState.filterValue);
+    return filterLedgerRecords(enrichedBank, ledgerState.filters);
   }
   const records = ledgerDataSources[ledgerState.source] || [];
-  return filterLedgerRecords(records, ledgerState.filterType, ledgerState.filterValue);
+  return filterLedgerRecords(records, ledgerState.filters);
 }
 function getMonthlyRecords() {
   const year = ledgerState.monthCursor.getFullYear();
