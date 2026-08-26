@@ -2489,6 +2489,14 @@ body {
 #ledgerPersonSwitch .ledger-filter-options#ledgerPersonFilterOptions {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
+#ledgerPersonSwitch .ledger-filter-options#ledgerCategoryFilterOptions {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+@media (max-width: 480px) {
+  #ledgerPersonSwitch .ledger-filter-options#ledgerCategoryFilterOptions {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
 
 /* Ledger transaction modal uses the exact schedule detail-sheet frame */
 #ledgerTransactionModalOverlay {
