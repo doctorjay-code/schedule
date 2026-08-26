@@ -234,23 +234,23 @@ export function generateForecastRecords(ledgerDataSources = {}) {
     const tossVarExpense = tossMonthVars.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
     const tossVarIncome = tossMonthVars.reduce((sum, r) => sum + (r.type === 'income' ? Number(r.amount || 0) : 0), 0);
 
-    if (tossMonthVars.length > 0) {
-      const overrides = loadForecastAggregateOverrides();
-      const ov = overrides[`fc-var-toss-${mStr}`] || {};
+    const overrides = loadForecastAggregateOverrides();
+    const tossOv = overrides[`fc-var-toss-${mStr}`] || {};
 
+    if (tossMonthVars.length > 0 || (tossOv && tossOv.fixedCost === '고정비')) {
       forecastPool.push({
         id: `fc-var-toss-${mStr}`,
-        date: ov.date || `${mStr}-01`,
-        item: ov.item || '생활비',
+        date: tossOv.date || `${mStr}-01`,
+        item: tossOv.item || '생활비',
         amount: tossVarExpense - tossVarIncome,
         incomeAmount: tossVarIncome,
         expenseAmount: tossVarExpense,
         type: 'aggregate',
-        payment: ov.payment || '토스은행',
-        category: ov.category !== undefined ? ov.category : '',
-        person: ov.person !== undefined ? ov.person : '',
-        memo: ov.memo || '토스 생활비',
-        fixedCost: ov.fixedCost !== undefined ? ov.fixedCost : '',
+        payment: tossOv.payment || '토스은행',
+        category: tossOv.category !== undefined ? tossOv.category : '',
+        person: tossOv.person !== undefined ? tossOv.person : '',
+        memo: tossOv.memo || '토스 생활비',
+        fixedCost: tossOv.fixedCost !== undefined ? tossOv.fixedCost : '',
         source: 'forecast',
         isAggregate: true,
         hasCardAccordion: false,
@@ -276,25 +276,25 @@ export function generateForecastRecords(ledgerDataSources = {}) {
           return cd >= cardStart && cd <= cardEnd;
         });
 
-        if (monthCards.length > 0) {
+        const cardOv = overrides[`fc-est-card-${mStr}`] || overrides[`fc-est-card-bank-${mStr}`] || {};
+
+        if (monthCards.length > 0 || (cardOv && cardOv.fixedCost === '고정비')) {
           const cardExp = monthCards.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
           const cardInc = monthCards.reduce((sum, r) => sum + (r.type === 'income' ? Number(r.amount || 0) : 0), 0);
-          const overrides = loadForecastAggregateOverrides();
-          const ov = overrides[`fc-est-card-${mStr}`] || overrides[`fc-est-card-bank-${mStr}`] || {};
 
           forecastPool.push({
             id: `fc-est-card-${mStr}`,
-            date: ov.date || `${mStr}-27`,
-            item: ov.item || '기업카드',
+            date: cardOv.date || `${mStr}-27`,
+            item: cardOv.item || '기업카드',
             amount: cardExp - cardInc,
             incomeAmount: cardInc,
             expenseAmount: cardExp,
             type: 'aggregate',
-            payment: ov.payment || '기업은행',
-            category: ov.category || '상환',
-            person: ov.person || '쥬쥬',
-            memo: ov.memo || '쥬쥬 기업카드 결제',
-            fixedCost: ov.fixedCost !== undefined ? ov.fixedCost : '',
+            payment: cardOv.payment || '기업은행',
+            category: cardOv.category || '상환',
+            person: cardOv.person || '쥬쥬',
+            memo: cardOv.memo || '쥬쥬 기업카드 결제',
+            fixedCost: cardOv.fixedCost !== undefined ? cardOv.fixedCost : '',
             source: 'forecast',
             isAggregate: true,
             hasCardAccordion: true,
@@ -673,6 +673,54 @@ export async function copyMonthFixedRecordsToNextMonth(sourceMonthKey, ledgerDat
     }
   }
   saveOffsetGroups(offsetGroups);
+
+  // 5. 가상 집계행(토스 생활비 / 기업카드 결제행) 고정비 설정 다음 달로 스마트 상속
+  const overrides = loadForecastAggregateOverrides();
+  let overridesModified = false;
+
+  // 5-1. 토스 생활비 고정비 상속
+  const sourceTossOv = overrides[`fc-var-toss-${sourceMonthKey}`];
+  if (sourceTossOv && sourceTossOv.fixedCost === '고정비') {
+    const targetTossKey = `fc-var-toss-${targetMonthKey}`;
+    if (!overrides[targetTossKey] || !overrides[targetTossKey].fixedCost) {
+      overrides[targetTossKey] = {
+        ...(overrides[targetTossKey] || {}),
+        date: `${targetMonthKey}-01`,
+        item: sourceTossOv.item || '생활비',
+        fixedCost: '고정비',
+        category: sourceTossOv.category || '',
+        person: sourceTossOv.person || '',
+        memo: sourceTossOv.memo || '토스 생활비'
+      };
+      overridesModified = true;
+    }
+  }
+
+  // 5-2. 기업카드 결제행 고정비 상속
+  const sourceCardOv = overrides[`fc-est-card-${sourceMonthKey}`] || overrides[`fc-est-card-bank-${sourceMonthKey}`];
+  if (sourceCardOv && sourceCardOv.fixedCost === '고정비') {
+    const targetCardKey = `fc-est-card-${targetMonthKey}`;
+    const targetCardBankKey = `fc-est-card-bank-${targetMonthKey}`;
+    if (!overrides[targetCardKey] || !overrides[targetCardKey].fixedCost) {
+      const cardOvData = {
+        ...(overrides[targetCardKey] || {}),
+        date: `${targetMonthKey}-27`,
+        item: sourceCardOv.item || '기업카드',
+        fixedCost: '고정비',
+        category: sourceCardOv.category || '',
+        person: sourceCardOv.person || '',
+        memo: sourceCardOv.memo || '기업카드 결제'
+      };
+      overrides[targetCardKey] = cardOvData;
+      overrides[targetCardBankKey] = cardOvData;
+      overridesModified = true;
+    }
+  }
+
+  if (overridesModified) {
+    localStorage.setItem(FORECAST_AGGREGATE_OVERRIDES_KEY, JSON.stringify(overrides));
+    saveForecastAggregateOverridesToDB(overrides).catch(e => console.warn('saveForecastAggregateOverridesToDB warn:', e));
+  }
 
   return { ok: true, count: totalCount, sourceMonthKey, targetMonthKey, targetMonthNum: tm, sourceMonthNum: sm };
 }
