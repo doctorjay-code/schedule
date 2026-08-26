@@ -140,7 +140,7 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
   const regularityCell = document.createElement('td');
   regularityCell.className = 'ledger-regularity-cell';
   const isFixedCost = String(item.fixedCost || '').trim() === '\uACE0\uC815\uBE44';
-  if (useMergedPaymentColumn && isFixedCost && !item.isAggregate) {
+  if (useMergedPaymentColumn && isFixedCost) {
     const fixedCostTag = makeTag('고정비');
     if (fixedCostTag) {
       fixedCostTag.classList.add('ledger-fixed-tag');
