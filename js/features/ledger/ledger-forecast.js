@@ -622,13 +622,30 @@ export async function copyMonthFixedRecordsToNextMonth(sourceMonthKey, ledgerDat
     const newMappedIds = oldGroup.recordIds.map(oldId => idMapping[String(oldId)]).filter(Boolean);
     if (newMappedIds.length === oldGroup.recordIds.length) {
       const oldDay = (oldGroup.date || '').slice(8) || '10';
-      const newGroupDate = `${targetMonthKey}-${oldDay}`;
+      const maxDaysInTargetMonth = new Date(ty, tm, 0).getDate();
+      const safeDay = Math.min(Number(oldDay), maxDaysInTargetMonth);
+      const newGroupDate = `${targetMonthKey}-${String(safeDay).padStart(2, '0')}`;
       const newGroupId = `og_${newGroupDate}_${Math.random().toString(36).slice(2, 7)}`;
+
+      const [ny, nm, nd] = newGroupDate.split('-').map(Number);
+      let newTitle = String(oldGroup.title || `${nm}/${nd} 상계 묶음`).trim();
+
+      // 날짜 패턴 자동 치환 (예: '8/25' -> '9/25', '8.25' -> '9.25', '8월' -> '9월', '2026-08-25' -> '2026-09-25')
+      newTitle = newTitle
+        .replace(new RegExp(`(^|\\D)${sm}\\s*\\/\\s*\\d{1,2}`), `$1${nm}/${nd}`)
+        .replace(new RegExp(`(^|\\D)${sm}\\s*\\.\\s*\\d{1,2}`), `$1${nm}.${nd}`)
+        .replace(new RegExp(`(^|\\D)${sm}월`), `$1${nm}월`)
+        .replace(new RegExp(`${sy}-${String(sm).padStart(2, '0')}-\\d{2}`), newGroupDate);
+
+      // 치환이 안 되었거나 기본 형태인 경우 새 날짜 기준으로 깔끔하게 정규화
+      if (newTitle === oldGroup.title && (oldGroup.title.includes(`${sm}/`) || oldGroup.title.includes(`${sm}.`))) {
+        newTitle = `${nm}/${nd} 상계 묶음`;
+      }
 
       const newGroup = {
         id: newGroupId,
         date: newGroupDate,
-        title: oldGroup.title.replace(new RegExp(`${sm}월|${sm}\\.`), `${tm}월`),
+        title: newTitle,
         inAmount: 0,
         outAmount: 0,
         recordIds: newMappedIds,
