@@ -478,10 +478,17 @@ function findLedgerTransaction(id) {
   const rawFound = findLedgerRecordById(realId, { ledgerState, ledgerDataSources });
   if (rawFound) return rawFound;
 
-  // 2. 잔액전망 풀에서 검색
+  // 2. 현재 활성 소스 레코드 풀에서 검색 (기업은행 27일 결제행 포함)
+  try {
+    const activeRecords = getActiveSourceRecords();
+    const activeFound = activeRecords.find(item => item && (String(item.id) === sId || String(item.originalId) === realId));
+    if (activeFound) return activeFound;
+  } catch {}
+
+  // 3. 잔액전망 풀에서 검색
   if (ledgerState.source === 'forecast' || sId.startsWith('fc-')) {
     const forecastRecords = generateForecastRecords(ledgerDataSources);
-    const found = forecastRecords.find(item => item && (String(item.id) === sId || String(item.originalId) === realId));
+    const found = forecastRecords.find(item => item && (String(item.id) === sId || String(item.id) === sId.replace('-bank-', '-') || String(item.originalId) === realId));
     if (found) {
       if (found.originalId) {
         const trueRaw = findLedgerRecordById(found.originalId, { ledgerState, ledgerDataSources });
@@ -804,12 +811,12 @@ function handleLedgerRowClick(id, event) {
     return;
   }
 
-  const record = findLedgerTransaction(id);
-  if (record && record.isAggregate) {
-    // 인라인 아코디언 토글 핸들러에서 처리됨
+  // 항목이나 비고 칸(.ledger-accordion-toggle-cell) 또는 토글 아이콘 클릭 시에는 아코디언 토글만 실행 (모달 오픈 스킵)
+  if (event && event.target && event.target.closest('.ledger-accordion-toggle-cell, .ledger-accordion-icon')) {
     return;
   }
 
+  const record = findLedgerTransaction(id);
   if (record) {
     getLedgerTransactionModal().open(record.id || id);
   }

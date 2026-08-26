@@ -123,6 +123,11 @@ export function renderTransactionRow(item, listId = 'ledgerTransactionList', opt
   memoCell.style.textAlign = 'left';
   memoCell.style.paddingLeft = '0.5em';
   memoCell.textContent = item.memo || '';
+  if (item.isAggregate || item.hasCardAccordion) {
+    memoCell.classList.add('ledger-accordion-toggle-cell');
+    memoCell.style.cursor = 'pointer';
+    memoCell.title = '클릭하여 세부 거래 내역 펼치기/접기';
+  }
   detailRow.appendChild(memoCell);
   const makeTag = value => {
     const text = String(value || '').trim();

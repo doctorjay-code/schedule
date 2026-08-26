@@ -373,23 +373,15 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
             });
           };
 
-          if (record.isAggregate) {
-            // 순수 가상 통합행(생활비/미래 예상액): 행 전체 클릭 시 펼침/접기
-            mainRows.forEach(rowEl => {
-              rowEl.style.cursor = 'pointer';
-              rowEl.title = '클릭하여 세부 거래 내역 펼치기/접기';
-              rowEl.addEventListener('click', toggleSubAccordion);
+          // 항목 및 비고 칸(.ledger-accordion-toggle-cell) 클릭 시 세부내역 아코디언 토글! (나머지 칸은 상세 모달 오픈)
+          mainRows.forEach(rowEl => {
+            const toggleCells = rowEl.querySelectorAll('.ledger-accordion-toggle-cell, .ledger-accordion-icon');
+            toggleCells.forEach(cell => {
+              cell.style.cursor = 'pointer';
+              cell.title = '클릭하여 세부 거래 내역 펼치기/접기';
+              cell.addEventListener('click', toggleSubAccordion);
             });
-          } else if (record.hasCardAccordion) {
-            // 실제 통장 출금 거래(비씨카드출금 등): 항목 칸(.ledger-accordion-toggle-cell) 클릭 시 펼침/접기!
-            mainRows.forEach(rowEl => {
-              const toggleCell = rowEl.querySelector('.ledger-accordion-toggle-cell') || rowEl.querySelector('.ledger-accordion-icon');
-              if (toggleCell) {
-                toggleCell.style.cursor = 'pointer';
-                toggleCell.addEventListener('click', toggleSubAccordion);
-              }
-            });
-          }
+          });
         }
       });
 
