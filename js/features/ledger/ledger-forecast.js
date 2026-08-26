@@ -1,4 +1,4 @@
-import { fetchForecastOrders, saveForecastOrders, insertLedgerRecordsBatch, upsertLedgerOffsetGroup } from '../../services/ledger/ledger-api.js';
+import { fetchForecastOrders, saveForecastOrders, insertLedgerRecordsBatch, upsertLedgerOffsetGroup, fetchForecastAggregateOverrides, saveForecastAggregateOverridesToDB } from '../../services/ledger/ledger-api.js';
 import { loadOffsetGroups, saveOffsetGroups } from './ledger-offset-groups.js';
 import { compareLedgerRecords, normalizeLedgerDate } from './ledger-utils.js';
 
@@ -41,7 +41,23 @@ export function saveForecastAggregateOverride(id, overrideData) {
       map[idStr] = { ...(map[idStr] || {}), ...overrideData };
     }
     localStorage.setItem(FORECAST_AGGREGATE_OVERRIDES_KEY, JSON.stringify(map));
+    saveForecastAggregateOverridesToDB(map).catch(e => console.warn('saveForecastAggregateOverridesToDB warn:', e));
   } catch (err) {}
+}
+
+export async function syncForecastAggregateOverridesFromDB() {
+  try {
+    const dbOverrides = await fetchForecastAggregateOverrides();
+    if (dbOverrides && typeof dbOverrides === 'object' && Object.keys(dbOverrides).length > 0) {
+      const local = loadForecastAggregateOverrides();
+      const merged = { ...local, ...dbOverrides };
+      localStorage.setItem(FORECAST_AGGREGATE_OVERRIDES_KEY, JSON.stringify(merged));
+      return merged;
+    }
+  } catch (err) {
+    console.warn('syncForecastAggregateOverridesFromDB fallback:', err);
+  }
+  return loadForecastAggregateOverrides();
 }
 
 export function loadForecastOrderMap() {

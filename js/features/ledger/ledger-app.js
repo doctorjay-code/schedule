@@ -15,7 +15,7 @@ import { createFundplanView, createLedgerMonthDividerRow, getRecordMonthGroup } 
 import { fetchLedgerData, fetchLedgerSheetData, upsertLedgerRecord, upsertLedgerSheetRecord, deleteLedgerRecord, deleteLedgerSheetRecord, reorderLedgerRecords, reorderLedgerSheetRecords, deleteLedgerRecordsBatch, insertLedgerRecordsBatch, saveForecastOrders } from '../../services/ledger/ledger-api.js';
 import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js';
 import { showLedgerToast, findLedgerRecordById, executeLedgerCopy, executeLedgerDelete, executeLedgerPaste } from './ledger-clipboard.js';
-import { generateForecastRecords, loadForecastOrderMap, saveForecastOrderMap, syncForecastOrdersFromDB, isManualCardPayment, saveForecastAggregateOverride, loadForecastAggregateOverrides } from './ledger-forecast.js';
+import { generateForecastRecords, loadForecastOrderMap, saveForecastOrderMap, syncForecastOrdersFromDB, isManualCardPayment, saveForecastAggregateOverride, loadForecastAggregateOverrides, syncForecastAggregateOverridesFromDB } from './ledger-forecast.js';
 import { createOffsetGroupFromRecords, syncOffsetGroupsFromDB, loadOffsetGroups, createOffsetGroupRow, deleteOffsetGroup } from './ledger-offset-groups.js';
 
 const ledgerDataSources = {
@@ -1039,7 +1039,8 @@ export function initLedgerView() {
     loadLedgerSheetSnapshot();
     Promise.all([
       syncOffsetGroupsFromDB(),
-      syncForecastOrdersFromDB()
+      syncForecastOrdersFromDB(),
+      syncForecastAggregateOverridesFromDB()
     ]).then(() => {
       renderActiveLedgerPeriod();
     }).catch(e => console.warn('syncFromDB warn:', e));

@@ -103,7 +103,9 @@ export function normalizeColorSettings(raw = {}) {
   };
 }
 
-// Load Color Settings from Local Storage
+import { fetchColorSettingsFromDB, saveColorSettingsToDB } from '../ledger/ledger-api.js';
+
+// Load Color Settings from Local Storage and DB
 export function loadColorSettings() {
   const saved = localStorage.getItem('user_color_settings');
   if (saved) {
@@ -116,10 +118,25 @@ export function loadColorSettings() {
   }
 }
 
-// Save Color Settings to Local Storage
+export async function syncColorSettingsFromDB() {
+  try {
+    const dbColors = await fetchColorSettingsFromDB();
+    if (dbColors && typeof dbColors === 'object') {
+      state.colorSettings = normalizeColorSettings(dbColors);
+      localStorage.setItem('user_color_settings', JSON.stringify(state.colorSettings));
+      return state.colorSettings;
+    }
+  } catch (err) {
+    console.warn('syncColorSettingsFromDB fallback:', err);
+  }
+  return state.colorSettings;
+}
+
+// Save Color Settings to Local Storage and DB
 export function saveColorSettings() {
   state.colorSettings = normalizeColorSettings(state.colorSettings);
   localStorage.setItem('user_color_settings', JSON.stringify(state.colorSettings));
+  saveColorSettingsToDB(state.colorSettings).catch(e => console.warn('saveColorSettingsToDB warn:', e));
 }
 
 // Reset ONLY Schedule Color Settings (preserves ledger colors!)

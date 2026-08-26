@@ -290,3 +290,75 @@ export async function saveForecastOrders(orderedIds, fetchImpl = fetch) {
     return { ok: false, error: err };
   }
 }
+
+/**
+ * 집계행(기업카드 결제행, 토스 생활비행) 커스텀 설정(고정비, 날짜, 비고 등) Supabase DB CRUD
+ */
+export async function fetchForecastAggregateOverrides(fetchImpl = fetch) {
+  try {
+    const res = await supabaseRest('schedule_settings?key=eq.forecast_aggregate_overrides', { fetchImpl });
+    if (Array.isArray(res) && res.length > 0 && res[0]?.value) {
+      return res[0].value;
+    }
+    return {};
+  } catch (err) {
+    console.warn('Failed to fetch forecast aggregate overrides from DB:', err);
+    return {};
+  }
+}
+
+export async function saveForecastAggregateOverridesToDB(overridesMap, fetchImpl = fetch) {
+  try {
+    const row = {
+      key: 'forecast_aggregate_overrides',
+      value: overridesMap || {},
+      updated_at: new Date().toISOString()
+    };
+    await supabaseRest('schedule_settings', {
+      method: 'POST',
+      fetchImpl,
+      prefer: 'resolution=merge-duplicates',
+      body: row
+    });
+    return { ok: true };
+  } catch (err) {
+    console.error('Failed to save forecast aggregate overrides to DB:', err);
+    return { ok: false, error: err };
+  }
+}
+
+/**
+ * 태그 색상 커스텀 설정 Supabase DB CRUD
+ */
+export async function fetchColorSettingsFromDB(fetchImpl = fetch) {
+  try {
+    const res = await supabaseRest('schedule_settings?key=eq.color_settings', { fetchImpl });
+    if (Array.isArray(res) && res.length > 0 && res[0]?.value) {
+      return res[0].value;
+    }
+    return null;
+  } catch (err) {
+    console.warn('Failed to fetch color settings from DB:', err);
+    return null;
+  }
+}
+
+export async function saveColorSettingsToDB(colorSettings, fetchImpl = fetch) {
+  try {
+    const row = {
+      key: 'color_settings',
+      value: colorSettings || {},
+      updated_at: new Date().toISOString()
+    };
+    await supabaseRest('schedule_settings', {
+      method: 'POST',
+      fetchImpl,
+      prefer: 'resolution=merge-duplicates',
+      body: row
+    });
+    return { ok: true };
+  } catch (err) {
+    console.error('Failed to save color settings to DB:', err);
+    return { ok: false, error: err };
+  }
+}
