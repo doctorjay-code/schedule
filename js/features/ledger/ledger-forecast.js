@@ -18,7 +18,10 @@ export function loadForecastAggregateOverrides() {
 export function saveForecastAggregateOverride(idOrMonth, overrideData) {
   try {
     const map = loadForecastAggregateOverrides();
-    const cleanKey = String(idOrMonth || '').replace(/^fc-est-card-bank-/, '').replace(/^fc-est-card-/, '');
+    const cleanKey = String(idOrMonth || '')
+      .replace(/^fc-est-card-bank-/, '')
+      .replace(/^fc-est-card-/, '')
+      .replace(/^fc-var-toss-/, '');
     map[cleanKey] = { ...(map[cleanKey] || {}), ...overrideData };
     map[idOrMonth] = { ...(map[idOrMonth] || {}), ...overrideData };
     localStorage.setItem(FORECAST_AGGREGATE_OVERRIDES_KEY, JSON.stringify(map));
@@ -200,19 +203,22 @@ export function generateForecastRecords(ledgerDataSources = {}) {
     const tossVarIncome = tossMonthVars.reduce((sum, r) => sum + (r.type === 'income' ? Number(r.amount || 0) : 0), 0);
 
     if (tossMonthVars.length > 0) {
+      const overrides = loadForecastAggregateOverrides();
+      const ov = overrides[mStr] || overrides[`fc-var-toss-${mStr}`] || {};
+
       forecastPool.push({
         id: `fc-var-toss-${mStr}`,
-        date: `${mStr}-01`,
-        item: '생활비',
+        date: ov.date || `${mStr}-01`,
+        item: ov.item || '생활비',
         amount: tossVarExpense - tossVarIncome,
         incomeAmount: tossVarIncome,
         expenseAmount: tossVarExpense,
         type: 'aggregate',
-        payment: '토스은행',
-        category: '생활',
-        person: '쥬쥬',
-        memo: '쥬쥬 토스 생활비',
-        fixedCost: '',
+        payment: ov.payment || '토스은행',
+        category: ov.category !== undefined ? ov.category : '',
+        person: ov.person !== undefined ? ov.person : '',
+        memo: ov.memo || '토스 생활비',
+        fixedCost: ov.fixedCost !== undefined ? ov.fixedCost : '',
         source: 'forecast',
         isAggregate: true,
         hasCardAccordion: false,

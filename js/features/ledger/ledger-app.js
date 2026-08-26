@@ -631,13 +631,14 @@ function saveLedgerRecord(form, overrides = {}) {
   const editId = String(values.ledgerEditId || '');
   const isAggregateEdit = editId.startsWith('fc-est-card-') || editId.startsWith('fc-var-toss-');
   if (isAggregateEdit) {
+    const aggregatePerson = (!values.person || values.person === '기타') && !personMatch ? '' : finalPerson;
     saveForecastAggregateOverride(editId, {
       date: values.date,
       item: values.item.trim(),
-      person: finalPerson,
+      person: aggregatePerson,
       category: values.category || '',
       fixedCost: values.fixedCost === '고정비' ? values.fixedCost : '',
-      memo: finalMemo
+      memo: aggregatePerson ? finalMemo : rawMemo
     });
     getLedgerTransactionModal().close();
     showLedgerToast('✏️ 결제 정보가 저장되었습니다.');
