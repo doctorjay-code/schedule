@@ -6,7 +6,7 @@ import {
   setModalOpen,
   setOptionGroupValue
 } from '../../../shared/modal-form.js';
-import { toIso } from '../ledger-utils.js';
+import { toIso, formatMoney } from '../ledger-utils.js';
 import { formatLedgerScheduleDate } from '../transaction-view.js';
 
 // Transaction input, edit, delete, and modal event responsibility.
@@ -124,13 +124,19 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
     const fields = {
       ledgerModalEditId: 'id',
       ledgerModalDate: 'date',
-      ledgerModalAmount: 'amount',
       ledgerModalItem: 'item'
     };
     Object.entries(fields).forEach(([elementId, property]) => {
       const element = document.getElementById(elementId);
       if (element) element.value = value[property] ?? '';
     });
+
+    const amountInput = document.getElementById('ledgerModalAmount');
+    if (amountInput) {
+      const numAmt = Number(value.amount);
+      amountInput.value = Number.isFinite(numAmt) && numAmt > 0 ? numAmt.toLocaleString('ko-KR') : '';
+    }
+
     document.getElementById('ledgerModalType').value = value.type || 'expense';
     let selectedPayment = String(value.payment || defaults.payment || '').trim();
     if (selectedPayment === '토스' || selectedPayment === '토스카드' || selectedPayment === '토스뱅크') selectedPayment = '토스은행';
@@ -163,6 +169,18 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
       const { person, memo } = composeMemoAndPerson();
       onSave(form, { memo, person });
     });
+
+    // 🌟 실시간 금액 3자리 콤마(,) 자동 포맷터 바인딩
+    const amountInput = document.getElementById('ledgerModalAmount');
+    amountInput?.addEventListener('input', e => {
+      const raw = e.target.value.replace(/[^\d]/g, '');
+      if (!raw) {
+        e.target.value = '';
+        return;
+      }
+      e.target.value = Number(raw).toLocaleString('ko-KR');
+    });
+
     bindModalDismiss({
       overlay: document.getElementById('ledgerTransactionModalOverlay'),
       closeButton: document.getElementById('ledgerTransactionModalCloseBtn'),

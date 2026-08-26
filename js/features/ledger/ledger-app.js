@@ -612,7 +612,8 @@ function applyOptimisticDelete(record) {
 
 function saveLedgerRecord(form, overrides = {}) {
   const values = { ...Object.fromEntries(new FormData(form).entries()), ...overrides };
-  const amount = Number(values.amount);
+  const rawAmountStr = String(values.amount || '').replace(/[^\d]/g, '');
+  const amount = Number(rawAmountStr);
   if (!values.date || !values.item?.trim() || !Number.isFinite(amount) || amount <= 0) return;
 
   const isEdit = Boolean(values.ledgerEditId);
