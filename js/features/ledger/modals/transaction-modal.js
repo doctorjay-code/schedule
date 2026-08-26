@@ -134,7 +134,11 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
     const amountInput = document.getElementById('ledgerModalAmount');
     if (amountInput) {
       const numAmt = Number(value.amount);
-      amountInput.value = Number.isFinite(numAmt) && numAmt > 0 ? numAmt.toLocaleString('ko-KR') : '';
+      if (Number.isFinite(numAmt)) {
+        amountInput.value = Math.abs(numAmt).toLocaleString('ko-KR');
+      } else {
+        amountInput.value = '';
+      }
     }
 
     document.getElementById('ledgerModalType').value = value.type || 'expense';

@@ -613,8 +613,8 @@ function applyOptimisticDelete(record) {
 function saveLedgerRecord(form, overrides = {}) {
   const values = { ...Object.fromEntries(new FormData(form).entries()), ...overrides };
   const rawAmountStr = String(values.amount || '').replace(/[^\d]/g, '');
-  const amount = Number(rawAmountStr);
-  if (!values.date || !values.item?.trim() || !Number.isFinite(amount) || amount <= 0) return;
+  const amount = rawAmountStr === '' ? 0 : Number(rawAmountStr);
+  if (!values.date || !values.item?.trim() || !Number.isFinite(amount) || amount < 0) return;
 
   const isEdit = Boolean(values.ledgerEditId);
   const existing = ledgerState.records.find(record => record.id === values.ledgerEditId);
