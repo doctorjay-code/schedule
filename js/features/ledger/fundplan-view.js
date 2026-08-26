@@ -421,11 +421,13 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
       copyBtn.style.fontWeight = 'bold';
       copyBtn.style.cursor = 'pointer';
       copyBtn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
-      copyBtn.innerHTML = `🚀 <strong>${m}월</strong> 고정비 & 상계 묶음 <strong>${nextMonthNum}월</strong>로 넘기기`;
+      const isForecastTab = (source === 'forecast');
+      const actionTitle = isForecastTab ? '고정비 & 상계 묶음' : '고정비';
+      copyBtn.innerHTML = `🚀 <strong>${m}월</strong> ${actionTitle} <strong>${nextMonthNum}월</strong>로 넘기기`;
 
       copyBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        if (confirm(`${m}월의 고정비 및 상계 묶음 거래들을 다음 달(${nextMonthNum}월)로 복사해 넘길까요?`)) {
+        if (confirm(`${m}월의 ${actionTitle} 거래들을 다음 달(${nextMonthNum}월)로 복사해 넘길까요?`)) {
           copyBtn.disabled = true;
           copyBtn.textContent = '⏳ 복사 중...';
           try {
@@ -433,7 +435,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
             const res = await copyMonthFixedRecordsToNextMonth(month, currentSources, { source, payment: ledgerState.payment });
             if (res.ok) {
               if (typeof showLedgerToast === 'function') {
-                showLedgerToast(`🎉 ${m}월 고정비/상계 거래 (${res.count}건)가 ${res.targetMonthNum}월로 완벽 복사되었습니다!`);
+                showLedgerToast(`🎉 ${m}월 ${actionTitle} 거래 (${res.count}건)가 ${res.targetMonthNum}월로 완벽 복사되었습니다!`);
               }
               if (typeof refreshLedgerSheetData === 'function') {
                 await refreshLedgerSheetData();
@@ -449,13 +451,13 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
             } else {
               alert(res.message || '복사할 거래가 없습니다.');
               copyBtn.disabled = false;
-              copyBtn.innerHTML = `🚀 <strong>${m}월</strong> 고정비 & 상계 묶음 <strong>${nextMonthNum}월</strong>로 넘기기`;
+              copyBtn.innerHTML = `🚀 <strong>${m}월</strong> ${actionTitle} <strong>${nextMonthNum}월</strong>로 넘기기`;
             }
           } catch (err) {
             console.error('Failed to copy records to next month:', err);
             alert('복사 중 오류가 발생했습니다: ' + err.message);
             copyBtn.disabled = false;
-            copyBtn.innerHTML = `🚀 <strong>${m}월</strong> 고정비 & 상계 묶음 <strong>${nextMonthNum}월</strong>로 넘기기`;
+            copyBtn.innerHTML = `🚀 <strong>${m}월</strong> ${actionTitle} <strong>${nextMonthNum}월</strong>로 넘기기`;
           }
         }
       });

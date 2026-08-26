@@ -500,11 +500,14 @@ export async function copyMonthFixedRecordsToNextMonth(sourceMonthKey, ledgerDat
 
     const sheetName = r.sheetName || (r.payment === '기업은행' ? '기업은행' : r.payment === '현금' ? '현금' : '토스은행');
 
+    const isOffset = sourceOffsetRecordIds.has(String(r.id)) || sourceOffsetRecordIds.has(String(r.originalId));
+    const newAmount = isOffset ? 0 : Number(r.amount || 0);
+
     const newRecord = {
       id: newId,
       date: newDateStr,
       type: r.type,
-      amount: Number(r.amount || 0),
+      amount: newAmount,
       balance: 0,
       payment: r.payment || (sheetName === '기업은행' ? '기업은행' : sheetName === '현금' ? '현금' : '토스은행'),
       item: r.item || '',
@@ -566,7 +569,7 @@ export async function copyMonthFixedRecordsToNextMonth(sourceMonthKey, ledgerDat
     await insertLedgerRecordsBatch(list);
   }
 
-  // 4. 상계 묶음 다음 달 버전 자동 복제
+  // 4. 상계 묶음 다음 달 버전 자동 복제 (금액 0원 버전으로 안전 생성!)
   for (const gId of sourceOffsetGroupIds) {
     const oldGroup = offsetGroups[gId];
     if (!oldGroup || !Array.isArray(oldGroup.recordIds)) continue;
@@ -581,8 +584,8 @@ export async function copyMonthFixedRecordsToNextMonth(sourceMonthKey, ledgerDat
         id: newGroupId,
         date: newGroupDate,
         title: oldGroup.title.replace(new RegExp(`${sm}월|${sm}\\.`), `${tm}월`),
-        inAmount: oldGroup.inAmount,
-        outAmount: oldGroup.outAmount,
+        inAmount: 0,
+        outAmount: 0,
         recordIds: newMappedIds,
         createdAt: new Date().toISOString()
       };
