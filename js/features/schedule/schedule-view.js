@@ -32,10 +32,14 @@ export function loadWeekData(index) {
       ? year + '.' + periodNumbers[0].padStart(2, '0') + '.' + periodNumbers[1].padStart(2, '0') + String.fromCharCode(8211) + periodNumbers[2].padStart(2, '0') + '.' + periodNumbers[3].padStart(2, '0')
       : currentWeekObj.title;
     weekTitleElem.innerHTML = escapeHtml(rawTitle) + ' <span class="dropdown-arrow">' + String.fromCharCode(9662) + '</span>';  }
+  // 주가 실제로 바뀔 때만 선택 초기화 (복사 직후 재렌더링에서 selectedCells가 날아가는 버그 방지)
+  const prevWeekData = state.weekData;
   state.weekData = currentWeekObj.items || [];
 
-  state.selectedCells = [];
-  if (selectedCountLabel) selectedCountLabel.textContent = '0개 선택됨';
+  if (prevWeekData !== state.weekData) {
+    state.selectedCells = [];
+    if (selectedCountLabel) selectedCountLabel.textContent = '0개 선택됨';
+  }
 
   renderTable();
   updateSummaryCounts();

@@ -136,11 +136,17 @@ export function executeSchedulePaste({ state, renderTable, updateSummaryCounts, 
       const item = state.weekData.find(d => d.id === id);
 
       if (item) {
+        // _day 키는 날짜 헤더 셀이므로 스킵
+        if (targetField === 'day') return;
+
         if (targetField === 'row' || targetField === 'time' || !srcField || srcField === 'row') {
+          // 전체 행 붙여넣기: id/date/time은 타겟 유지, 내용 필드만 복사
           copyFields(item, src);
-        } else if (targetField === 'region' || srcField === 'region') item.region = src.region;
-        else if (targetField === 'clinic' || srcField === 'clinic') item.clinic = src.clinic;
-        else if (targetField === 'trans' || srcField === 'trans') {
+        } else if (targetField === 'region' || srcField === 'region') {
+          item.region = src.region;
+        } else if (targetField === 'clinic' || srcField === 'clinic') {
+          item.clinic = src.clinic;
+        } else if (targetField === 'trans' || srcField === 'trans') {
           item.transStatus = src.transStatus;
           item.transDetail = src.transDetail;
         } else if (targetField === 'hr' || srcField === 'hr') {
@@ -149,6 +155,9 @@ export function executeSchedulePaste({ state, renderTable, updateSummaryCounts, 
         } else if (targetField === 'ot' || srcField === 'ot') {
           item.otStatus = src.otStatus;
           item.otDetail = src.otDetail;
+        } else {
+          // field가 서로 달라도 전체 내용 필드 복사
+          copyFields(item, src);
         }
       }
     });
@@ -162,7 +171,9 @@ export function executeSchedulePaste({ state, renderTable, updateSummaryCounts, 
   if (state.currentView === 'monthly') renderMonthlyCalendar();
 }
 
+// 내용 필드만 복사 - id, date, time은 절대 덮어쓰지 않음
 function copyFields(target, src) {
+  if (!src) return;
   target.region = src.region;
   target.clinic = src.clinic;
   target.transStatus = src.transStatus;
@@ -171,4 +182,5 @@ function copyFields(target, src) {
   target.hrDetail = src.hrDetail;
   target.otStatus = src.otStatus;
   target.otDetail = src.otDetail;
+  // target.id / target.date / target.time 은 절대 덮어쓰지 않음
 }
