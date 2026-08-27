@@ -16,11 +16,13 @@ export function executeScheduleCopy({ state, renderTable }) {
   const dayKeys = state.selectedCells.filter(k => k.endsWith('_day'));
   if (dayKeys.length > 0) {
     const daysData = dayKeys.map(dayKey => {
-      const [mIdStr, aIdStr] = dayKey.split('_');
-      const mId = parseInt(mIdStr);
-      const aId = aIdStr ? parseInt(aIdStr) : null;
-      const mItem = state.weekData.find(d => d.id === mId) || {};
-      const aItem = aId ? state.weekData.find(d => d.id === aId) || {} : {};
+      // dayKey 포맷: "<mId>_<aId>_day" (id가 UUID 문자열일 수 있음)
+      const withoutDay = dayKey.slice(0, -4); // "_day" 제거
+      const lastUnderscore = withoutDay.lastIndexOf('_');
+      const aId = lastUnderscore >= 0 ? withoutDay.slice(lastUnderscore + 1) : null;
+      const mId = lastUnderscore >= 0 ? withoutDay.slice(0, lastUnderscore) : withoutDay;
+      const mItem = state.weekData.find(d => String(d.id) === String(mId)) || {};
+      const aItem = aId ? state.weekData.find(d => String(d.id) === String(aId)) || {} : {};
       return {
         date: mItem.date,
         morning: JSON.parse(JSON.stringify(mItem)),
@@ -53,10 +55,10 @@ export function executeScheduleCopy({ state, renderTable }) {
 
   // Single cell copy
   const firstKey = state.selectedCells[0];
-  const parts = firstKey.split('_');
-  const id = parseInt(parts[0]);
-  const field = parts[1];
-  const targetItem = state.weekData.find(d => d.id === id);
+  const lastUnderscore = firstKey.lastIndexOf('_');
+  const id = lastUnderscore >= 0 ? firstKey.slice(0, lastUnderscore) : firstKey;
+  const field = lastUnderscore >= 0 ? firstKey.slice(lastUnderscore + 1) : '';
+  const targetItem = state.weekData.find(d => String(d.id) === String(id));
 
   if (targetItem) {
     let detailLabel = `[${targetItem.date} ${targetItem.time}]`;
@@ -102,8 +104,9 @@ export function executeSchedulePaste({ state, renderTable, updateSummaryCounts, 
 
   const selectedCountLabel = document.getElementById('selectedCountLabel');
   const targetDates = Array.from(new Set(state.selectedCells.map(key => {
-    const id = parseInt(key.split('_')[0]);
-    const item = state.weekData.find(d => d.id === id);
+    const lu = key.lastIndexOf('_');
+    const id = lu >= 0 ? key.slice(0, lu) : key;
+    const item = state.weekData.find(d => String(d.id) === String(id));
     return item ? item.date : null;
   }).filter(Boolean)));
 
@@ -130,10 +133,10 @@ export function executeSchedulePaste({ state, renderTable, updateSummaryCounts, 
     const srcField = state.copiedScheduleData.field;
 
     state.selectedCells.forEach(key => {
-      const parts = key.split('_');
-      const id = parseInt(parts[0]);
-      const targetField = parts[1];
-      const item = state.weekData.find(d => d.id === id);
+      const lu = key.lastIndexOf('_');
+      const id = lu >= 0 ? key.slice(0, lu) : key;
+      const targetField = lu >= 0 ? key.slice(lu + 1) : '';
+      const item = state.weekData.find(d => String(d.id) === String(id));
 
       if (item) {
         // _day 키는 날짜 헤더 셀이므로 스킵

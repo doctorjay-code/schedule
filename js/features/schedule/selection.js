@@ -23,8 +23,9 @@ export function createScheduleSelection({ state, onChange }) {
     const isDaySelected = isSelected(dayKey) || isSelected(morningRowKey) || (afternoonId && isSelected(afternoonRowKey));
     if (isDaySelected) {
       state.selectedCells = state.selectedCells.filter(key => {
-        const id = parseInt(key.split('_')[0]);
-        return id !== morningId && id !== afternoonId && key !== dayKey;
+        const lu = key.lastIndexOf('_');
+        const kid = lu >= 0 ? key.slice(0, lu) : key;
+        return String(kid) !== String(morningId) && String(kid) !== String(afternoonId) && key !== dayKey;
       });
     } else {
       state.selectedCells.push(dayKey);
