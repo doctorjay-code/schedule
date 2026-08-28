@@ -30,10 +30,9 @@ fundplan-seed.local.js
 __*
 *_audit.txt
 archive/
-.baseline-*/
-.agents/
-
-backup/
+# .agents rules are tracked
+!.agents/
+!.agents/**
 backups/
 .tmp-*
 trigger-test-*
