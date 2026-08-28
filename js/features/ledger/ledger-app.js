@@ -1302,7 +1302,20 @@ function renderMonthlyList(items) {
   });
   list.appendChild(dividerRow);
 
-  const calculatedSorted = (ledgerState.source === 'forecast') ? sorted : recalculateRunningBalances(sorted, isCompanyCard);
+  let calculatedSorted;
+  if (ledgerState.source === 'forecast') {
+    calculatedSorted = sorted;
+  } else if (isCompanyCard) {
+    calculatedSorted = recalculateRunningBalances(sorted, true);
+  } else {
+    // 은행/현금: 전체 거래로 연속 계산한 잔액을 쓰므로 이전 달 잔액을 이어받음 (매달 0으로 리셋 방지)
+    const allRecs = [...getActiveSourceRecords()]
+      .filter(r => normalizeLedgerDate(r.date) >= '2026-01-01')
+      .sort(compareLedgerRecords);
+    const continuous = recalculateRunningBalances(allRecs, false);
+    const balanceById = new Map(continuous.map(r => [r.id, r.balance]));
+    calculatedSorted = sorted.map(r => balanceById.has(r.id) ? { ...r, balance: balanceById.get(r.id) } : r);
+  }
   const handledGroupIds = new Set();
 
   calculatedSorted.forEach(item => {

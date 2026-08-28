@@ -248,7 +248,9 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
       // 2. Month Transaction Rows (상계 묶음 그룹핑 지원)
       const handledGroupIds = new Set();
 
-      const calculatedMonthRecords = (source === 'forecast') ? monthRecords : recalculateRunningBalances(monthRecords, isCompanyCard);
+      const calculatedMonthRecords = (source === 'forecast' || !isCompanyCard)
+        ? monthRecords
+        : recalculateRunningBalances(monthRecords, true);
       calculatedMonthRecords.forEach(record => {
         const rawId = String(record.id || '').replace(/^fc-(toss|bank)-/, '');
         const origId = String(record.originalId || '');
