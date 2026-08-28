@@ -129,6 +129,24 @@ export const syncColorSettingsToSheets = syncColorSettingsToSupabase;
 /**
  * Supabase DB의 schedules 레코드를 주차별 allWeeksData로 파싱
  */
+// 날짜 문자열에서 정렬 키 추출 (예: "4. 7.(화)" → [titleYear, 4, 7] / "2026. 4. 7.(화)" → [2026, 4, 7])
+// titleYear: 날짜에 연도가 없을 때 주차 제목에서 가져온 연도를 fallback으로 사용
+function parseDateSortKey(dateStr, titleYear = new Date().getFullYear()) {
+  const nums = (dateStr || '').match(/\d+/g);
+  if (!nums) return [9999, 99, 99];
+  const year  = nums.find(n => n.length === 4) ? parseInt(nums.find(n => n.length === 4), 10) : titleYear;
+  const rest  = nums.filter(n => n.length !== 4).map(Number);
+  const month = rest[0] ?? 99;
+  const day   = rest[1] ?? 99;
+  return [year, month, day];
+}
+
+// 주차 제목에서 연도(4자리) 추출
+function extractYearFromTitle(title) {
+  const y = (title || '').match(/\d{4}/);
+  return y ? parseInt(y[0], 10) : new Date().getFullYear();
+}
+
 export function parseSupabaseScheduleRecords(records) {
   if (!Array.isArray(records) || records.length === 0) return;
 
@@ -156,13 +174,31 @@ export function parseSupabaseScheduleRecords(records) {
     });
   });
 
-  const keys = Object.keys(grouped);
+  // 수정 1: 각 주차의 첫 번째 실제 날짜 기준으로 정렬 (날짜에 연도 없으면 주차 제목에서 보완)
+  const keys = Object.keys(grouped).sort((a, b) => {
+    const aFirstDate = grouped[a][0]?.date || '';
+    const bFirstDate = grouped[b][0]?.date || '';
+    const [ay, am, ad] = parseDateSortKey(aFirstDate, extractYearFromTitle(a));
+    const [by, bm, bd] = parseDateSortKey(bFirstDate, extractYearFromTitle(b));
+    return ay !== by ? ay - by : am !== bm ? am - bm : ad - bd;
+  });
+
   if (keys.length > 0) {
     state.allWeeksData.length = 0;
     keys.forEach(wTitle => {
-      const items = grouped[wTitle];
-      const firstDate = items[0].date ? items[0].date.split('(')[0].trim() : '';
-      const lastDate = items[items.length - 1].date ? items[items.length - 1].date.split('(')[0].trim() : '';
+      // 수정 2: (date + time) 조합 기준 중복 제거 + orderIndex 오름차순 정렬
+      const seenKeys = new Set();
+      const items = grouped[wTitle]
+        .filter(item => {
+          const key = `${item.date}_${item.time}`;
+          if (seenKeys.has(key)) return false;
+          seenKeys.add(key);
+          return true;
+        })
+        .sort((a, b) => a.orderIndex - b.orderIndex);
+
+      const firstDate = items[0]?.date ? items[0].date.split('(')[0].trim() : '';
+      const lastDate  = items[items.length - 1]?.date ? items[items.length - 1].date.split('(')[0].trim() : '';
       state.allWeeksData.push({
         title: `${wTitle} (${firstDate} ~ ${lastDate})`,
         items: items
@@ -185,7 +221,10 @@ async function postAllSchedules() {
   state.allWeeksData.forEach(wObj => {
     const wName = wObj.title.split(' (')[0];
     wObj.items.forEach(it => {
-      const id = String(it.id || `sched_${globalOrder + 1}`);
+      // 수정 3: 내용 기반 안정 id (주차+날짜+시간 조합 → 매 저장마다 동일 보장)
+      const stableId = `${wName}__${it.date}__${it.time}`;
+      const id = String(it.id && !String(it.id).startsWith('sched_') ? it.id : stableId);
+
       allItemsToPost.push({
         id: id,
         week_title: wName,
