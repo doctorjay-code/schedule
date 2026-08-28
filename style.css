@@ -862,8 +862,8 @@ body {
 .schedule-table th.col-trans,
 .schedule-table th.col-hr,
 .schedule-table th.col-ot {
-  text-align: right !important;
-  padding-right: 7px !important;
+  text-align: center !important;
+  padding-right: 0 !important;
 }
 
 @media (max-width: 400px) {
@@ -2160,7 +2160,7 @@ tr.schedule-row.ledger-subdetail-row:hover {
 /* Card ledger column headings: labels appear once above the list, not on each transaction. */
 .ledger-transaction-header { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.2fr) minmax(78px, 1fr); margin: 0 0 5px; padding: 0 7px; color: #94A3B8; font-size: 9px; font-weight: 800; line-height: 1.2; }
 .ledger-transaction-header span:first-child { text-align: left; }
-.ledger-transaction-header span:nth-child(2), .ledger-transaction-header span:nth-child(3), .ledger-transaction-header span:nth-child(4) { text-align: right; }
+.ledger-transaction-header span:nth-child(2), .ledger-transaction-header span:nth-child(3), .ledger-transaction-header span:nth-child(4) { text-align: center; }
 .ledger-transaction-header span:nth-child(2)::after { content: ' / '; color: #CBD5E1; padding-left: 4px; }
 .ledger-flow-part { justify-content: center; }
 .ledger-flow-part b { padding-top: 3px; }
@@ -2171,7 +2171,7 @@ tr.schedule-row.ledger-subdetail-row:hover {
 /* Card-ledger column headings are shown once above each list. */
 .ledger-transaction-header { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, .6fr) minmax(0, .6fr) minmax(78px, 1fr); margin: 0 0 5px; padding: 0 7px; color: #94A3B8; font-size: 9px; font-weight: 800; line-height: 1.2; }
 .ledger-transaction-header span:first-child { text-align: left; }
-.ledger-transaction-header span:not(:first-child) { text-align: right; }
+.ledger-transaction-header span:not(:first-child) { text-align: center; }
 .ledger-list-panel:has(.ledger-transaction-header) .ledger-flow-part .ledger-cell-label,
 .ledger-list-panel:has(.ledger-transaction-header) .ledger-cell-balance .ledger-cell-label { display: none; }
 .ledger-list-panel:has(.ledger-transaction-header) .ledger-flow-part,
