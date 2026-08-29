@@ -165,17 +165,13 @@ export function parseSupabaseScheduleRecords(records) {
     let weekName = (r.week_title || '').trim();
     let dateVal = (r.date || '').trim();
 
-    // 빈 값 발생 시 조용히 버리지 않고 기본값 보완 및 로깅 (규칙 #5 준수)
-    if (!weekName || !dateVal) {
-      console.warn('⚠️ [parseSupabaseScheduleRecords] 불완전 레코드 보완:', r);
-      if (!weekName) weekName = '미지정 주차';
-      if (!dateVal) dateVal = '미지정 날짜';
-    }
+    if (!weekName) weekName = '미지정 주차';
+    if (!dateVal) dateVal = '미지정 날짜';
 
     if (!grouped[weekName]) grouped[weekName] = [];
-    const stableId = `${weekName}__${dateVal}__${r.time || '오전'}`;
+    const rowId = r.id || `sch-${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`;
     grouped[weekName].push({
-      id: r.id || stableId,
+      id: rowId,
       date: dateVal,
       time: r.time || '오전',
       region: r.region || '',
@@ -191,28 +187,25 @@ export function parseSupabaseScheduleRecords(records) {
     });
   });
 
-  const parsedWeeks = Object.keys(grouped).map(title => {
-    const items = grouped[title];
-    items.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
-    return { title, items };
+  // 각 주차의 첫 번째 실제 날짜 기준으로 정렬
+  const keys = Object.keys(grouped).sort((a, b) => {
+    const aFirstDate = grouped[a][0]?.date || '';
+    const bFirstDate = grouped[b][0]?.date || '';
+    const [ay, am, ad] = parseDateSortKey(aFirstDate, extractYearFromTitle(a));
+    const [by, bm, bd] = parseDateSortKey(bFirstDate, extractYearFromTitle(b));
+    return ay !== by ? ay - by : am !== bm ? am - bm : ad - bd;
   });
 
-  // 주차 정렬: 각 주차 첫 항목 날짜 기준
-  parsedWeeks.sort((wA, wB) => {
-    const yA = extractYearFromTitle(wA.title);
-    const yB = extractYearFromTitle(wB.title);
-    const dateA = wA.items[0]?.date || '';
-    const dateB = wB.items[0]?.date || '';
-    const [yearA, monthA, dayA] = parseDateSortKey(dateA, yA);
-    const [yearB, monthB, dayB] = parseDateSortKey(dateB, yB);
-    if (yearA !== yearB) return yearA - yearB;
-    if (monthA !== monthB) return monthA - monthB;
-    return dayA - dayB;
-  });
+  const parsedWeeks = keys.map(k => ({
+    title: k,
+    items: grouped[k]
+  }));
 
   setAllWeeksData(parsedWeeks);
   const todayIdx = getTodayWeekIndex();
   setCurrentWeekIndex(todayIdx >= 0 ? todayIdx : 0);
+  if (apiLoadWeekDataFn) apiLoadWeekDataFn(getCurrentWeekIndex());
+  saveLastScheduleSnapshot();
 }
 
 /**
@@ -222,36 +215,48 @@ async function postAllSchedules() {
   const currentWeeks = getAllWeeksData();
   if (!currentWeeks || currentWeeks.length === 0) return;
 
-  const flatRows = [];
-  const now = new Date().toISOString();
+  const allItemsToPost = [];
+  let globalOrder = 0;
 
-  currentWeeks.forEach((weekObj) => {
-    const weekTitle = weekObj.title;
-    (weekObj.items || []).forEach((item, index) => {
-      flatRows.push({
-        id: `${weekTitle}__${item.date}__${item.time}`,
-        week_title: weekTitle,
-        date: item.date,
-        time: item.time,
-        region: item.region || '',
-        clinic: item.clinic || '',
-        trans_status: item.transStatus || '',
-        trans_detail: item.transDetail || '',
-        hr_status: item.hrStatus || '',
-        hr_detail: item.hrDetail || '',
-        ot_status: item.otStatus || '',
-        ot_detail: item.otDetail || '',
-        is_holiday: Boolean(item.isHoliday),
-        order_index: index,
-        updated_at: now
+  currentWeeks.forEach(wObj => {
+    const wName = wObj.title.split(' (')[0];
+    (wObj.items || []).forEach(it => {
+      const rowId = it.id && it.id.startsWith('sch-')
+        ? it.id
+        : `sch-${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`;
+      it.id = rowId;
+
+      allItemsToPost.push({
+        id: rowId,
+        week_title: wName,
+        date: it.date,
+        time: it.time,
+        region: it.region || '',
+        clinic: it.clinic || '',
+        trans_status: it.transStatus || '',
+        trans_detail: it.transDetail || '',
+        hr_status: it.hrStatus || '',
+        hr_detail: it.hrDetail || '',
+        ot_status: it.otStatus || '',
+        ot_detail: it.otDetail || '',
+        is_holiday: Boolean(it.isHoliday),
+        order_index: globalOrder++,
+        updated_at: new Date().toISOString()
       });
     });
   });
 
-  // 단 1회의 대량 Upsert 호출로 원자적 동기화 완료
-  await supabaseRest('schedules', {
-    method: 'POST',
-    prefer: 'resolution=merge-duplicates',
-    body: flatRows
-  });
+  const chunkSize = 100;
+  const chunks = [];
+  for (let i = 0; i < allItemsToPost.length; i += chunkSize) {
+    chunks.push(allItemsToPost.slice(i, i + chunkSize));
+  }
+
+  await Promise.all(chunks.map(chunk =>
+    supabaseRest('schedules', {
+      method: 'POST',
+      prefer: 'resolution=merge-duplicates',
+      body: chunk
+    })
+  ));
 }

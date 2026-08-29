@@ -107,3 +107,10 @@ export function compareLedgerRecords(a, b) {
   return (a.id || '').localeCompare(b.id || '');
 }
 
+/**
+ * 표준 16자리 hex/난수 기반 가계부 ID 생성기 (tr-xxxxxxxxxxxxxxxx)
+ */
+export function generateLedgerId() {
+  const rand = () => Math.random().toString(36).slice(2, 10);
+  return `tr-${rand()}${rand()}`.slice(0, 19);
+}
