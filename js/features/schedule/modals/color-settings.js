@@ -1,5 +1,5 @@
-import { state, pastelPalette, saveColorSettings, resetColorSettings } from '../../../services/schedule/state.js';
-import { syncColorSettingsToSheets } from '../../../services/schedule/api.js';
+import { state, pastelPalette, saveColorSettings, resetColorSettings } from '../../../services/schedule/schedule-store.js';
+import { syncColorSettingsToSupabase } from '../../../services/schedule/schedule-api.js';
 import { renderTableFn } from './edit.js';
 import { renderMonthlyCalendar } from '../render.js';
 import { escapeHtml, safeCssColor } from '../../../shared/safe.js';
@@ -91,7 +91,7 @@ export function renderPaletteChipsRows() {
 
         // 원터치 즉시 로컬 + 클라우드 DB 실시간 영구 자동 저장!
         saveColorSettings();
-        syncColorSettingsToSheets();
+        syncColorSettingsToSupabase();
         if (renderTableFn) renderTableFn();
         renderMonthlyCalendar();
       });
@@ -195,7 +195,7 @@ export function setupColorSettingsEvents(options = {}) {
     resetBtn.addEventListener('click', () => {
       if (confirm('모든 색상 설정을 기본값으로 초기화하시겠습니까?')) {
         resetColorSettings();
-        syncColorSettingsToSheets();
+        syncColorSettingsToSupabase();
         renderPaletteChipsRows();
         renderWordRulesList();
         applyScheduleAlertChipColors();
@@ -208,7 +208,7 @@ export function setupColorSettingsEvents(options = {}) {
   if (saveBtn) {
     saveBtn.addEventListener('click', () => {
       saveColorSettings();
-      syncColorSettingsToSheets();
+      syncColorSettingsToSupabase();
       applyScheduleAlertChipColors();
       if (renderTableFn) renderTableFn();
       renderMonthlyCalendar();
