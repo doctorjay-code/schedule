@@ -1,6 +1,6 @@
 import { getVersionedUrl } from '../../version.js';
-import { state, getTodayWeekIndex, loadLastScheduleSheetSnapshot, loadColorSettings, updateSummaryCounts } from '../../services/schedule/state.js';
-import { syncFromGoogleSheets, syncToGoogleSheets, setApiLoadWeekDataCallback, registerColorUpdateCallback } from '../../services/schedule/api.js';
+import { state, getTodayWeekIndex, loadLastScheduleSnapshot, loadColorSettings, updateSummaryCounts } from '../../services/schedule/schedule-store.js';
+import { syncScheduleFromSupabase, syncScheduleToSupabase, syncColorSettingsFromSupabase, setApiLoadWeekDataCallback, registerColorUpdateCallback } from '../../services/schedule/schedule-api.js';
 import { loadWeekData, renderTable, isCellSelected, renderMonthlyCalendar, switchViewModeUI } from './render.js';
 import { initAverageBalanceModal } from '../ledger/modals/average-balance.js';
 import { openModal, closeModal, saveModalToActiveItem, setupBtnGroupEvents, setupToggleEvents, setModalRenderCallback, setModalLoadWeekDataCallback } from './modals/edit.js';
@@ -12,6 +12,8 @@ import { bindScheduleNavigation } from './events/navigation.js';
 import { bindScheduleModalCloseEvents, bindScheduleFilterEvents } from './events/modal-filter-events.js';
 import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js';
 import { executeScheduleCopy, executeSchedulePaste } from './schedule-clipboard.js';
+import { showOfflineBanner, showOnlineBanner, setSyncSpinning } from '../../shared/sync-ui.js';
+import { showScheduleView, showLedgerView, initViewCoordinator } from '../../shared/view-coordinator.js';
 
 // App-core callbacks are registered only after authentication succeeds.
 setApiLoadWeekDataCallback(loadWeekData);
@@ -103,7 +105,7 @@ async function openColorFeature() {
 }
 
 export function initializeScheduleApp() {
-  loadLastScheduleSheetSnapshot();
+  loadLastScheduleSnapshot();
   loadColorSettings();
   state.currentWeekIndex = getTodayWeekIndex();
   loadWeekData(state.currentWeekIndex);
@@ -115,14 +117,13 @@ export function initializeScheduleApp() {
     applyScheduleAlertChipColors();
     renderPaletteChipsRows();
   });
-  syncFromGoogleSheets();
+  syncScheduleFromSupabase();
   registerRealtimeCallbacks({
     onScheduleChange: () => {
-      const syncIcon = document.querySelector('#manualSyncBtn .sync-icon') || document.getElementById('manualSyncBtn');
-      syncIcon?.classList.add('spin');
-      syncFromGoogleSheets().finally(() => {
+      setSyncSpinning(true);
+      syncScheduleFromSupabase().finally(() => {
         applyScheduleAlertChipColors();
-        syncIcon?.classList.remove('spin');
+        setSyncSpinning(false);
       });
     },
     onLedgerChange: () => {
@@ -135,22 +136,11 @@ export function initializeScheduleApp() {
 }
 
 function initNetworkStatusListener() {
-  const banner = document.getElementById('appOfflineBanner');
-  if (!banner) return;
-
   const updateStatus = () => {
     if (!navigator.onLine) {
-      banner.textContent = '⚠️ 인터넷 연결 확인 필요 (오프라인 모드)';
-      banner.classList.remove('hidden', 'is-online');
+      showOfflineBanner();
     } else {
-      if (!banner.classList.contains('hidden')) {
-        banner.textContent = '🟢 인터넷이 다시 연결되었습니다!';
-        banner.classList.add('is-online');
-        setTimeout(() => {
-          banner.classList.add('hidden');
-          banner.classList.remove('is-online');
-        }, 1500);
-      }
+      showOnlineBanner();
     }
   };
 
@@ -218,7 +208,7 @@ function initEvents() {
     openWeekPicker: openWeekSelectModal,
     loadWeek: loadWeekData,
     getTodayWeekIndex,
-    syncFromSheets: syncFromGoogleSheets
+    syncFromSheets: syncScheduleFromSupabase
   });  bindScheduleModalCloseEvents({
     closeModal,
     closeSummaryModal,
@@ -337,7 +327,7 @@ function initEvents() {
         }
       });
 
-      syncToGoogleSheets();
+      syncScheduleToSupabase();
       renderTable();
       updateSummaryCounts();
       if (state.currentView === 'monthly') renderMonthlyCalendar();
@@ -385,7 +375,7 @@ function initEvents() {
       state,
       renderTable,
       updateSummaryCounts,
-      syncToSheets: syncToGoogleSheets,
+      syncToSheets: syncScheduleToSupabase,
       renderMonthlyCalendar
     }));
   }
@@ -399,4 +389,3 @@ function initEvents() {
   if (unappliedSummaryBtn) unappliedSummaryBtn.addEventListener('click', () => openSummaryModal('unapplied'));
   if (unapprovedSummaryBtn) unapprovedSummaryBtn.addEventListener('click', () => openSummaryModal('unapproved'));
 }
-
