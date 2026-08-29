@@ -51,16 +51,16 @@ function setLedgerSyncStatus(status, detail = '') {
   element.title = element.textContent;
 }
 const LEDGER_SHEET_BY_PAYMENT = {
-  '\uAE30\uC5C5\uCE74\uB4DC': '\uAE30\uC5C5\uCE74\uB4DC',
-  '\uD1A0\uC2A4\uC740\uD589': '\uD1A0\uC2A4\uC740\uD589',
-  '\uD1A0\uC2A4\uCE74\uB4DC': '\uD1A0\uC2A4\uC740\uD589',
-  '\uD604\uAE08': '\uD604\uAE08',
-  '\uAE30\uC5C5\uC740\uD589': '\uAE30\uC5C5\uC740\uD589'
+  '기업카드': '기업카드',
+  '토스은행': '토스은행',
+  '토스카드': '토스은행',
+  '현금': '현금',
+  '기업은행': '기업은행'
 };
 const ledgerState = {
   source: 'card',
   period: 'weekly',
-  payment: '\uD1A0\uC2A4\uC740\uD589',
+  payment: '토스은행',
   filters: {
     person: new Set(),
     category: new Set(),
@@ -203,7 +203,8 @@ function renderActiveLedgerPeriod() {
       });
 
   records.sort(compareLedgerRecords);
-  const calculated = recalculateRunningBalances(records, ledgerState.source === 'card' && ledgerState.payment === '기업카드');
+  const isCard = ledgerState.source === 'card' && ledgerState.payment === '기업카드';
+  const calculated = recalculateRunningBalances(records, isCard);
 
   container.innerHTML = '';
   if (calculated.length === 0) {
@@ -214,7 +215,7 @@ function renderActiveLedgerPeriod() {
   calculated.forEach(record => {
     const isSelected = ledgerState.selectedLedgerIds.has(String(record.id));
     const tr = renderTransactionRow(record, {
-      isCompanyCard: ledgerState.payment === '기업카드',
+      isCompanyCard: isCard,
       colorSettings: state.colorSettings,
       multiEditMode: ledgerState.multiEditMode,
       isSelected,
