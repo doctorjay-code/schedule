@@ -40,6 +40,7 @@ export function showScheduleView(options = {}) {
   if (typeof onMainTabChangeCallback === 'function') {
     onMainTabChangeCallback('schedule', options);
   }
+  options.onShow?.();
 }
 
 export function showLedgerView(options = {}) {
@@ -68,6 +69,7 @@ export function showLedgerView(options = {}) {
   if (typeof onMainTabChangeCallback === 'function') {
     onMainTabChangeCallback('ledger', options);
   }
+  options.onShow?.();
 }
 
 export function initViewCoordinator({ onScheduleSelect, onLedgerSelect } = {}) {

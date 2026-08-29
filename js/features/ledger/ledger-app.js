@@ -12,7 +12,7 @@ import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, 
 import { createLedgerTransactionModal } from './modals/transaction-modal.js';
 import { createLedgerColorSettings } from './modals/color-settings.js';
 import { bindLedgerListActions } from './ledger-events.js';
-import { createFundplanView, createLedgerMonthDividerRow, getRecordMonthGroup } from './fundplan-view.js';
+import { createLedgerMonthDividerRow, getRecordMonthGroup } from './fundplan-view.js';
 import { fetchLedgerData, upsertLedgerRecord, deleteLedgerRecord, reorderLedgerRecords, deleteLedgerRecordsBatch, insertLedgerRecordsBatch, saveForecastOrders } from '../../services/ledger/ledger-api.js';
 import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js';
 import { showLedgerToast, findLedgerRecordById, executeLedgerCopy, executeLedgerDelete, executeLedgerPaste } from './ledger-clipboard.js';
@@ -96,9 +96,9 @@ function toggleMultiSelectRow(recordId) {
 }
 
 function updateMultiActionBar() {
-  const multiActionBar = document.getElementById('multiActionBar');
-  const selectedCountLabel = document.getElementById('selectedCountLabel');
-  const toggleBtn = document.getElementById('toggleMultiEditBtn');
+  const multiActionBar = document.getElementById('ledgerMultiActionBar') || document.getElementById('multiActionBar');
+  const selectedCountLabel = document.getElementById('ledgerSelectedCountLabel') || document.getElementById('selectedCountLabel');
+  const toggleBtn = document.getElementById('ledgerToggleMultiEditBtn') || document.getElementById('toggleMultiEditBtn');
   const isMulti = ledgerState.multiEditMode;
 
   if (toggleBtn) {
@@ -107,7 +107,7 @@ function updateMultiActionBar() {
       toggleBtn.textContent = '✕ 선택취소';
     } else {
       toggleBtn.classList.remove('active');
-      toggleBtn.textContent = '☑️ 다중선택';
+      toggleBtn.textContent = '☑️ 선택';
     }
   }
 
@@ -116,7 +116,7 @@ function updateMultiActionBar() {
   if (isMulti) {
     multiActionBar.classList.remove('hidden');
     if (selectedCountLabel) {
-      selectedCountLabel.textContent = `${ledgerState.selectedLedgerIds.size}개 선택됨`;
+      selectedCountLabel.textContent = `${ledgerState.selectedLedgerIds.size}건 선택됨`;
     }
   } else {
     multiActionBar.classList.add('hidden');
@@ -124,8 +124,8 @@ function updateMultiActionBar() {
 }
 
 function updateCopyBufferBar() {
-  const copyBar = document.getElementById('copyBufferBar');
-  const copiedItemLabel = document.getElementById('copiedItemLabel');
+  const copyBar = document.getElementById('ledgerCopyBufferBar') || document.getElementById('copyBufferBar');
+  const copiedItemLabel = document.getElementById('ledgerCopiedItemLabel') || document.getElementById('copiedItemLabel');
   if (!copyBar || !copiedItemLabel) return;
 
   const count = ledgerState.copiedRecords ? ledgerState.copiedRecords.length : 0;
@@ -349,47 +349,42 @@ function renderForecastTable(container) {
 
   cachedForecastAggregateRows = displayRows;
 
-  createFundplanView({
-    container,
-    rows: displayRows,
-    colorSettings: state.colorSettings,
-    multiEditMode: ledgerState.multiEditMode,
-    selectedIds: ledgerState.selectedLedgerIds,
-    onRowClick: (row) => {
-      if (ledgerState.multiEditMode) {
-        toggleMultiSelectRow(row.id);
-      } else {
-        const modal = getLedgerTransactionModal();
-        modal.open({
-          isEdit: true,
-          record: {
-            id: row.id,
-            date: row.date,
-            type: row.type || 'expense',
-            amount: row.amount,
-            payment: row.payment || '토스은행',
-            item: row.item,
-            person: row.person || '기타',
-            category: row.category || '',
-            fixedCost: row.fixedCost || '',
-            memo: row.memo || ''
-          }
-        });
+  container.innerHTML = '';
+  if (displayRows.length === 0) {
+    appendLedgerEmptyRow(container, '해당 월의 잔액전망 내역이 없습니다.');
+    return;
+  }
+
+  displayRows.forEach(row => {
+    const isSelected = ledgerState.selectedLedgerIds.has(String(row.id));
+    renderTransactionRow(row, container, {
+      source: 'forecast',
+      isCompanyCard: false,
+      colorSettings: state.colorSettings,
+      multiEditMode: ledgerState.multiEditMode,
+      isSelected,
+      onRowClick: (rec) => {
+        if (ledgerState.multiEditMode) {
+          toggleMultiSelectRow(rec.id);
+        } else {
+          getLedgerTransactionModal().open({
+            isEdit: true,
+            record: {
+              id: rec.id,
+              date: rec.date,
+              type: rec.type || 'expense',
+              amount: rec.amount,
+              payment: rec.payment || '토스은행',
+              item: rec.item,
+              person: rec.person || '기타',
+              category: rec.category || '',
+              fixedCost: rec.fixedCost || '',
+              memo: rec.memo || ''
+            }
+          });
+        }
       }
-    },
-    onReorder: async (orderedIds) => {
-      if (isSavingForecastOrders) return;
-      isSavingForecastOrders = true;
-      try {
-        saveForecastOrderMap(orderedIds);
-        await saveForecastOrders(orderedIds);
-        showLedgerToast('순서가 저장되었습니다.');
-      } catch (e) {
-        console.error('Error saving forecast orders:', e);
-      } finally {
-        isSavingForecastOrders = false;
-      }
-    }
+    });
   });
 }
 
@@ -492,6 +487,64 @@ function bindLedgerDomEvents() {
       applyLedgerDataSources();
     });
   }
+
+  const bulkCopyBtn = document.getElementById('ledgerBulkCopyBtn');
+  if (bulkCopyBtn) {
+    bulkCopyBtn.addEventListener('click', () => {
+      executeLedgerCopy({
+        selectedLedgerIds: ledgerState.selectedLedgerIds,
+        findRecordFn: (id) => findLedgerRecordById(id, { ledgerState }),
+        setCopiedRecords: (recs) => { ledgerState.copiedRecords = recs; },
+        updateCopyBufferBar
+      });
+    });
+  }
+
+  const bulkDeleteBtn = document.getElementById('ledgerBulkDeleteBtn');
+  if (bulkDeleteBtn) {
+    bulkDeleteBtn.addEventListener('click', () => {
+      executeLedgerDelete({
+        selectedLedgerIds: ledgerState.selectedLedgerIds,
+        findRecordFn: (id) => findLedgerRecordById(id, { ledgerState }),
+        applyOptimisticDelete,
+        deleteBatchFn: deleteLedgerRecordsBatch,
+        setMultiEditMode
+      });
+    });
+  }
+
+  const bulkPasteBtn = document.getElementById('ledgerBulkPasteBtn');
+  if (bulkPasteBtn) {
+    bulkPasteBtn.addEventListener('click', () => {
+      executeLedgerPaste({
+        copiedRecords: ledgerState.copiedRecords,
+        ledgerState,
+        ledgerSheetNameForRecord,
+        applyOptimisticSave,
+        insertBatchFn: insertLedgerRecordsBatch,
+        onComplete: () => {
+          setMultiEditMode(false);
+          applyLedgerDataSources();
+        }
+      });
+    });
+  }
+
+  const clearCopyBtn = document.getElementById('ledgerClearCopyBtn');
+  if (clearCopyBtn) {
+    clearCopyBtn.addEventListener('click', () => {
+      ledgerState.copiedRecords = [];
+      updateCopyBufferBar();
+      showLedgerToast('복사가 취소되었습니다.');
+    });
+  }
+
+  const cancelMultiBtn = document.getElementById('ledgerCancelMultiEditBtn');
+  if (cancelMultiBtn) {
+    cancelMultiBtn.addEventListener('click', () => {
+      setMultiEditMode(false);
+    });
+  }
 }
 
 // Global initialization and Realtime subscription
@@ -518,42 +571,28 @@ export function initLedgerView() {
   });
 
   bindLedgerListActions({
-    ledgerState,
-    getModal: getLedgerTransactionModal,
-    getColorModal: getLedgerColorSettings,
-    setMultiEditMode,
-    executeCopy: () => executeLedgerCopy({
-      selectedLedgerIds: ledgerState.selectedLedgerIds,
-      findRecordFn: (id) => findLedgerRecordById(id, { ledgerState }),
-      setCopiedRecords: (recs) => { ledgerState.copiedRecords = recs; },
-      updateCopyBufferBar
-    }),
-    executeDelete: () => executeLedgerDelete({
-      selectedLedgerIds: ledgerState.selectedLedgerIds,
-      findRecordFn: (id) => findLedgerRecordById(id, { ledgerState }),
-      applyOptimisticDelete,
-      deleteBatchFn: deleteLedgerRecordsBatch,
-      setMultiEditMode
-    }),
-    executePaste: () => executeLedgerPaste({
-      copiedRecords: ledgerState.copiedRecords,
-      ledgerState,
-      ledgerSheetNameForRecord,
-      applyOptimisticSave,
-      insertBatchFn: insertLedgerRecordsBatch,
-      onComplete: () => {
-        setMultiEditMode(false);
-        applyLedgerDataSources();
+    onRowClick: (id) => {
+      const rec = findLedgerTransaction(id);
+      if (rec) {
+        if (ledgerState.multiEditMode) {
+          toggleMultiSelectRow(rec.id);
+        } else {
+          getLedgerTransactionModal().open({ isEdit: true, record: rec });
+        }
       }
-    }),
-    onSourceChange: (source, payment) => {
-      ledgerState.source = source;
-      ledgerState.payment = payment;
-      applyLedgerDataSources();
     },
-    onMonthChange: (newDate) => {
-      ledgerState.monthCursor = newDate;
-      applyLedgerDataSources();
+    onReorder: async (orderedIds) => {
+      if (isSavingForecastOrders) return;
+      isSavingForecastOrders = true;
+      try {
+        saveForecastOrderMap(orderedIds);
+        await saveForecastOrders(orderedIds);
+        showLedgerToast('순서가 저장되었습니다.');
+      } catch (e) {
+        console.error('Error saving forecast orders:', e);
+      } finally {
+        isSavingForecastOrders = false;
+      }
     }
   });
 

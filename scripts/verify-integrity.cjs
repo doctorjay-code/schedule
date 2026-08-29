@@ -184,6 +184,125 @@ try {
 }
 
 // -------------------------------------------------------------
+// Step 5: Callback Contract Verification
+// Checks that when fn({ onX: cb }) is called, the function fn
+// actually references options.onX (or onX) in its body.
+// -------------------------------------------------------------
+console.log('\n\x1b[36m[5/5] Checking Callback Contract Integrity (options callbacks are actually called)...\x1b[0m');
+let contractOk = true;
+
+// Callback key prefixes to watch (on*, handler*, *Fn, *Callback)
+const CALLBACK_KEY_PATTERN = /\b(on[A-Z]\w*|handler\w*|\w+Fn\b|\w+Callback\b)\s*:/g;
+
+// Pass 1: Collect all call sites that pass callbacks in options objects
+// Handles both single-line and multi-line object arguments
+// e.g. showLedgerView({ onShow: () => ... })
+const callSites = []; // { fnName, keys[], callerFile }
+
+jsFiles.forEach(file => {
+  const content = fs.readFileSync(file, 'utf8');
+  const relPath = path.relative(ROOT_DIR, file);
+
+  // Strategy: find "fnName({" or "fnName( {" then collect text until balanced closing "}"
+  const startPattern = /\b([a-zA-Z_$][\w$]*)\s*\(\s*\{/g;
+  let m;
+  while ((m = startPattern.exec(content)) !== null) {
+    const fnName = m[1];
+    if (['if', 'while', 'for', 'switch', 'catch', 'function', 'return', 'export', 'import', 'class'].includes(fnName)) continue;
+
+    // Collect text until the matching closing brace
+    let depth = 1;
+    let i = m.index + m[0].length;
+    let objBody = '';
+    while (i < content.length && depth > 0) {
+      const ch = content[i];
+      if (ch === '{') depth++;
+      else if (ch === '}') depth--;
+      if (depth > 0) objBody += ch;
+      i++;
+    }
+
+    // Extract callback-style keys from the collected body
+    const keys = [...objBody.matchAll(CALLBACK_KEY_PATTERN)].map(k => k[1]);
+    if (keys.length > 0) {
+      callSites.push({ fnName, keys, callerFile: relPath });
+    }
+  }
+});
+
+// Pass 2: Build map of functionName -> { defFile, content }
+const fnDefMap = {}; // fnName -> [{ defFile, content }]
+
+jsFiles.forEach(file => {
+  const content = fs.readFileSync(file, 'utf8');
+  const relPath = path.relative(ROOT_DIR, file);
+
+  // Match named function declarations and exported const arrow functions
+  const defPatterns = [
+    /(?:export\s+)?(?:async\s+)?function\s+([a-zA-Z_$][\w$]*)\s*\(/g,
+    /(?:export\s+)?(?:const|let|var)\s+([a-zA-Z_$][\w$]*)\s*=\s*(?:async\s*)?\(/g,
+  ];
+  defPatterns.forEach(pat => {
+    let m;
+    while ((m = pat.exec(content)) !== null) {
+      const fnName = m[1];
+      if (!fnDefMap[fnName]) fnDefMap[fnName] = [];
+      fnDefMap[fnName].push({ defFile: relPath, content });
+    }
+  });
+});
+
+// Pass 3: For each call site, check if callee references each callback key
+const KNOWN_SKIP_FNS = new Set([
+  // Known patterns that use positional args or internal destructuring — not option-object callbacks
+  'Object', 'Array', 'Promise', 'Math', 'JSON', 'console', 'Error', 'Set', 'Map',
+  'fetch', 'parseInt', 'parseFloat', 'setTimeout', 'setInterval', 'clearTimeout',
+  'addEventListener', 'removeEventListener', 'execSync', 'require', 'path',
+  'fs', 'logFail', 'logPass', 'getAllFiles',
+]);
+
+// Deduplicate call sites by fnName+key
+const checked = new Set();
+
+callSites.forEach(({ fnName, keys, callerFile }) => {
+  if (KNOWN_SKIP_FNS.has(fnName)) return;
+  const defs = fnDefMap[fnName];
+  if (!defs || defs.length === 0) return; // external or built-in, skip
+
+  keys.forEach(key => {
+    const dedupKey = `${fnName}::${key}`;
+    if (checked.has(dedupKey)) return;
+    checked.add(dedupKey);
+
+    totalChecks++;
+    // Check if ANY definition of fnName references this key
+    const referenced = defs.some(({ content }) => {
+      // Accept: options.key, options?.key, { key }, key?.(), key()
+      const patterns = [
+        new RegExp(`options\\.${key}\\b`),
+        new RegExp(`options\\?\\.[^)]*${key}\\b`),
+        new RegExp(`[{,]\\s*${key}\\s*[,}]`),
+        new RegExp(`\\.${key}\\s*\\??\\.\\s*\\(`),
+        new RegExp(`\\b${key}\\s*\\??\\.?\\s*\\(`),
+      ];
+      return patterns.some(p => p.test(content));
+    });
+
+    if (!referenced) {
+      contractOk = false;
+      logFail(
+        `Callback contract broken: "${fnName}({ ${key}: fn })" — key "${key}" is never used inside "${fnName}"`,
+        `Called from: ${callerFile}. Check definition in: ${defs.map(d => d.defFile).join(', ')}`
+      );
+    }
+  });
+});
+
+if (contractOk) {
+  logPass(`All callback contracts verified — every options key passed is actually used by the callee.`);
+}
+
+// -------------------------------------------------------------
 // Summary
 // -------------------------------------------------------------
 console.log('\n\x1b[1m=== 📊 Verification Summary ===\x1b[0m');
@@ -197,3 +316,4 @@ if (failedChecks === 0) {
   console.error('\n\x1b[31m\x1b[1m✖ INTEGRITY CHECK FAILED: Please fix above issues before deploying!\x1b[0m\n');
   process.exit(1);
 }
+
