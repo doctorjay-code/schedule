@@ -180,9 +180,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
     }
 
     // 1. 전체 레코드를 날짜순으로 정렬하고 실시간 연속 누적 잔액(Running Balance)을 먼저 일괄 계산!
-    const sortedAndCalculated = source === 'forecast'
-      ? [...records].sort(compareLedgerRecords)
-      : recalculateRunningBalances([...records].sort(compareLedgerRecords), isCompanyCard);
+    const sortedAndCalculated = recalculateRunningBalances([...records].sort(compareLedgerRecords), isCompanyCard);
 
     // 2. Group records by calculated month (YYYY-MM)
     const grouped = sortedAndCalculated.reduce((map, record) => {
@@ -252,6 +250,32 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
         ? monthRecords
         : recalculateRunningBalances(monthRecords, true);
       calculatedMonthRecords.forEach(record => {
+        // 기업은행 탭에서 기업카드 결제대금 행인 경우 카드 세부내역 subRecords 연결
+        if (source === 'bank' && !record.hasCardAccordion) {
+          const itemText = String(record.item || '');
+          const memoText = String(record.memo || '');
+          const catText = String(record.category || '');
+          if (itemText.includes('기업카드') || itemText.includes('카드대금') || memoText.includes('기업카드') || catText.includes('카드대금')) {
+            const [yStr, mStr] = month.split('-');
+            const y = parseInt(yStr, 10);
+            const m = parseInt(mStr, 10) - 1;
+            let prevY = y;
+            let prevM = m - 1;
+            if (prevM < 0) { prevM = 11; prevY -= 1; }
+            const cardStart = `${prevY}-${String(prevM + 1).padStart(2, '0')}-13`;
+            const cardEnd = `${y}-${String(m + 1).padStart(2, '0')}-12`;
+
+            const cardSubs = (ledgerState.records || []).filter(r => {
+              const sheet = r.payment_method || r.payment || r.sheetName || '';
+              const dStr = normalizeLedgerDate(r.date);
+              return sheet === '기업카드' && dStr >= cardStart && dStr <= cardEnd;
+            });
+            if (cardSubs.length > 0) {
+              record.hasCardAccordion = true;
+              record.subRecords = cardSubs;
+            }
+          }
+        }
         const rawId = String(record.id || '').replace(/^fc-(toss|bank)-/, '');
         const origId = String(record.originalId || '');
 

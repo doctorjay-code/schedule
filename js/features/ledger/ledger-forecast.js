@@ -218,12 +218,12 @@ export function generateForecastRecords({
       });
     });
 
-    // 3-3. 가상 토스 생활비 합산행 (세부 거래 subRecords 연결 및 항상 유지)
+    // 3-3. 가상 토스 생활비 합산행 (세부 거래 subRecords 연결 및 1일 배치)
     const tossVarKey = `fc-var-toss-${targetMonthKey}`;
     const tossVarOverride = aggregateOverrides[tossVarKey] || {};
     displayRows.push({
       id: tossVarKey,
-      date: tossVarOverride.date || `${targetMonthKey}-25`,
+      date: tossVarOverride.date || `${targetMonthKey}-01`,
       type: 'expense',
       amount: tossVarOverride.amount !== undefined ? Number(tossVarOverride.amount) : tossLivingExpenses,
       balance: 0,

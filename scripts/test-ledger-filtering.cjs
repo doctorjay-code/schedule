@@ -109,11 +109,17 @@ async function runComprehensiveTests() {
     assert.ok(cardBill, `[${monthKey}] 월에 기업카드 결제대금 통합 행 누락`);
     assert.ok(Array.isArray(cardBill.subRecords), `[${monthKey}] 월의 기업카드 행에 subRecords 배열 누락`);
 
-    // 규칙 2: 모든 월에 토스 생활비 통합 행과 subRecords 배열이 존재해야 함
+    // 규칙 2: 모든 월에 토스 생활비 통합 행(1일 배치)과 subRecords 배열이 존재해야 함
     const tossLiving = monthRows.find(r => (r.id && r.id.startsWith('fc-var-toss-')) || (r.item && r.item.includes('토스 생활비')));
     assert.ok(tossLiving, `[${monthKey}] 월에 토스 생활비 통합 행 누락`);
+    assert.ok(tossLiving.date && tossLiving.date.endsWith('-01'), `[${monthKey}] 월의 토스 생활비 날짜가 1일(-01)이 아님: ${tossLiving.date}`);
     assert.ok(Array.isArray(tossLiving.subRecords), `[${monthKey}] 월의 토스 생활비 행에 subRecords 배열 누락`);
   });
+
+  // 규칙 3: 잔액전망 전 기간 연속 누적 잔액(Running Balance) 완결성 검증 (과거/미래 구분 없이 전체 행 연속 계산)
+  const calculatedForecast = recalculateRunningBalances(forecastRows, false);
+  assert.ok(calculatedForecast.length > 0, '잔액전망 계산 결과가 비어있음');
+  assert.ok(calculatedForecast.every(r => Number.isFinite(Number(r.balance))), '잔액전망 행 중 유효하지 않은 잔액(NaN/비계산) 발견');
 
   console.log('--- 3. Testing 7-Column Visual Visibility & Styling Contract ---');
   // renderTransactionRow로 렌더링된 행에서 잔액 셀(balanceCell)의 글자색과 정렬이 실제로 지정되어 눈에 보이는지 검증
