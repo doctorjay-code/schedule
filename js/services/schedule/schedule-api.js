@@ -155,6 +155,23 @@ function extractYearFromTitle(title) {
 }
 
 /**
+ * 표준 날짜 정렬형 일정 ID 생성기 (sch-YYYYMMDD-am/pm-xxxxxx)
+ */
+export function generateScheduleId(weekTitle = '', dateStr = '', time = '오전') {
+  let y = (weekTitle || '').match(/\d{4}/)?.[0] || '2026';
+  const mMatch = (dateStr || '').match(/^([0-9]{1,2})\./);
+  const dMatch = (dateStr || '').match(/\.\s*([0-9]{1,2})\./);
+  const m = mMatch ? String(mMatch[1]).padStart(2, '0') : '01';
+  const d = dMatch ? String(dMatch[1]).padStart(2, '0') : '01';
+  if (m === '01' && weekTitle.includes('12월')) {
+    y = String(parseInt(y, 10) + 1);
+  }
+  const tKey = time === '오후' ? 'pm' : 'am';
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `sch-${y}${m}${d}-${tKey}-${rand}`;
+}
+
+/**
  * Supabase DB의 schedules 레코드를 주차별 allWeeksData로 파싱 (무손실 파싱 & 로깅 확보)
  */
 export function parseSupabaseScheduleRecords(records) {
@@ -169,7 +186,7 @@ export function parseSupabaseScheduleRecords(records) {
     if (!dateVal) dateVal = '미지정 날짜';
 
     if (!grouped[weekName]) grouped[weekName] = [];
-    const rowId = r.id || `sch-${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`;
+    const rowId = r.id || generateScheduleId(weekName, dateVal, r.time);
     grouped[weekName].push({
       id: rowId,
       date: dateVal,
@@ -223,7 +240,7 @@ async function postAllSchedules() {
     (wObj.items || []).forEach(it => {
       const rowId = it.id && it.id.startsWith('sch-')
         ? it.id
-        : `sch-${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 10)}`;
+        : generateScheduleId(wName, it.date, it.time);
       it.id = rowId;
 
       allItemsToPost.push({

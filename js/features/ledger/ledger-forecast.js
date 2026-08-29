@@ -319,7 +319,7 @@ export async function copyMonthFixedRecordsToNextMonth({
     const safeDay = Math.min(Number(day), maxDaysInTargetMonth);
     const newDateStr = `${targetMonthKey}-${String(safeDay).padStart(2, '0')}`;
 
-    const newId = generateLedgerId();
+    const newId = generateLedgerId(newDateStr, idx);
     idMapping[String(r.id)] = newId;
     if (r.originalId) idMapping[String(r.originalId)] = newId;
 
@@ -363,7 +363,7 @@ export async function copyMonthFixedRecordsToNextMonth({
     const safeDay = Math.min(cd, maxDays);
     const newDateStr = `${nextY}-${String(nextM).padStart(2, '0')}-${String(safeDay).padStart(2, '0')}`;
 
-    const newId = generateLedgerId();
+    const newId = generateLedgerId(newDateStr, idx);
     idMapping[String(c.id)] = newId;
     if (c.originalId) idMapping[String(c.originalId)] = newId;
 

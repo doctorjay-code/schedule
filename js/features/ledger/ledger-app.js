@@ -226,7 +226,7 @@ function saveLedgerRecord(form, overrides = {}) {
   const payment = values.payment || ledgerState.payment || '토스은행';
   const record = {
     ...(existing || {}),
-    id: values.ledgerEditId || existing?.id || generateLedgerId(),
+    id: values.ledgerEditId || existing?.id || generateLedgerId(values.date, existing?.orderIndex ?? 0),
     date: values.date,
     type: values.type,
     amount,

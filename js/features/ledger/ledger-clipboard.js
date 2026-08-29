@@ -152,7 +152,7 @@ export function executeLedgerPaste({
       newDate = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(clampedDay).padStart(2, '0')}`;
     }
 
-    const newId = generateLedgerId();
+    const newId = generateLedgerId(newDate, i);
 
     const newRecord = {
       ...item,
