@@ -354,6 +354,66 @@ if (buttonsOk) {
 }
 
 // -------------------------------------------------------------
+// Step 7: Core View Module Linkage & Architecture Bypass Verification
+// Ensures critical view engine modules specified in PROJECT_STRUCTURE.md
+// are actually linked and called in the main application pipeline.
+// -------------------------------------------------------------
+console.log('\n\x1b[36m[7/7] Checking Core View Module Linkage & Architecture Bypass...\x1b[0m');
+const CORE_VIEW_CONTRACTS = [
+  {
+    moduleFile: 'js/features/ledger/fundplan-view.js',
+    fnName: 'createFundplanView',
+    callerFile: 'js/features/ledger/ledger-app.js',
+    desc: '가계부 전체보기/월별 아코디언/상계묶음 뷰 엔진'
+  },
+  {
+    moduleFile: 'js/features/schedule/schedule-view.js',
+    fnName: 'renderTable',
+    callerFile: 'js/features/schedule/schedule-events.js',
+    desc: '일정표 주간 뷰 엔진'
+  },
+  {
+    moduleFile: 'js/features/schedule/monthly-view.js',
+    fnName: 'renderMonthlyCalendar',
+    callerFile: 'js/features/schedule/schedule-events.js',
+    desc: '일정표 월간 캘린더 뷰 엔진'
+  }
+];
+
+let architectureOk = true;
+
+CORE_VIEW_CONTRACTS.forEach(({ moduleFile, fnName, callerFile, desc }) => {
+  totalChecks++;
+  const callerAbsPath = path.join(ROOT_DIR, callerFile);
+  if (!fs.existsSync(callerAbsPath)) {
+    architectureOk = false;
+    logFail(`Caller file missing: ${callerFile}`, desc);
+    return;
+  }
+
+  const callerCode = fs.readFileSync(callerAbsPath, 'utf8');
+  // Check import: import { ... fnName ... } from '...'
+  const importRegex = new RegExp(`import\\s*\\{[^}]*\\b${fnName}\\b[^}]*\\}\\s*from`);
+  // Check call: fnName(...)
+  const callRegex = new RegExp(`\\b${fnName}\\s*\\(`);
+
+  const hasImport = importRegex.test(callerCode);
+  const hasCall = callRegex.test(callerCode);
+
+  if (!hasImport || !hasCall) {
+    architectureOk = false;
+    logFail(
+      `Architecture Bypass / Dead View Module: "${fnName}" in [${moduleFile}] (${desc})`,
+      `Not imported or called inside [${callerFile}]. Main app must link to this view module instead of bypassing it.`
+    );
+  }
+});
+
+if (architectureOk) {
+  logPass(`All ${CORE_VIEW_CONTRACTS.length} core view engine modules are properly linked and called.`);
+}
+
+// -------------------------------------------------------------
 // Summary
 // -------------------------------------------------------------
 console.log('\n\x1b[1m=== 📊 Verification Summary ===\x1b[0m');

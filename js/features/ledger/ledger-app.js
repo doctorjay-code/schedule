@@ -12,7 +12,7 @@ import { appendLedgerEmptyRow, createLedgerTableHead, formatLedgerScheduleDate, 
 import { createLedgerTransactionModal } from './modals/transaction-modal.js';
 import { createLedgerColorSettings } from './modals/color-settings.js';
 import { bindLedgerListActions } from './ledger-events.js';
-import { createLedgerMonthDividerRow, getRecordMonthGroup } from './fundplan-view.js';
+import { createFundplanView, createLedgerMonthDividerRow, getRecordMonthGroup } from './fundplan-view.js';
 import { fetchLedgerData, upsertLedgerRecord, deleteLedgerRecord, reorderLedgerRecords, deleteLedgerRecordsBatch, insertLedgerRecordsBatch, saveForecastOrders } from '../../services/ledger/ledger-api.js';
 import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js';
 import { showLedgerToast, findLedgerRecordById, executeLedgerCopy, executeLedgerDelete, executeLedgerPaste } from './ledger-clipboard.js';
@@ -298,103 +298,53 @@ function getLedgerCategoryNames() {
   return Array.from(new Set([...defaults, ...userCats]));
 }
 
+let fundplanViewInstance = null;
+
+function getFundplanView() {
+  if (!fundplanViewInstance) {
+    fundplanViewInstance = createFundplanView({
+      ledgerState,
+      getColorSettings: () => state.colorSettings || {},
+      colorSettings: state.colorSettings || {},
+      getActiveSourceRecords: () => {
+        if (ledgerState.source === 'forecast') {
+          const { displayRows } = generateForecastRecords({
+            allRecords: ledgerState.records,
+            monthCursor: ledgerState.monthCursor,
+            isManualCardPayment
+          });
+          return displayRows;
+        }
+        const isCompanyCard = ledgerState.source === 'card' && ledgerState.payment === '기업카드';
+        const filterPayment = ledgerState.source === 'card' ? ledgerState.payment : (ledgerState.source === 'cash' ? '현금' : '기업은행');
+        return filterLedgerRecords(ledgerState.records, {
+          source: ledgerState.source,
+          payment: filterPayment,
+          person: ledgerState.filters?.person,
+          category: ledgerState.filters?.category,
+          fixed: ledgerState.filters?.fixed || 'all',
+          monthCursor: ledgerState.monthCursor,
+          isCompanyCard
+        });
+      },
+      clampLedgerDate: (d) => (d instanceof Date ? d : new Date(d || Date.now())),
+      minDate: () => '2026-01-01',
+      setText: (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+      },
+      showLedgerToast
+    });
+  }
+  return fundplanViewInstance;
+}
+
 function renderLedgerTable() {
   const container = document.getElementById('fundplanAllTimeList');
   if (!container) return;
 
-  if (ledgerState.source === 'forecast') {
-    renderForecastTable(container);
-    return;
-  }
-
-  const isCompanyCard = ledgerState.source === 'card' && ledgerState.payment === '기업카드';
-  const filterPayment = ledgerState.source === 'card' ? ledgerState.payment : (ledgerState.source === 'cash' ? '현금' : '기업은행');
-
-  const filtered = filterLedgerRecords(ledgerState.records, {
-    source: ledgerState.source,
-    payment: filterPayment,
-    person: ledgerState.filters?.person,
-    category: ledgerState.filters?.category,
-    fixed: ledgerState.filters?.fixed || 'all',
-    monthCursor: ledgerState.monthCursor,
-    isCompanyCard
-  });
-
-  filtered.sort(compareLedgerRecords);
-
-  const calculated = recalculateRunningBalances(filtered, isCompanyCard);
-
-  container.innerHTML = '';
-  if (calculated.length === 0) {
-    appendLedgerEmptyRow(container, '해당 월의 거래 내역이 없습니다.');
-    return;
-  }
-
-  calculated.forEach(record => {
-    const isSelected = ledgerState.selectedLedgerIds.has(String(record.id));
-    renderTransactionRow(record, container, {
-      source: ledgerState.source,
-      isCompanyCard,
-      colorSettings: state.colorSettings,
-      multiEditMode: ledgerState.multiEditMode,
-      isSelected,
-      onRowClick: (rec) => {
-        if (ledgerState.multiEditMode) {
-          toggleMultiSelectRow(rec.id);
-        } else {
-          getLedgerTransactionModal().open({ isEdit: true, record: rec });
-        }
-      }
-    });
-  });
-}
-
-function renderForecastTable(container) {
-  const { displayRows } = generateForecastRecords({
-    allRecords: ledgerState.records,
-    monthCursor: ledgerState.monthCursor,
-    isManualCardPayment
-  });
-
-  cachedForecastAggregateRows = displayRows;
-
-  container.innerHTML = '';
-  if (displayRows.length === 0) {
-    appendLedgerEmptyRow(container, '해당 월의 잔액전망 내역이 없습니다.');
-    return;
-  }
-
-  displayRows.forEach(row => {
-    const isSelected = ledgerState.selectedLedgerIds.has(String(row.id));
-    renderTransactionRow(row, container, {
-      source: 'forecast',
-      isCompanyCard: false,
-      colorSettings: state.colorSettings,
-      multiEditMode: ledgerState.multiEditMode,
-      isSelected,
-      onRowClick: (rec) => {
-        if (ledgerState.multiEditMode) {
-          toggleMultiSelectRow(rec.id);
-        } else {
-          getLedgerTransactionModal().open({
-            isEdit: true,
-            record: {
-              id: rec.id,
-              date: rec.date,
-              type: rec.type || 'expense',
-              amount: rec.amount,
-              payment: rec.payment || '토스은행',
-              item: rec.item,
-              person: rec.person || '기타',
-              category: rec.category || '',
-              fixedCost: rec.fixedCost || '',
-              memo: rec.memo || ''
-            }
-          });
-        }
-      }
-    });
-  });
+  const view = getFundplanView();
+  view.render();
 }
 
 function updateLedgerPeriodTitle() {
@@ -708,11 +658,16 @@ export function initLedgerView() {
       if (isSavingForecastOrders) return;
       isSavingForecastOrders = true;
       try {
-        saveForecastOrderMap(orderedIds);
-        await saveForecastOrders(orderedIds);
+        if (ledgerState.source === 'forecast') {
+          saveForecastOrderMap(orderedIds);
+          await saveForecastOrders(orderedIds);
+        } else {
+          const sheetName = ledgerState.source === 'card' ? ledgerState.payment : (ledgerState.source === 'cash' ? '현금' : '기업은행');
+          await reorderLedgerRecords(sheetName, orderedIds);
+        }
         showLedgerToast('순서가 저장되었습니다.');
       } catch (e) {
-        console.error('Error saving forecast orders:', e);
+        console.error('Error saving orders:', e);
       } finally {
         isSavingForecastOrders = false;
       }
