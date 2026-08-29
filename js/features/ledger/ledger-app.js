@@ -422,7 +422,7 @@ function initLedgerApp() {
 }
 
 // Global initialization and Realtime subscription
-document.addEventListener('DOMContentLoaded', () => {
+export function initLedgerView() {
   const scheduleMenuBtn = document.getElementById('scheduleMenuBtn');
   const ledgerMenuBtn = document.getElementById('ledgerMenuBtn');
 
@@ -481,4 +481,9 @@ document.addEventListener('DOMContentLoaded', () => {
       applyLedgerDataSources();
     }
   });
-});
+
+  return {
+    enter: showLedgerViewTab,
+    leave: () => { ledgerState.active = false; }
+  };
+}
