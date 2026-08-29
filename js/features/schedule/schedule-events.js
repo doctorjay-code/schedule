@@ -110,7 +110,6 @@ export function initializeScheduleApp() {
   state.currentWeekIndex = getTodayWeekIndex();
   loadWeekData(state.currentWeekIndex);
   initEvents();
-  initAverageBalanceModal();
   initNetworkStatusListener();
   updateSummaryCounts();
   registerColorUpdateCallback(() => {

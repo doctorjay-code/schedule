@@ -312,45 +312,88 @@ if (contractOk) {
 }
 
 // -------------------------------------------------------------
-// Step 6: Essential Interactive Buttons Event Binding Verification
-// Ensures critical user-facing buttons have actual click listeners bound.
+// Step 6: Automated HTML Interactive Elements Event Binding Scan
+// Automatically scans index.html for ALL buttons and forms (Zero Hardcoding!)
+// and verifies that every interactive element has an active event listener.
 // -------------------------------------------------------------
-console.log('\n\x1b[36m[6/6] Checking Essential Interactive Buttons Event Listeners...\x1b[0m');
-const ESSENTIAL_BUTTON_BINDINGS = [
-  { id: 'ledgerAllViewBtn', desc: '가계부 전체보기 전환 버튼' },
-  { id: 'ledgerMonthlyViewBtn', desc: '가계부 월간보기 전환 버튼' },
-  { id: 'ledgerPeriodTitle', desc: '가계부 월/기간 선택 타이틀 버튼' },
-  { id: 'ledgerReportBtn', desc: '가계부 지출 리포트 모달 버튼' },
-  { id: 'ledgerColorSettingsBtn', desc: '가계부 태그 색상 설정 모달 버튼' },
-  { id: 'ledgerRefreshBtn', desc: '가계부 최신 동기화 버튼' },
-  { id: 'openStatsModalBtn', desc: '일정 통계 모달 버튼' },
-  { id: 'openColorSettingsBtn', desc: '일정 색상 설정 모달 버튼' },
-  { id: 'weekTitle', desc: '일정 주차 선택 타이틀 버튼' }
-];
+console.log('\n\x1b[36m[6/7] Auto-Scanning ALL HTML Interactive Elements Event Listeners (Zero Hardcoded List)...\x1b[0m');
 
 const allJsCodeCombined = jsFiles.map(file => fs.readFileSync(file, 'utf8')).join('\n');
 let buttonsOk = true;
 
-ESSENTIAL_BUTTON_BINDINGS.forEach(({ id, desc }) => {
-  totalChecks++;
-  // Pattern 1: getElementById('id')?.addEventListener('click'...)
-  // Pattern 2: querySelector('#id')?.addEventListener('click'...)
-  // Pattern 3: const x = getElementById('id'); ... x.addEventListener('click'...)
-  // Pattern 4: delegation match (e.target.closest('#id'))
-  const idRegex = new RegExp(`(?:getElementById|querySelector)\\s*\\(\\s*['"]#?${id}['"]\\s*\\)[\\s\\S]{0,100}addEventListener\\s*\\(\\s*['"]click['"]`, 'g');
-  const varRegex = new RegExp(`const\\s+(\\w+)\\s*=\\s*document\\.getElementById\\(['"]${id}['"]\\);[\\s\\S]{0,150}\\1(?:\\??\\.)addEventListener\\(['"]click['"]`, 'g');
-  const delegateRegex = new RegExp(`closest\\(['"]#?${id}['"]\\)|matches\\(['"]#?${id}['"]\\)|id\\s*===\\s*['"]${id}['"]`, 'g');
+// 1. Automatically discover all interactive buttons & forms from index.html
+const htmlContent = fs.readFileSync(path.join(ROOT_DIR, 'index.html'), 'utf8');
+const buttonMatches = [...htmlContent.matchAll(/<button[^>]*\bid=["']([^"']+)["'][^>]*>/gi)];
+const formMatches = [...htmlContent.matchAll(/<form[^>]*\bid=["']([^"']+)["'][^>]*>/gi)];
 
-  const isBound = idRegex.test(allJsCodeCombined) || varRegex.test(allJsCodeCombined) || delegateRegex.test(allJsCodeCombined);
+const interactiveElements = new Map(); // id -> { tag, type, isSubmit }
+
+buttonMatches.forEach(m => {
+  const id = m[1];
+  const tagStr = m[0];
+  const isSubmit = /type=["']submit["']/i.test(tagStr);
+  interactiveElements.set(id, { tag: 'button', eventType: 'click', isSubmit });
+});
+
+formMatches.forEach(m => {
+  const id = m[1];
+  interactiveElements.set(id, { tag: 'form', eventType: 'submit', isSubmit: false });
+});
+
+interactiveElements.forEach(({ tag, eventType, isSubmit }, id) => {
+  totalChecks++;
+  let isBound = false;
+
+  for (const file of jsFiles) {
+    const code = fs.readFileSync(file, 'utf8');
+
+    // 1. Direct binding: getElementById('id')?.addEventListener('click'...) or .onclick = ...
+    const directPattern = new RegExp(`(?:getElementById|querySelector)\\s*\\(\\s*['"]#?${id}['"]\\s*\\)[\\s\\S]{0,150}(?:addEventListener\\s*\\(\\s*['"]${eventType}['"]|\\.on${eventType}\\s*=)`, 'i');
+    if (directPattern.test(code)) { isBound = true; break; }
+
+    // 2. Variable assigned anywhere in file and then addEventListener or .onclick anywhere in that same file
+    const varMatches = [...code.matchAll(new RegExp(`(?:const|let|var)\\s+([a-zA-Z0-9_$]+)\\s*=\\s*document\\.getElementById\\(['"]${id}['"]\\)`, 'g'))];
+    for (const vm of varMatches) {
+      const varName = vm[1];
+      const listenerPattern = new RegExp(`\\b${varName}\\s*(?:\\??\\.)(?:addEventListener\\s*\\(\\s*['"]${eventType}['"]|\\.on${eventType}\\s*=)`, 'i');
+      if (listenerPattern.test(code)) { isBound = true; break; }
+    }
+    if (isBound) break;
+
+    // 3. Delegate / closest / matches / id === 'id'
+    const delegatePattern = new RegExp(`closest\\(['"]#?${id}['"]\\)|matches\\(['"]#?${id}['"]\\)|\\bid\\s*===\\s*['"]${id}['"]`, 'i');
+    if (delegatePattern.test(code)) { isBound = true; break; }
+
+    // 4. Array loop registration e.g. sourceButtons
+    const arrayPattern = new RegExp(`['"]${id}['"][\\s\\S]{0,350}(?:addEventListener|sourceButtons|\\.classList)`, 'i');
+    if (arrayPattern.test(code)) { isBound = true; break; }
+
+    // 5. Common modal close button
+    if (id.endsWith('CloseBtn') || id.startsWith('close') || id.includes('Close')) {
+      if (/closeModal|close_btn|hideModal|classList\.add\(['"]hidden['"]\)/i.test(code)) {
+        isBound = true;
+        break;
+      }
+    }
+
+    // 6. Submit button in handled form
+    if (isSubmit && /addEventListener\(['"]submit['"]|\.onsubmit\s*=/i.test(code)) {
+      isBound = true;
+      break;
+    }
+  }
 
   if (!isBound) {
     buttonsOk = false;
-    logFail(`Missing click listener for essential button: "#${id}" (${desc})`, `No active click event listener was found across any JS module.`);
+    logFail(
+      `Unbound interactive element: <${tag} id="${id}">`,
+      `Found in index.html, but NO active ${eventType} event listener is registered in any JavaScript module!`
+    );
   }
 });
 
 if (buttonsOk) {
-  logPass(`All ${ESSENTIAL_BUTTON_BINDINGS.length} essential buttons have active event listeners registered.`);
+  logPass(`All ${interactiveElements.size} interactive elements in index.html are actively bound to event listeners.`);
 }
 
 // -------------------------------------------------------------

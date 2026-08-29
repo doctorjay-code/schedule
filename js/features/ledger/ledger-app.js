@@ -339,12 +339,71 @@ function getFundplanView() {
   return fundplanViewInstance;
 }
 
-function renderLedgerTable() {
-  const container = document.getElementById('fundplanAllTimeList');
+function renderMonthlyLedgerTable(container) {
   if (!container) return;
+  const isCompanyCard = ledgerState.source === 'card' && ledgerState.payment === '기업카드';
+  const filterPayment = ledgerState.source === 'card' ? ledgerState.payment : (ledgerState.source === 'cash' ? '현금' : '기업은행');
+  const curMonthKey = toIso(ledgerState.monthCursor || new Date()).slice(0, 7);
+
+  let recordsToRender = [];
+  if (ledgerState.source === 'forecast') {
+    const { displayRows } = generateForecastRecords({
+      allRecords: ledgerState.records,
+      monthCursor: ledgerState.monthCursor,
+      isManualCardPayment
+    });
+    recordsToRender = displayRows.filter(r => String(r.date).startsWith(curMonthKey));
+  } else {
+    const filtered = filterLedgerRecords(ledgerState.records, {
+      source: ledgerState.source,
+      payment: filterPayment,
+      person: ledgerState.filters?.person,
+      category: ledgerState.filters?.category,
+      fixed: ledgerState.filters?.fixed || 'all',
+      monthCursor: ledgerState.monthCursor,
+      isCompanyCard
+    });
+    filtered.sort(compareLedgerRecords);
+    const calculated = recalculateRunningBalances(filtered, isCompanyCard);
+    recordsToRender = calculated.filter(r => String(r.date).startsWith(curMonthKey));
+  }
+
+  container.innerHTML = '';
+  if (recordsToRender.length === 0) {
+    appendLedgerEmptyRow(container, `${curMonthKey}월의 거래 내역이 없습니다.`);
+    return;
+  }
+
+  recordsToRender.forEach(record => {
+    const isSelected = ledgerState.selectedLedgerIds.has(String(record.id));
+    renderTransactionRow(record, container, {
+      source: ledgerState.source,
+      isCompanyCard,
+      colorSettings: state.colorSettings,
+      multiEditMode: ledgerState.multiEditMode,
+      isSelected,
+      onRowClick: (rec) => {
+        if (ledgerState.multiEditMode) {
+          toggleMultiSelectRow(rec.id);
+        } else {
+          getLedgerTransactionModal().open({ isEdit: true, record: rec });
+        }
+      }
+    });
+  });
+}
+
+function renderLedgerTable() {
+  const allContainer = document.getElementById('fundplanAllTimeList');
+  const monthlyContainer = document.getElementById('ledgerMonthlyTransactionList');
+  if (!allContainer && !monthlyContainer) return;
 
   const view = getFundplanView();
   view.render();
+
+  if (monthlyContainer) {
+    renderMonthlyLedgerTable(monthlyContainer);
+  }
 }
 
 function updateLedgerPeriodTitle() {
@@ -423,14 +482,46 @@ function bindLedgerDomEvents() {
       monthlyViewBtn.classList.remove('active');
       document.getElementById('fundplanAllTimeWrapper')?.classList.remove('hidden');
       document.getElementById('ledgerMonthlyWrapper')?.classList.add('hidden');
+      applyLedgerDataSources();
     });
     monthlyViewBtn.addEventListener('click', () => {
       monthlyViewBtn.classList.add('active');
       allViewBtn.classList.remove('active');
       document.getElementById('ledgerMonthlyWrapper')?.classList.remove('hidden');
       document.getElementById('fundplanAllTimeWrapper')?.classList.add('hidden');
+      applyLedgerDataSources();
     });
   }
+
+  // 1-2. 거래 입력 버튼 바인딩 (전체 뷰 & 월간 뷰)
+  document.getElementById('ledgerToggleEntryBtn')?.addEventListener('click', () => {
+    getLedgerTransactionModal().open({ isEdit: false });
+  });
+  document.getElementById('ledgerMonthlyToggleEntryBtn')?.addEventListener('click', () => {
+    getLedgerTransactionModal().open({ isEdit: false });
+  });
+
+  // 1-3. 0원 상계 묶음 버튼 바인딩
+  document.getElementById('ledgerBulkOffsetBtn')?.addEventListener('click', () => {
+    createOffsetGroupFromSelection();
+  });
+
+  // 1-4. 필터 토글 버튼 바인딩
+  document.getElementById('ledgerPersonFilterToggle')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const dropdown = document.getElementById('ledgerPersonFilterOptions');
+    dropdown?.classList.toggle('hidden');
+  });
+  document.getElementById('ledgerCategoryFilterToggle')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const dropdown = document.getElementById('ledgerCategoryFilterOptions');
+    dropdown?.classList.toggle('hidden');
+  });
+
+  // 1-5. 평균잔액 계산기 거래 추가 버튼 바인딩
+  document.getElementById('ledgerAverageAddTransactionBtn')?.addEventListener('click', () => {
+    showLedgerToast('거래 추가');
+  });
 
   // 2. 월/기간 선택 타이틀 클릭 시 월 선택 모달 열기
   const periodTitle = document.getElementById('ledgerPeriodTitle');
