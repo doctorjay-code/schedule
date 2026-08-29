@@ -1,3 +1,5 @@
+// Authenticated schedule ledger feature coordinator.
+// Pure calculation helpers and table utilities are extracted into separate modules.
 import { state, pastelPalette, saveColorSettings, defaultColorSettings } from '../../services/schedule/schedule-store.js';
 import { registerColorUpdateCallback } from '../../services/schedule/schedule-api.js';
 import { switchViewModeUI } from '../schedule/render.js';
@@ -19,57 +21,97 @@ import { showLedgerToast, findLedgerRecordById, executeLedgerCopy, executeLedger
 import { generateForecastRecords, loadForecastOrderMap, saveForecastOrderMap, syncForecastOrdersFromDB, isManualCardPayment, saveForecastAggregateOverride, loadForecastAggregateOverrides, syncForecastAggregateOverridesFromDB } from './ledger-forecast.js';
 import { createOffsetGroupFromRecords, syncOffsetGroupsFromDB, loadOffsetGroups, createOffsetGroupRow, deleteOffsetGroup } from './ledger-offset-groups.js';
 
-let ledgerState = {
-  active: false,
-  source: 'card', // 'card' | 'bank' | 'cash' | 'forecast'
-  payment: '토스은행',
-  monthCursor: new Date(),
-  records: [],
-  recordsLoaded: false,
+const ledgerDataSources = {
+  card: [],
+  cash: [],
+  bank: [],
+  forecast: []
+};
+let fallbackBankRecords = [];
+let ledgerSheetCounts = null;
+let ledgerLiveConnected = false;
+let ledgerSnapshotFetchedAt = null;
+let ledgerDataState = 'loading';
+const LEDGER_SHEET_SNAPSHOT_KEY = 'schedule_ledger_snapshot_v3';
+try {
+  localStorage.removeItem('schedule_ledger_last_sheet_snapshot_v1');
+} catch {}
+const ledgerSyncMessages = {
+  loading: '가계부 불러오는 중',
+  saved: '최신 내역 반영',
+  cached: '오프라인 캐시본 표시 중',
+  offline: '인터넷 연결 확인 필요',
+  error: '가계부 불러오기 실패'
+};
+function setLedgerSyncStatus(status, detail = '') {
+  const element = document.getElementById('ledgerSyncBtn');
+  if (!element) return;
+  element.dataset.state = status;
+  element.textContent = detail || ledgerSyncMessages[status] || ledgerSyncMessages.saved;
+  element.title = element.textContent;
+}
+const LEDGER_SHEET_BY_PAYMENT = {
+  '\uAE30\uC5C5\uCE74\uB4DC': '\uAE30\uC5C5\uCE74\uB4DC',
+  '\uD1A0\uC2A4\uC740\uD589': '\uD1A0\uC2A4\uC740\uD589',
+  '\uD1A0\uC2A4\uCE74\uB4DC': '\uD1A0\uC2A4\uC740\uD589',
+  '\uD604\uAE08': '\uD604\uAE08',
+  '\uAE30\uC5C5\uC740\uD589': '\uAE30\uC5C5\uC740\uD589'
+};
+const ledgerState = {
+  source: 'card',
+  period: 'weekly',
+  payment: '\uD1A0\uC2A4\uC740\uD589',
+  filters: {
+    person: new Set(),
+    category: new Set(),
+    fixed: 'all'
+  },
+  filterType: 'all',
+  filterValue: 'all',
+  filterValues: new Set(),
+  showOffsetGroups: false,
   multiEditMode: false,
   selectedLedgerIds: new Set(),
   copiedRecords: []
 };
 
-let ledgerTransactionModal = null;
-let ledgerColorSettings = null;
-let cachedForecastAggregateRows = []; // Keep cache for click finding
-let isSavingForecastOrders = false; // Prevent concurrent drag saves
-
-function ledgerSheetNameForRecord(record = {}) {
-  if (record.sheetName) return record.sheetName;
-  if (record.payment) return record.payment;
-  return ledgerState.payment || '토스은행';
-}
-
 function getSelectedLedgerIds() {
   return ledgerState.selectedLedgerIds;
 }
 
-function getLedgerTransactionModal() {
-  if (!ledgerTransactionModal) {
-    ledgerTransactionModal = createLedgerTransactionModal({
-      state,
-      pastelPalette,
-      saveRecord: saveLedgerRecord,
-      deleteRecord: deleteRecord,
-      getCategorySuggestions: () => getLedgerCategoryNames()
-    });
+function updateMultiActionBar() {
+  const bar = document.getElementById('multiActionBar');
+  const label = document.getElementById('selectedCountLabel');
+  const toggleBtn = document.getElementById('ledgerToggleMultiEditBtn');
+  const count = ledgerState.selectedLedgerIds.size;
+  if (toggleBtn) {
+    toggleBtn.style.background = ledgerState.multiEditMode ? '#4F46E5' : '';
+    toggleBtn.style.color = ledgerState.multiEditMode ? '#FFFFFF' : '#4F46E5';
   }
-  return ledgerTransactionModal;
+  if (!bar) return;
+  if (ledgerState.multiEditMode && count > 0) {
+    bar.classList.remove('hidden');
+    if (label) label.textContent = `${count}개 선택됨`;
+  } else {
+    bar.classList.add('hidden');
+  }
 }
 
-function getLedgerColorSettings() {
-  if (!ledgerColorSettings) {
-    ledgerColorSettings = createLedgerColorSettings({
-      state,
-      pastelPalette,
-      defaultColorSettings,
-      saveColorSettings,
-      renderLedgerViews: applyLedgerDataSources
-    });
+function updateCopyBufferBar() {
+  const copyBar = document.getElementById('copyBufferBar');
+  const copiedItemLabel = document.getElementById('copiedItemLabel');
+  if (!copyBar || !copiedItemLabel) return;
+  const count = ledgerState.copiedRecords ? ledgerState.copiedRecords.length : 0;
+  if (count > 0) {
+    copyBar.classList.remove('hidden');
+    const first = ledgerState.copiedRecords[0];
+    const preview = count === 1
+      ? `${first.item || '항목'} (${formatMoney(first.amount)}원)`
+      : `${first.item || '항목'} 외 ${count - 1}건`;
+    copiedItemLabel.textContent = preview;
+  } else {
+    copyBar.classList.add('hidden');
   }
-  return ledgerColorSettings;
 }
 
 function setMultiEditMode(enabled) {
@@ -78,253 +120,101 @@ function setMultiEditMode(enabled) {
     ledgerState.selectedLedgerIds.clear();
   }
   updateMultiActionBar();
-  applyLedgerDataSources();
+  renderActiveLedgerPeriod();
 }
 
 function toggleMultiSelectRow(recordId) {
   if (!ledgerState.multiEditMode) return;
   const sId = String(recordId || '');
   if (!sId) return;
-
   if (ledgerState.selectedLedgerIds.has(sId)) {
     ledgerState.selectedLedgerIds.delete(sId);
   } else {
     ledgerState.selectedLedgerIds.add(sId);
   }
   updateMultiActionBar();
-  applyLedgerDataSources();
+  renderActiveLedgerPeriod();
 }
 
-function updateMultiActionBar() {
-  const multiActionBar = document.getElementById('multiActionBar');
-  const selectedCountLabel = document.getElementById('selectedCountLabel');
-  const toggleBtn = document.getElementById('toggleMultiEditBtn');
-  const isMulti = ledgerState.multiEditMode;
-
-  if (toggleBtn) {
-    if (isMulti) {
-      toggleBtn.classList.add('active');
-      toggleBtn.textContent = '✕ 선택취소';
-    } else {
-      toggleBtn.classList.remove('active');
-      toggleBtn.textContent = '☑️ 다중선택';
-    }
-  }
-
-  if (!multiActionBar) return;
-
-  if (isMulti) {
-    multiActionBar.classList.remove('hidden');
-    if (selectedCountLabel) {
-      selectedCountLabel.textContent = `${ledgerState.selectedLedgerIds.size}개 선택됨`;
-    }
-  } else {
-    multiActionBar.classList.add('hidden');
+function loadLedgerSheetSnapshot() {
+  try {
+    const raw = localStorage.getItem(LEDGER_SHEET_SNAPSHOT_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return;
+    if (Array.isArray(parsed.card)) ledgerDataSources.card = parsed.card;
+    if (Array.isArray(parsed.cash)) ledgerDataSources.cash = parsed.cash;
+    if (Array.isArray(parsed.bank)) ledgerDataSources.bank = parsed.bank;
+    if (Array.isArray(parsed.fallbackBank)) fallbackBankRecords = parsed.fallbackBank;
+    if (parsed.sheetCounts && typeof parsed.sheetCounts === 'object') ledgerSheetCounts = parsed.sheetCounts;
+    ledgerSnapshotFetchedAt = parsed.fetchedAt || null;
+    ledgerDataState = 'cached';
+    setLedgerSyncStatus('cached');
+  } catch (err) {
+    console.warn('Failed to load ledger snapshot:', err);
   }
 }
 
-function updateCopyBufferBar() {
-  const copyBar = document.getElementById('copyBufferBar');
-  const copiedItemLabel = document.getElementById('copiedItemLabel');
-  if (!copyBar || !copiedItemLabel) return;
-
-  const count = ledgerState.copiedRecords ? ledgerState.copiedRecords.length : 0;
-  if (count > 0) {
-    copyBar.classList.remove('hidden');
-    const firstItem = ledgerState.copiedRecords[0];
-    const previewText = count === 1
-      ? `${firstItem.item || '항목'} (${formatMoney(firstItem.amount)}원)`
-      : `${firstItem.item || '항목'} 외 ${count - 1}건`;
-    copiedItemLabel.textContent = previewText;
-  } else {
-    copyBar.classList.add('hidden');
+function saveLedgerSheetSnapshot() {
+  try {
+    const payload = {
+      card: ledgerDataSources.card || [],
+      cash: ledgerDataSources.cash || [],
+      bank: ledgerDataSources.bank || [],
+      fallbackBank: fallbackBankRecords || [],
+      sheetCounts: ledgerSheetCounts || null,
+      fetchedAt: ledgerSnapshotFetchedAt || new Date().toISOString()
+    };
+    localStorage.setItem(LEDGER_SHEET_SNAPSHOT_KEY, JSON.stringify(payload));
+  } catch (err) {
+    console.warn('Failed to save ledger snapshot:', err);
   }
 }
 
-function showLedgerViewTab() {
-  showLedgerView({
-    onShow: () => {
-      ledgerState.active = true;
-      initLedgerApp();
-    }
-  });
-}
-
-function showScheduleViewTab() {
-  showScheduleView({
-    onShow: () => {
-      ledgerState.active = false;
-    }
-  });
-}
-
-function findLedgerTransaction(id) {
-  const sId = String(id || '');
-  return ledgerState.records.find(item => String(item.id) === sId) || null;
-}
-
-function applyOptimisticSave(record) {
-  const sId = String(record.id || '');
-  const existingIdx = ledgerState.records.findIndex(item => String(item.id) === sId);
-  if (existingIdx >= 0) {
-    ledgerState.records[existingIdx] = { ...record, updatedAt: Date.now() };
-  } else {
-    ledgerState.records.push({
-      ...record,
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    });
-  }
-  applyLedgerDataSources();
-}
-
-function applyOptimisticDelete(record) {
-  const sId = String(record.id || '');
-  ledgerState.records = ledgerState.records.filter(item => String(item.id) !== sId);
-  if (ledgerState.selectedLedgerIds.has(sId)) {
-    ledgerState.selectedLedgerIds.delete(sId);
-  }
-  applyLedgerDataSources();
-}
-
-function saveLedgerRecord(form, overrides = {}) {
-  const values = { ...Object.fromEntries(new FormData(form).entries()), ...overrides };
-  const rawAmountStr = String(values.amount || '').replace(/[^\d]/g, '');
-  const amount = rawAmountStr === '' ? 0 : Number(rawAmountStr);
-  if (!values.date || !values.item?.trim() || !Number.isFinite(amount) || amount < 0) return;
-
-  const isEdit = Boolean(values.ledgerEditId);
-  const existing = ledgerState.records.find(record => record.id === values.ledgerEditId);
-  
-  // 스마트 사용자 추출 & 비고 중복 방지 (기본값: '기타')
-  const rawMemo = String(values.memo || '').trim();
-  const personMatch = rawMemo.match(/콩콩|쥬쥬|지니/);
-  let finalPerson = String(values.person || (personMatch ? personMatch[0] : '기타')).trim();
-  if (!finalPerson) finalPerson = '기타';
-
-  const cleanedDetail = rawMemo.replace(/콩콩|쥬쥬|지니/g, '').trim().replace(/\s{2,}/g, ' ');
-  const finalMemo = (finalPerson && finalPerson !== '기타') ? [finalPerson, cleanedDetail].filter(Boolean).join(' ') : cleanedDetail;
-
-  const editId = String(values.ledgerEditId || '');
-  const isAggregateEdit = editId.startsWith('fc-est-card-') || editId.startsWith('fc-var-toss-');
-  if (isAggregateEdit) {
-    const aggregatePerson = (!values.person || values.person === '기타') && !personMatch ? '' : finalPerson;
-    saveForecastAggregateOverride(editId, {
-      date: values.date,
-      item: values.item.trim(),
-      person: aggregatePerson,
-      category: values.category || '',
-      fixedCost: values.fixedCost === '고정비' ? values.fixedCost : '',
-      memo: aggregatePerson ? finalMemo : rawMemo
-    });
-    getLedgerTransactionModal().close();
-    showLedgerToast('✏️ 결제 정보가 저장되었습니다.');
-    applyLedgerDataSources();
-    return;
-  }
-
-  const payment = values.payment || ledgerState.payment || '토스은행';
-  const record = {
-    ...(existing || {}),
-    id: values.ledgerEditId || existing?.id || generateLedgerId(values.date, existing?.orderIndex ?? 0),
-    date: values.date,
-    type: values.type,
-    amount,
-    payment,
-    item: values.item.trim(),
-    person: finalPerson,
-    category: values.category || '',
-    fixedCost: values.fixedCost === '고정비' ? values.fixedCost : '',
-    memo: finalMemo,
-    createdAt: existing?.createdAt ?? Date.now()
-  };
-  record.sheetName = ledgerSheetNameForRecord(record);
-
-  applyOptimisticSave(record);
-  getLedgerTransactionModal().close();
-  showLedgerToast(isEdit ? '✏️ 거래가 수정되었습니다.' : '＋ 거래가 등록되었습니다.');
-
-  upsertLedgerRecord(record).then(res => {
-    if (res && res.id && record.id !== res.id) {
-      record.id = res.id;
-    }
-  }).catch(error => {
-    console.error('Supabase ledger save error:', error);
-    showLedgerToast('⚠️ 저장 지연 중 (로컬 반영 완료)');
-  });
-}
-
-function deleteRecord(id) {
-  const record = findLedgerTransaction(id);
-  if (!record) {
-    showLedgerToast('⚠️ 삭제할 거래 정보를 찾을 수 없습니다.');
-    return;
-  }
-  if (!confirm('이 거래를 삭제할까요?')) return;
-
-  const deletePayload = {
-    ...record,
-    sheetName: ledgerSheetNameForRecord(record)
-  };
-
-  applyOptimisticDelete(record);
-  getLedgerTransactionModal().close();
-  showLedgerToast('🗑️ 거래가 삭제되었습니다.');
-
-  if (deletePayload.id) {
-    deleteLedgerRecord(deletePayload).catch(error => {
-      console.error('Supabase ledger delete error:', error);
-    });
+async function refreshLedgerSheetData() {
+  setLedgerSyncStatus('loading');
+  try {
+    const res = await fetchLedgerData();
+    const rows = res.records || [];
+    ledgerDataSources.card = rows.filter(r => r.payment === '기업카드' || r.payment === '토스은행');
+    ledgerDataSources.cash = rows.filter(r => r.payment === '현금');
+    ledgerDataSources.bank = rows.filter(r => r.payment === '기업은행');
+    ledgerDataState = 'saved';
+    ledgerSnapshotFetchedAt = new Date().toISOString();
+    saveLedgerSheetSnapshot();
+    setLedgerSyncStatus('saved');
+    renderActiveLedgerPeriod();
+  } catch (err) {
+    console.error('Ledger refresh error:', err);
+    ledgerDataState = 'offline';
+    setLedgerSyncStatus('offline');
   }
 }
 
-function toggleLedgerEntry() {
-  const modal = getLedgerTransactionModal();
-  modal.open({
-    isEdit: false,
-    defaultPayment: ledgerState.payment || '토스은행'
-  });
-}
-
-function getLedgerCategoryNames() {
-  const defaults = ['식비', '교통', '문화', '생활', '보험', '상환', '이체', '월급', '저축', '이자', '용돈', '입금', '출금', '기타'];
-  const userCats = Object.keys(state.colorSettings?.ledgerCategoryColors || {});
-  return Array.from(new Set([...defaults, ...userCats]));
-}
-
-function renderLedgerTable() {
+function renderActiveLedgerPeriod() {
   const container = document.getElementById('fundplanAllTimeList');
   if (!container) return;
+  const isForecast = ledgerState.source === 'forecast';
+  const records = isForecast
+    ? generateForecastRecords({ allRecords: getAllRecordsList(), isManualCardPayment }).displayRows
+    : (ledgerDataSources[ledgerState.source] || []).filter(r => {
+        if (ledgerState.source === 'card') return r.payment === ledgerState.payment;
+        return true;
+      });
 
-  if (ledgerState.source === 'forecast') {
-    renderForecastTable(container);
-    return;
-  }
-
-  const isCompanyCard = ledgerState.source === 'card' && ledgerState.payment === '기업카드';
-  const filterPayment = ledgerState.source === 'card' ? ledgerState.payment : (ledgerState.source === 'cash' ? '현금' : '기업은행');
-
-  const filtered = filterLedgerRecords(ledgerState.records, {
-    source: ledgerState.source,
-    payment: filterPayment,
-    monthCursor: ledgerState.monthCursor,
-    isCompanyCard
-  });
-
-  filtered.sort(compareLedgerRecords);
-
-  const calculated = recalculateRunningBalances(filtered, isCompanyCard);
+  records.sort(compareLedgerRecords);
+  const calculated = recalculateRunningBalances(records, ledgerState.source === 'card' && ledgerState.payment === '기업카드');
 
   container.innerHTML = '';
   if (calculated.length === 0) {
-    appendLedgerEmptyRow(container, '해당 월의 거래 내역이 없습니다.');
+    appendLedgerEmptyRow(container, '거래 내역이 없습니다.');
     return;
   }
 
   calculated.forEach(record => {
     const isSelected = ledgerState.selectedLedgerIds.has(String(record.id));
     const tr = renderTransactionRow(record, {
-      isCompanyCard,
+      isCompanyCard: ledgerState.payment === '기업카드',
       colorSettings: state.colorSettings,
       multiEditMode: ledgerState.multiEditMode,
       isSelected,
@@ -340,107 +230,94 @@ function renderLedgerTable() {
   });
 }
 
-function renderForecastTable(container) {
-  const { displayRows } = generateForecastRecords({
-    allRecords: ledgerState.records,
-    monthCursor: ledgerState.monthCursor,
-    isManualCardPayment
-  });
-
-  cachedForecastAggregateRows = displayRows;
-
-  createFundplanView({
-    container,
-    rows: displayRows,
-    colorSettings: state.colorSettings,
-    multiEditMode: ledgerState.multiEditMode,
-    selectedIds: ledgerState.selectedLedgerIds,
-    onRowClick: (row) => {
-      if (ledgerState.multiEditMode) {
-        toggleMultiSelectRow(row.id);
-      } else {
-        const modal = getLedgerTransactionModal();
-        modal.open({
-          isEdit: true,
-          record: {
-            id: row.id,
-            date: row.date,
-            type: row.type || 'expense',
-            amount: row.amount,
-            payment: row.payment || '토스은행',
-            item: row.item,
-            person: row.person || '기타',
-            category: row.category || '',
-            fixedCost: row.fixedCost || '',
-            memo: row.memo || ''
-          }
-        });
-      }
-    },
-    onReorder: async (orderedIds) => {
-      if (isSavingForecastOrders) return;
-      isSavingForecastOrders = true;
-      try {
-        saveForecastOrderMap(orderedIds);
-        await saveForecastOrders(orderedIds);
-        showLedgerToast('순서가 저장되었습니다.');
-      } catch (e) {
-        console.error('Error saving forecast orders:', e);
-      } finally {
-        isSavingForecastOrders = false;
-      }
-    }
-  });
+function getAllRecordsList() {
+  return [
+    ...(ledgerDataSources.card || []),
+    ...(ledgerDataSources.cash || []),
+    ...(ledgerDataSources.bank || [])
+  ];
 }
 
-function applyLedgerDataSources() {
-  renderLedgerTable();
-  updateMultiActionBar();
-  updateCopyBufferBar();
-}
-
-function initLedgerApp() {
-  if (!ledgerState.recordsLoaded) {
-    const badge = document.getElementById('ledgerDataBadge');
-    if (badge) badge.textContent = 'DB 로딩 중...';
-
-    fetchLedgerData().then(res => {
-      ledgerState.records = res.records || [];
-      ledgerState.recordsLoaded = true;
-      if (badge) badge.textContent = '최신 거래 반영';
-      applyLedgerDataSources();
-    }).catch(err => {
-      console.error('Ledger data load error:', err);
-      if (badge) badge.textContent = '오프라인';
+let ledgerTransactionModal = null;
+function getLedgerTransactionModal() {
+  if (!ledgerTransactionModal) {
+    ledgerTransactionModal = createLedgerTransactionModal({
+      state,
+      pastelPalette,
+      saveRecord: async (form, overrides) => {
+        const values = { ...Object.fromEntries(new FormData(form).entries()), ...overrides };
+        const rawAmount = String(values.amount || '').replace(/[^\d]/g, '');
+        const amount = rawAmount === '' ? 0 : Number(rawAmount);
+        const record = {
+          id: values.ledgerEditId || generateLedgerId(values.date),
+          date: values.date,
+          type: values.type || 'expense',
+          amount,
+          payment: values.payment || ledgerState.payment || '토스은행',
+          item: values.item.trim(),
+          person: values.person || '기타',
+          category: values.category || '',
+          fixedCost: values.fixedCost === '고정비' ? '고정비' : '',
+          memo: values.memo || ''
+        };
+        await upsertLedgerRecord(record);
+        ledgerTransactionModal.close();
+        await refreshLedgerSheetData();
+      },
+      deleteRecord: async (id) => {
+        if (!confirm('이 거래를 삭제할까요?')) return;
+        await deleteLedgerRecord({ id });
+        ledgerTransactionModal.close();
+        await refreshLedgerSheetData();
+      },
+      getCategorySuggestions: () => ['식비', '교통', '문화', '생활', '보험', '상환', '이체', '월급', '저축', '이자', '용돈', '입금', '출금', '기타']
     });
-
-    syncForecastOrdersFromDB();
-    syncForecastAggregateOverridesFromDB();
-  } else {
-    applyLedgerDataSources();
   }
+  return ledgerTransactionModal;
 }
 
-// Global initialization and Realtime subscription
-document.addEventListener('DOMContentLoaded', () => {
-  const scheduleMenuBtn = document.getElementById('scheduleMenuBtn');
-  const ledgerMenuBtn = document.getElementById('ledgerMenuBtn');
+let ledgerColorSettings = null;
+function getLedgerColorSettings() {
+  if (!ledgerColorSettings) {
+    ledgerColorSettings = createLedgerColorSettings({
+      state,
+      pastelPalette,
+      defaultColorSettings,
+      saveColorSettings,
+      renderLedgerViews: renderActiveLedgerPeriod
+    });
+  }
+  return ledgerColorSettings;
+}
 
-  if (scheduleMenuBtn) scheduleMenuBtn.addEventListener('click', showScheduleViewTab);
-  if (ledgerMenuBtn) ledgerMenuBtn.addEventListener('click', showLedgerViewTab);
+function showLedger() {
+  showLedgerView();
+  renderActiveLedgerPeriod();
+}
 
-  registerColorUpdateCallback(() => {
-    if (ledgerState.active) applyLedgerDataSources();
-  });
+function showSchedule() {
+  showScheduleView();
+  switchViewModeUI(state.currentView);
+}
 
-  registerRealtimeCallbacks({
-    onLedgerChange: () => {
-      fetchLedgerData().then(res => {
-        ledgerState.records = res.records || [];
-        applyLedgerDataSources();
-      });
-    }
-  });
+export function initLedgerView() {
+  try {
+    loadLedgerSheetSnapshot();
+    refreshLedgerSheetData().catch(e => console.warn('refreshLedgerSheetData warn:', e));
+    registerRealtimeCallbacks({
+      onLedgerChange: () => {
+        refreshLedgerSheetData().catch(e => console.warn('Realtime refresh warn:', e));
+      }
+    });
+    registerColorUpdateCallback(() => {
+      renderActiveLedgerPeriod();
+    });
+  } catch (e) {
+    console.warn('initLedgerView data load warn:', e);
+  }
+
+  document.getElementById('scheduleMenuBtn')?.addEventListener('click', showSchedule);
+  document.getElementById('ledgerMenuBtn')?.addEventListener('click', showLedger);
 
   bindLedgerListActions({
     ledgerState,
@@ -449,36 +326,44 @@ document.addEventListener('DOMContentLoaded', () => {
     setMultiEditMode,
     executeCopy: () => executeLedgerCopy({
       selectedLedgerIds: ledgerState.selectedLedgerIds,
-      findRecordFn: (id) => findLedgerRecordById(id, { ledgerState }),
+      findRecordFn: (id) => findLedgerRecordById(id, { ledgerState, ledgerDataSources }),
       setCopiedRecords: (recs) => { ledgerState.copiedRecords = recs; },
       updateCopyBufferBar
     }),
     executeDelete: () => executeLedgerDelete({
       selectedLedgerIds: ledgerState.selectedLedgerIds,
-      findRecordFn: (id) => findLedgerRecordById(id, { ledgerState }),
-      applyOptimisticDelete,
+      findRecordFn: (id) => findLedgerRecordById(id, { ledgerState, ledgerDataSources }),
+      applyOptimisticDelete: (rec) => {
+        ledgerDataSources[ledgerState.source] = (ledgerDataSources[ledgerState.source] || []).filter(r => r.id !== rec.id);
+        renderActiveLedgerPeriod();
+      },
       deleteBatchFn: deleteLedgerRecordsBatch,
       setMultiEditMode
     }),
     executePaste: () => executeLedgerPaste({
       copiedRecords: ledgerState.copiedRecords,
       ledgerState,
-      ledgerSheetNameForRecord,
-      applyOptimisticSave,
+      ledgerSheetNameForRecord: (r) => r.payment || ledgerState.payment || '토스은행',
+      applyOptimisticSave: (rec) => {
+        (ledgerDataSources[ledgerState.source] ||= []).push(rec);
+        renderActiveLedgerPeriod();
+      },
       insertBatchFn: insertLedgerRecordsBatch,
       onComplete: () => {
         setMultiEditMode(false);
-        applyLedgerDataSources();
+        renderActiveLedgerPeriod();
       }
     }),
     onSourceChange: (source, payment) => {
       ledgerState.source = source;
       ledgerState.payment = payment;
-      applyLedgerDataSources();
+      renderActiveLedgerPeriod();
     },
     onMonthChange: (newDate) => {
       ledgerState.monthCursor = newDate;
-      applyLedgerDataSources();
+      renderActiveLedgerPeriod();
     }
   });
-});
+
+  return { enter: showLedger, leave: showSchedule };
+}
