@@ -61,6 +61,7 @@ async function getStatsFeature() {
   if (!statsLoadPromise) {
     statsLoadPromise = import('./modals/stats.js')
       .then(module => {
+        module.setupStatsModalEvents({ bindOpen: false });
         statsFeature = module;
         return module;
       })
@@ -86,6 +87,7 @@ async function getColorFeature() {
   if (!colorLoadPromise) {
     colorLoadPromise = import('./modals/color-settings.js')
       .then(module => {
+        module.setupColorSettingsEvents({ bindOpen: false });
         colorFeature = module;
         return module;
       })
