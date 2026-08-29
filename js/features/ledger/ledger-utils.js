@@ -49,8 +49,17 @@ export function recalculateRunningBalances(items, isCompanyCard = false) {
     });
   }
 
-  // 🏦 일반 계좌 (토스은행 / 현금 / 기업은행):
-  // 첫 행의 시작 잔액(Opening Balance)을 기준으로 삼고, 그 이후 모든 행은 직전 잔액 + (입금 ? amount : -amount)로 100% 직관적 연속 계산!
+  // 🏦 일반 계좌 (토스은행 / 현금 / 기업은행 / 잔액전망):
+  // 1. 목록에서 가장 빠른 시점의 '실제 유효 기초 잔액(Opening Balance)'을 탐색
+  let openingBalance = 0;
+  for (const it of items) {
+    const b = Number(it.balance);
+    if (Number.isFinite(b) && it.balance !== '' && it.balance !== null && b > 0 && !it.isVirtualAggregate) {
+      openingBalance = b;
+      break;
+    }
+  }
+
   let currentBalance = null;
 
   return items.map((item, idx) => {
@@ -59,8 +68,10 @@ export function recalculateRunningBalances(items, isCompanyCard = false) {
 
     if (idx === 0) {
       const rawBal = Number(item.balance);
-      if (Number.isFinite(rawBal) && item.balance !== '' && item.balance !== null) {
+      if (Number.isFinite(rawBal) && item.balance !== '' && item.balance !== null && rawBal > 0 && !item.isVirtualAggregate) {
         currentBalance = rawBal;
+      } else if (openingBalance > 0) {
+        currentBalance = openingBalance + delta;
       } else {
         currentBalance = delta;
       }

@@ -176,12 +176,28 @@ export function generateForecastRecords({
     });
 
     // 2. 가상 행(토스 생활비 지출 & 기업카드 결제대금) 산출
+    // [분류 규칙]: 토스은행 중 '월급', '고정비', '이체' 3종 세트만 개별 독립 행으로 분리, 나머지는 모두 토스 생활비로 집계
     let tossLivingExpenses = 0;
     const tossLivingRecords = [];
+
     tossRecords.forEach(r => {
       const isFixed = r.fixed_cost === '고정비' || r.fixedCost === '고정비';
-      if (!isFixed && (r.type || 'expense').toLowerCase() === 'expense') {
-        tossLivingExpenses += Number(r.amount || 0);
+      const isSalary = (r.category || '').includes('월급') || (r.item || '').includes('월급');
+      const isTransfer = (r.category || '').includes('이체') || (r.item || '').includes('이체');
+      const isStandalone = isFixed || isSalary || isTransfer;
+
+      if (isStandalone) {
+        displayRows.push({
+          ...r,
+          id: r.id,
+          originalId: r.id,
+          isForecastItem: true,
+          sourceSheet: '토스은행'
+        });
+      } else {
+        const amt = Number(r.amount || 0);
+        const isExp = (r.type || 'expense').toLowerCase() === 'expense';
+        tossLivingExpenses += (isExp ? amt : -amt);
         tossLivingRecords.push(r);
       }
     });
@@ -192,40 +208,44 @@ export function generateForecastRecords({
       cardBillingTotal += ((r.type || 'expense').toLowerCase() === 'income' ? -amt : amt);
     });
 
-    // 3-1. 토스은행 고정비 / 수입 레코드
-    tossRecords.forEach(r => {
-      const isFixed = r.fixed_cost === '고정비' || r.fixedCost === '고정비';
-      const isIncome = (r.type || 'expense').toLowerCase() === 'income';
-      if (isFixed || isIncome) {
+    // 3-1. 기업은행 레코드 (실제 카드 결제 출금 거래 포함)
+    let hasRealCardBill = false;
+    bankRecords.forEach(r => {
+      const itemText = String(r.item || '');
+      const memoText = String(r.memo || '');
+      const catText = String(r.category || '');
+      const isCardBill = itemText.includes('기업카드') || itemText.includes('카드대금') || itemText.includes('비씨카드') || itemText.includes('BC카드') || memoText.includes('기업카드') || catText.includes('카드대금');
+
+      if (isCardBill) {
+        hasRealCardBill = true;
         displayRows.push({
           ...r,
-          id: `fc-toss-${r.id}`,
+          id: r.id,
           originalId: r.id,
           isForecastItem: true,
-          sourceSheet: '토스은행'
+          hasCardAccordion: true,
+          subRecords: cardRecordsForBilling,
+          sourceSheet: '기업은행'
+        });
+      } else {
+        displayRows.push({
+          ...r,
+          id: r.id,
+          originalId: r.id,
+          isForecastItem: true,
+          sourceSheet: '기업은행'
         });
       }
     });
 
-    // 3-2. 기업은행 레코드
-    bankRecords.forEach(r => {
-      displayRows.push({
-        ...r,
-        id: `fc-bank-${r.id}`,
-        originalId: r.id,
-        isForecastItem: true,
-        sourceSheet: '기업은행'
-      });
-    });
-
-    // 3-3. 가상 토스 생활비 합산행 (세부 거래 subRecords 연결 및 1일 배치)
+    // 3-2. 가상 토스 생활비 합산행 (세부 거래 subRecords 연결 및 1일 배치)
     const tossVarKey = `fc-var-toss-${targetMonthKey}`;
     const tossVarOverride = aggregateOverrides[tossVarKey] || {};
     displayRows.push({
       id: tossVarKey,
       date: tossVarOverride.date || `${targetMonthKey}-01`,
       type: 'expense',
-      amount: tossVarOverride.amount !== undefined ? Number(tossVarOverride.amount) : tossLivingExpenses,
+      amount: tossVarOverride.amount !== undefined ? Number(tossVarOverride.amount) : Math.max(0, tossLivingExpenses),
       balance: 0,
       payment: '토스은행',
       item: tossVarOverride.item || '토스 생활비 (변동비 합계)',
@@ -239,27 +259,29 @@ export function generateForecastRecords({
       sourceSheet: '토스은행'
     });
 
-    // 3-4. 가상 기업카드 결제대금 합산행 (미래 월 포함 상시 생성 및 세부 거래 subRecords 연결)
-    const cardEstKey = `fc-est-card-${targetMonthKey}`;
-    const cardEstOverride = aggregateOverrides[cardEstKey] || {};
-    displayRows.push({
-      id: cardEstKey,
-      date: cardEstOverride.date || `${targetMonthKey}-23`,
-      type: 'expense',
-      amount: cardEstOverride.amount !== undefined ? Number(cardEstOverride.amount) : Math.max(0, cardBillingTotal),
-      balance: 0,
-      payment: '토스은행',
-      item: cardEstOverride.item || '기업카드 결제대금',
-      person: cardEstOverride.person || '',
-      category: cardEstOverride.category || '카드대금',
-      memo: cardEstOverride.memo || `${cardStartDate.slice(5)} ~ ${cardEndDate.slice(5)} 실사용 합산`,
-      fixedCost: cardEstOverride.fixedCost || '고정비',
-      isAggregate: true,
-      hasCardAccordion: true,
-      isVirtualAggregate: true,
-      subRecords: cardRecordsForBilling,
-      sourceSheet: '기업카드'
-    });
+    // 3-3. 기업카드 결제대금 행: 실제 출금 거래가 없는 미래 월에만 가상행 생성!
+    if (!hasRealCardBill) {
+      const cardEstKey = `fc-est-card-${targetMonthKey}`;
+      const cardEstOverride = aggregateOverrides[cardEstKey] || {};
+      displayRows.push({
+        id: cardEstKey,
+        date: cardEstOverride.date || `${targetMonthKey}-23`,
+        type: 'expense',
+        amount: cardEstOverride.amount !== undefined ? Number(cardEstOverride.amount) : Math.max(0, cardBillingTotal),
+        balance: 0,
+        payment: '토스은행',
+        item: cardEstOverride.item || '기업카드 결제대금',
+        person: cardEstOverride.person || '',
+        category: cardEstOverride.category || '카드대금',
+        memo: cardEstOverride.memo || `${cardStartDate.slice(5)} ~ ${cardEndDate.slice(5)} 실사용 합산`,
+        fixedCost: cardEstOverride.fixedCost || '고정비',
+        isAggregate: true,
+        hasCardAccordion: true,
+        isVirtualAggregate: true,
+        subRecords: cardRecordsForBilling,
+        sourceSheet: '기업카드'
+      });
+    }
   });
 
   // 4. 정렬 순서 적용 (orderMap 기반)
