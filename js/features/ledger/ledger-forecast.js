@@ -177,10 +177,12 @@ export function generateForecastRecords({
 
     // 2. 가상 행(토스 생활비 지출 & 기업카드 결제대금) 산출
     let tossLivingExpenses = 0;
+    const tossLivingRecords = [];
     tossRecords.forEach(r => {
       const isFixed = r.fixed_cost === '고정비' || r.fixedCost === '고정비';
       if (!isFixed && (r.type || 'expense').toLowerCase() === 'expense') {
         tossLivingExpenses += Number(r.amount || 0);
+        tossLivingRecords.push(r);
       }
     });
 
@@ -216,47 +218,48 @@ export function generateForecastRecords({
       });
     });
 
-    // 3-3. 가상 토스 생활비 합산행
+    // 3-3. 가상 토스 생활비 합산행 (세부 거래 subRecords 연결 및 항상 유지)
     const tossVarKey = `fc-var-toss-${targetMonthKey}`;
     const tossVarOverride = aggregateOverrides[tossVarKey] || {};
-    if (tossLivingExpenses > 0 || tossVarOverride.amount !== undefined) {
-      displayRows.push({
-        id: tossVarKey,
-        date: tossVarOverride.date || `${targetMonthKey}-25`,
-        type: 'expense',
-        amount: tossVarOverride.amount !== undefined ? Number(tossVarOverride.amount) : tossLivingExpenses,
-        balance: 0,
-        payment: '토스은행',
-        item: tossVarOverride.item || '토스 생활비 (변동비 합계)',
-        person: tossVarOverride.person || '',
-        category: tossVarOverride.category || '생활',
-        memo: tossVarOverride.memo || '토스 계좌 실시간 변동지출 자동 합산',
-        fixedCost: tossVarOverride.fixedCost || '',
-        isVirtualAggregate: true,
-        sourceSheet: '토스은행'
-      });
-    }
+    displayRows.push({
+      id: tossVarKey,
+      date: tossVarOverride.date || `${targetMonthKey}-25`,
+      type: 'expense',
+      amount: tossVarOverride.amount !== undefined ? Number(tossVarOverride.amount) : tossLivingExpenses,
+      balance: 0,
+      payment: '토스은행',
+      item: tossVarOverride.item || '토스 생활비 (변동비 합계)',
+      person: tossVarOverride.person || '',
+      category: tossVarOverride.category || '생활',
+      memo: tossVarOverride.memo || '토스 계좌 실시간 변동지출 자동 합산',
+      fixedCost: tossVarOverride.fixedCost || '',
+      isAggregate: true,
+      isVirtualAggregate: true,
+      subRecords: tossLivingRecords,
+      sourceSheet: '토스은행'
+    });
 
-    // 3-4. 가상 기업카드 결제대금 합산행
+    // 3-4. 가상 기업카드 결제대금 합산행 (미래 월 포함 상시 생성 및 세부 거래 subRecords 연결)
     const cardEstKey = `fc-est-card-${targetMonthKey}`;
     const cardEstOverride = aggregateOverrides[cardEstKey] || {};
-    if (cardBillingTotal > 0 || cardEstOverride.amount !== undefined) {
-      displayRows.push({
-        id: cardEstKey,
-        date: cardEstOverride.date || `${targetMonthKey}-23`,
-        type: 'expense',
-        amount: cardEstOverride.amount !== undefined ? Number(cardEstOverride.amount) : Math.max(0, cardBillingTotal),
-        balance: 0,
-        payment: '토스은행',
-        item: cardEstOverride.item || '기업카드 결제대금',
-        person: cardEstOverride.person || '',
-        category: cardEstOverride.category || '카드대금',
-        memo: cardEstOverride.memo || `${cardStartDate.slice(5)} ~ ${cardEndDate.slice(5)} 실사용 합산`,
-        fixedCost: cardEstOverride.fixedCost || '고정비',
-        isVirtualAggregate: true,
-        sourceSheet: '기업카드'
-      });
-    }
+    displayRows.push({
+      id: cardEstKey,
+      date: cardEstOverride.date || `${targetMonthKey}-23`,
+      type: 'expense',
+      amount: cardEstOverride.amount !== undefined ? Number(cardEstOverride.amount) : Math.max(0, cardBillingTotal),
+      balance: 0,
+      payment: '토스은행',
+      item: cardEstOverride.item || '기업카드 결제대금',
+      person: cardEstOverride.person || '',
+      category: cardEstOverride.category || '카드대금',
+      memo: cardEstOverride.memo || `${cardStartDate.slice(5)} ~ ${cardEndDate.slice(5)} 실사용 합산`,
+      fixedCost: cardEstOverride.fixedCost || '고정비',
+      isAggregate: true,
+      hasCardAccordion: true,
+      isVirtualAggregate: true,
+      subRecords: cardRecordsForBilling,
+      sourceSheet: '기업카드'
+    });
   });
 
   // 4. 정렬 순서 적용 (orderMap 기반)

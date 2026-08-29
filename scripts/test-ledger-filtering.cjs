@@ -100,6 +100,17 @@ async function runComprehensiveTests() {
   const distinctForecastMonths = new Set(forecastRows.map(r => String(r.date).slice(0, 7)));
   assert.ok(distinctForecastMonths.size >= 2, `잔액전망 다중 월 누락 버그: 단일 월(${Array.from(distinctForecastMonths).join(',')})만 생성됨. 전체 월 범위가 유지되어야 합니다.`);
 
+  // 미래 월(9월, 10월 등)이라도 기업카드 결제대금 행이 항상 생성되는지 검증
+  const monthsWithCardBill = new Set(
+    forecastRows.filter(r => (r.item || '').includes('기업카드 결제대금')).map(r => String(r.date).slice(0, 7))
+  );
+  assert.ok(monthsWithCardBill.has('2026-09') || monthsWithCardBill.has('2026-10'), '미래 월(9월/10월)에 기업카드 결제대금 행 누락 버그');
+
+  // subRecords (인라인 아코디언 세부행) 연결 무결성 검증
+  const cardBillRows = forecastRows.filter(r => (r.item || '').includes('기업카드 결제대금'));
+  assert.ok(cardBillRows.length > 0, '기업카드 결제대금 행이 생성되지 않음');
+  assert.ok(cardBillRows.some(r => Array.isArray(r.subRecords)), '기업카드 결제대금 행에 subRecords 세부내역 배열 누락');
+
   console.log('--- 3. Testing 7-Column Visual Visibility & Styling Contract ---');
   // renderTransactionRow로 렌더링된 행에서 잔액 셀(balanceCell)의 글자색과 정렬이 실제로 지정되어 눈에 보이는지 검증
   const sampleRow = {
