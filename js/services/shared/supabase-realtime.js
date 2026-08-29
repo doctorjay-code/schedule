@@ -31,7 +31,6 @@ export function initSupabaseRealtime() {
           config: {
             postgres_changes: [
               { event: '*', schema: 'public', table: 'ledger_transactions' },
-              { event: '*', schema: 'public', table: 'ledger_balance_forecast' },
               { event: '*', schema: 'public', table: 'schedules' },
               { event: '*', schema: 'public', table: 'schedule_settings' }
             ]
@@ -56,7 +55,7 @@ export function initSupabaseRealtime() {
         if (data.event === 'postgres_changes') {
           const table = data.payload?.data?.table || data.payload?.table;
           console.log('⚡ [Realtime] 실시간 DB 변경 수신:', table);
-          if (table === 'ledger_transactions' || table === 'ledger_balance_forecast') {
+          if (table === 'ledger_transactions') {
             if (ledgerRefreshCallback) {
               if (ledgerDebounceTimer) clearTimeout(ledgerDebounceTimer);
               ledgerDebounceTimer = setTimeout(() => ledgerRefreshCallback(), 100);
