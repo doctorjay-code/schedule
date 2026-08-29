@@ -1,4 +1,3 @@
-import { getVersionedUrl } from '../../version.js';
 import { state, getTodayWeekIndex, loadLastScheduleSnapshot, loadColorSettings, updateSummaryCounts } from '../../services/schedule/schedule-store.js';
 import { syncScheduleFromSupabase, syncScheduleToSupabase, syncColorSettingsFromSupabase, setApiLoadWeekDataCallback, registerColorUpdateCallback } from '../../services/schedule/schedule-api.js';
 import { loadWeekData, renderTable, isCellSelected, renderMonthlyCalendar, switchViewModeUI } from './render.js';
@@ -14,6 +13,7 @@ import { registerRealtimeCallbacks } from '../../services/shared/supabase-realti
 import { executeScheduleCopy, executeSchedulePaste } from './schedule-clipboard.js';
 import { showOfflineBanner, showOnlineBanner, setSyncSpinning } from '../../shared/sync-ui.js';
 import { showScheduleView, showLedgerView, initViewCoordinator } from '../../shared/view-coordinator.js';
+import { getVersionedUrl } from '../../version.js';
 
 // App-core callbacks are registered only after authentication succeeds.
 setApiLoadWeekDataCallback(loadWeekData);
@@ -234,16 +234,15 @@ function initEvents() {
     bulkPasteBtn.addEventListener('click', executeSchedulePaste);
   }
 
-  setupBtnGroupEvents('regionBtnGroup');
-  setupBtnGroupEvents('clinicBtnGroup');
-  setupBtnGroupEvents('transStatusBtnGroup');
-  setupBtnGroupEvents('hrStatusBtnGroup');
-  setupBtnGroupEvents('otStatusBtnGroup');
-  setupToggleEvents();
+  setupBtnGroupEvents('regionBtnGroup', 'customRegionInput');
+  setupBtnGroupEvents('clinicBtnGroup', 'customClinicInput');
+  setupToggleEvents('transStatusToggle');
+  setupToggleEvents('hrStatusToggle');
+  setupToggleEvents('otStatusToggle');
 
-  const modalSaveBtn = document.getElementById('modalSaveBtn');
-  if (modalSaveBtn) {
-    modalSaveBtn.addEventListener('click', () => {
+  const saveScheduleBtn = document.getElementById('saveScheduleBtn') || document.getElementById('modalSaveBtn');
+  if (saveScheduleBtn) {
+    saveScheduleBtn.addEventListener('click', () => {
       saveModalToActiveItem();
       syncScheduleToSupabase();
     });
