@@ -57,9 +57,9 @@ export function createOffsetGroupFromRecords(records) {
   const [y, m, d] = firstDate.split('-').map(Number);
   const groupId = `offset-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-  // ID 정규화 (fc- 접두어 제거하여 원본 DB ID로 일치)
+  // ID 정규화 (originalId 우선 참조 및 fc- 접두어 제거하여 원본 DB ID로 일치)
   const recordIds = records.map(r => {
-    const sId = String(r.id || r.originalId || '');
+    const sId = String(r.originalId || r.id || '');
     return sId.replace(/^fc-(toss|bank)-/, '');
   });
 
@@ -138,7 +138,7 @@ export function createOffsetGroupRow({
   const leftBox = document.createElement('div');
   leftBox.style.display = 'flex';
   leftBox.style.alignItems = 'center';
-  leftBox.style.gap = '6px';
+  leftBox.gap = '6px';
 
   const icon = document.createElement('span');
   icon.className = 'ledger-offset-toggle-icon';

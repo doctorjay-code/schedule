@@ -669,7 +669,11 @@ export async function copyMonthFixedRecordsToNextMonth(sourceMonthKey, ledgerDat
       };
 
       offsetGroups[newGroupId] = newGroup;
-      upsertLedgerOffsetGroup(newGroup).catch(e => console.warn('upsertOffsetGroup warn:', e));
+      try {
+        await upsertLedgerOffsetGroup(newGroup);
+      } catch (e) {
+        console.warn('upsertOffsetGroup warn:', e);
+      }
     }
   }
   saveOffsetGroups(offsetGroups);
