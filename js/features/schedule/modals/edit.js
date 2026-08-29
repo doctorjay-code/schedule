@@ -1,6 +1,6 @@
-import { state, standardTransCategories, standardHrCategories, standardOtCategories } from '../../../services/schedule/schedule-store.js';
+import { state, standardTransCategories, standardHrCategories, standardOtCategories } from '../../../services/schedule/state.js';
 import { bindOptionButtonGroup, setModalOpen, setOptionGroupValue } from '../../../shared/modal-form.js';
-import { syncScheduleToSupabase } from '../../../services/schedule/schedule-api.js';
+import { syncToGoogleSheets } from '../../../services/schedule/api.js';
 
 // ----------------------------------------------------
 // 일정 상세 편집 모달 + 공용 헬퍼 + 공유 렌더 콜백 상태
@@ -233,7 +233,7 @@ export function saveModalToActiveItem() {
   }
   state.activeItem.otDetail = assembleSectionField(otSelectCategory, customOtWrapper, customOtCategoryInput, otDetailInput);
 
-  syncScheduleToSupabase();
+  syncToGoogleSheets();
 }
 
 export function setupBtnGroupEvents(groupElem, customInputElem) {

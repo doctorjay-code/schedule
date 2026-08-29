@@ -23,7 +23,7 @@ function prefetchInBackground() {
   if (!prefetchPromise) {
     prefetchPromise = import(getVersionedUrl('./app.js')).catch(err => {
       console.warn('Background prefetch notice:', err);
-      return null;
+      prefetchPromise = null;
     });
   }
 }
@@ -31,28 +31,23 @@ function prefetchInBackground() {
 async function loadAuthenticatedApp() {
   if (appLoadPromise) return appLoadPromise;
 
-  appLoadPromise = (async () => {
-    let module = null;
-    if (prefetchPromise) {
-      module = await prefetchPromise;
-    }
-    if (!module) {
-      module = await import(getVersionedUrl('./app.js'));
-    }
-    const res = module.initializeAppLogic();
-    try {
-      const { initSupabaseRealtime } = await import(getVersionedUrl('./services/shared/supabase-realtime.js'));
-      initSupabaseRealtime();
-    } catch (err) {
-      console.warn('Realtime init skipped:', err);
-    }
-    return res;
-  })().catch(error => {
-    console.error('Authenticated application module failed:', error);
-    appLoadPromise = null;
-    showAppLoadError();
-  });
-
+  const targetPromise = prefetchPromise || import(getVersionedUrl('./app.js'));
+  appLoadPromise = targetPromise
+    .then(async module => {
+      const res = module.initializeAppLogic();
+      try {
+        const { initSupabaseRealtime } = await import(getVersionedUrl('./services/shared/supabase-realtime.js'));
+        initSupabaseRealtime();
+      } catch (err) {
+        console.warn('Realtime init skipped:', err);
+      }
+      return res;
+    })
+    .catch(error => {
+      console.error('Authenticated application module failed:', error);
+      appLoadPromise = null;
+      showAppLoadError();
+    });
   return appLoadPromise;
 }
 

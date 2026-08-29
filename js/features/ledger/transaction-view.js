@@ -40,34 +40,16 @@ export function formatLedgerScheduleDate(isoDate) {
   return safeDateStr;
 }
 
-export function renderTransactionRow(item, listTarget = 'fundplanAllTimeList', options = {}) {
-  let targetContainer = null;
-  let resolvedOptions = options;
-
-  if (listTarget && typeof listTarget === 'object' && !listTarget.nodeType) {
-    resolvedOptions = listTarget;
-    targetContainer = null;
-  } else if (typeof listTarget === 'string') {
-    targetContainer = document.getElementById(listTarget) || document.getElementById('fundplanAllTimeList') || document.getElementById('ledgerTransactionList');
-  } else if (listTarget && listTarget.nodeType) {
-    targetContainer = listTarget;
-  }
-
-  const { source = 'card', colorSettings = {}, onRowClick = null, isSelected = false, multiEditMode = false } = resolvedOptions;
+export function renderTransactionRow(item, listId = 'ledgerTransactionList', options = {}) {
+  const { source = 'card', colorSettings = {} } = options;
+  const list = document.getElementById(listId);
+  if (!list) return;
   const detailRow = document.createElement('tr');
   detailRow.className = 'schedule-row schedule-row-detail';
   detailRow.dataset.ledgerId = item.id;
-  if (isSelected) detailRow.classList.add('selected-row');
-  if (typeof onRowClick === 'function') {
-    detailRow.addEventListener('click', () => onRowClick(item));
-  }
   const tagRow = document.createElement('tr');
   tagRow.className = 'schedule-row schedule-row-tag cell-day-end-border';
   tagRow.dataset.ledgerId = item.id;
-  if (isSelected) tagRow.classList.add('selected-row');
-  if (typeof onRowClick === 'function') {
-    tagRow.addEventListener('click', () => onRowClick(item));
-  }
 
   const isFixed = item.fixedCost === '고정비' || item.fixedCost === '고정' || (item.fixedCost && item.fixedCost !== 'false');
   if (isFixed) {
@@ -223,9 +205,7 @@ export function renderTransactionRow(item, listTarget = 'fundplanAllTimeList', o
       ? `${usageAmount < 0 ? '-' : ''}${formatMoney(usageAmount)}`
       : '';
   }
-  if (targetContainer) {
-    targetContainer.appendChild(detailRow);
-    targetContainer.appendChild(tagRow);
-  }
-  return [detailRow, tagRow];
+  tagRow.appendChild(balanceCell);
+  list.appendChild(detailRow);
+  list.appendChild(tagRow);
 }

@@ -3,8 +3,6 @@
  * Handles batch copying, cross-month pasting with billing cycle calculation, and batch deletions.
  */
 
-import { generateLedgerId } from './ledger-utils.js';
-
 let toastTimer = null;
 
 export function showLedgerToast(message) {
@@ -20,51 +18,47 @@ export function showLedgerToast(message) {
 
 export function findLedgerRecordById(id, { ledgerState = {}, ledgerDataSources = {} } = {}) {
   const sId = String(id || '');
-  if (!sId) return null;
+  const realId = sId.startsWith('fc-toss-')
+    ? sId.replace('fc-toss-', '')
+    : (sId.startsWith('fc-bank-') ? sId.replace('fc-bank-', '') : sId);
 
-  // 1. Direct record in primary list
-  if (Array.isArray(ledgerState.records)) {
-    const found = ledgerState.records.find(r => String(r.id) === sId);
-    if (found) return found;
-  }
-
-  // 2. Check in all datasources (card, bank, cash, forecast)
-  if (ledgerDataSources) {
-    for (const key of Object.keys(ledgerDataSources)) {
-      const list = ledgerDataSources[key];
-      if (Array.isArray(list)) {
-        const found = list.find(r => String(r.id) === sId);
-        if (found) return found;
-      }
-    }
-  }
-
-  return null;
+  const allPool = [
+    ...(ledgerState.records || []),
+    ...(ledgerDataSources.card || []),
+    ...(ledgerDataSources.cash || []),
+    ...(ledgerDataSources.bank || []),
+    ...(ledgerDataSources.forecast || [])
+  ];
+  return allPool.find(item => item && (String(item.id) === sId || String(item.id) === realId || String(item.originalId) === realId)) || null;
 }
 
 export function executeLedgerCopy({
   selectedLedgerIds,
   findRecordFn,
-  setCopiedRecords,
-  updateCopyBufferBar
+  setMultiEditMode
 }) {
   if (!selectedLedgerIds || selectedLedgerIds.size === 0) {
-    showLedgerToast('⚠️ 복사할 거래를 선택해주세요.');
-    return;
+    alert('복사할 거래를 선택해주세요.');
+    return [];
   }
 
-  const recordsToCopy = Array.from(selectedLedgerIds)
+  const copied = Array.from(selectedLedgerIds)
     .map(id => findRecordFn(id))
-    .filter(Boolean);
+    .filter(Boolean)
+    .map(r => JSON.parse(JSON.stringify(r)));
 
-  if (recordsToCopy.length === 0) {
-    showLedgerToast('⚠️ 복사할 거래 정보를 찾을 수 없습니다.');
-    return;
+  if (copied.length === 0) {
+    alert('선택된 거래 정보를 찾을 수 없습니다.');
+    return [];
   }
 
-  setCopiedRecords(recordsToCopy);
-  updateCopyBufferBar();
-  showLedgerToast(`📋 ${recordsToCopy.length}건의 거래가 복사되었습니다.`);
+  const copyBar = document.getElementById('ledgerCopyBufferBar');
+  const copyLabel = document.getElementById('ledgerCopiedItemLabel');
+  if (copyLabel) copyLabel.textContent = `${copied.length}건`;
+  copyBar?.classList.remove('hidden');
+
+  setMultiEditMode(false);
+  return copied;
 }
 
 export function executeLedgerDelete({
@@ -152,7 +146,7 @@ export function executeLedgerPaste({
       newDate = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(clampedDay).padStart(2, '0')}`;
     }
 
-    const newId = generateLedgerId(newDate, i);
+    const newId = 'cp_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 6);
 
     const newRecord = {
       ...item,
@@ -170,9 +164,8 @@ export function executeLedgerPaste({
   if (onComplete) onComplete();
   showLedgerToast(`📋 ${newRecords.length}건의 거래가 ${targetMonth + 1}월 화면으로 복사되었습니다.`);
 
-  if (newRecords.length > 0) {
-    insertBatchFn(newRecords).catch(error => {
-      console.error('Multi-insert paste error:', error);
-    });
-  }
+  insertBatchFn(newRecords).catch(error => {
+    console.error('Paste sync error:', error);
+    showLedgerToast('⚠️ DB 저장 동기화 지연 중 (로컬 반영 완료)');
+  });
 }

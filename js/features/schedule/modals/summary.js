@@ -1,4 +1,4 @@
-import { state, getItemReason } from '../../../services/schedule/schedule-store.js';
+import { state, getItemReason } from '../../../services/schedule/state.js';
 import { openModal, loadWeekDataFn } from './edit.js';
 import { escapeHtml } from '../../../shared/safe.js';
 
@@ -333,3 +333,4 @@ export function openCustomFilteredSummaryModal(titleText, itemsList, modalCatego
 
   if (summaryModalOverlay) summaryModalOverlay.classList.add('active');
 }
+

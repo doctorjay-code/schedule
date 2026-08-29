@@ -1,6 +1,6 @@
 import { fetchForecastOrders, saveForecastOrders, insertLedgerRecordsBatch, upsertLedgerOffsetGroup, fetchForecastAggregateOverrides, saveForecastAggregateOverridesToDB } from '../../services/ledger/ledger-api.js';
 import { loadOffsetGroups, saveOffsetGroups } from './ledger-offset-groups.js';
-import { compareLedgerRecords, normalizeLedgerDate, generateLedgerId } from './ledger-utils.js';
+import { compareLedgerRecords, normalizeLedgerDate } from './ledger-utils.js';
 
 const FORECAST_ORDER_STORAGE_KEY = 'LEDGER_FORECAST_ORDER_MAP_V1';
 const FORECAST_AGGREGATE_OVERRIDES_KEY = 'LEDGER_FORECAST_AGGREGATE_OVERRIDES_V1';
@@ -26,281 +26,517 @@ export function loadForecastAggregateOverrides() {
   }
 }
 
-export function saveForecastAggregateOverride(aggregateKey, overrideObj) {
-  if (!aggregateKey || typeof aggregateKey !== 'string') return;
-  const current = loadForecastAggregateOverrides();
-  current[aggregateKey] = {
-    ...(current[aggregateKey] || {}),
-    ...overrideObj,
-    updatedAt: Date.now()
-  };
+export function saveForecastAggregateOverride(id, overrideData) {
   try {
-    localStorage.setItem(FORECAST_AGGREGATE_OVERRIDES_KEY, JSON.stringify(current));
-    saveForecastAggregateOverridesToDB(current);
-  } catch (err) {
-    console.warn('Failed to save aggregate override:', err);
-  }
+    const map = loadForecastAggregateOverrides();
+    const idStr = String(id || '');
+    if (idStr.startsWith('fc-est-card-')) {
+      const mStr = idStr.replace(/^fc-est-card-bank-/, '').replace(/^fc-est-card-/, '');
+      map[`fc-est-card-${mStr}`] = { ...(map[`fc-est-card-${mStr}`] || {}), ...overrideData };
+      map[`fc-est-card-bank-${mStr}`] = { ...(map[`fc-est-card-bank-${mStr}`] || {}), ...overrideData };
+    } else if (idStr.startsWith('fc-var-toss-')) {
+      const mStr = idStr.replace(/^fc-var-toss-/, '');
+      map[`fc-var-toss-${mStr}`] = { ...(map[`fc-var-toss-${mStr}`] || {}), ...overrideData };
+    } else {
+      map[idStr] = { ...(map[idStr] || {}), ...overrideData };
+    }
+    localStorage.setItem(FORECAST_AGGREGATE_OVERRIDES_KEY, JSON.stringify(map));
+    saveForecastAggregateOverridesToDB(map).catch(e => console.warn('saveForecastAggregateOverridesToDB warn:', e));
+  } catch (err) {}
 }
 
 export async function syncForecastAggregateOverridesFromDB() {
   try {
-    const remote = await fetchForecastAggregateOverrides();
-    if (remote && typeof remote === 'object') {
+    const dbOverrides = await fetchForecastAggregateOverrides();
+    if (dbOverrides && typeof dbOverrides === 'object' && Object.keys(dbOverrides).length > 0) {
       const local = loadForecastAggregateOverrides();
-      const merged = { ...local, ...remote };
+      const merged = { ...local, ...dbOverrides };
       localStorage.setItem(FORECAST_AGGREGATE_OVERRIDES_KEY, JSON.stringify(merged));
+      return merged;
     }
   } catch (err) {
-    console.warn('Failed to sync forecast aggregate overrides from DB:', err);
+    console.warn('syncForecastAggregateOverridesFromDB fallback:', err);
   }
+  return loadForecastAggregateOverrides();
 }
 
 export function loadForecastOrderMap() {
   try {
     const raw = localStorage.getItem(FORECAST_ORDER_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
+    if (!raw) return {};
+    return JSON.parse(raw) || {};
   } catch (err) {
     return {};
   }
 }
 
-export function saveForecastOrderMap(orderedIds) {
-  if (!Array.isArray(orderedIds)) return;
-  const map = loadForecastOrderMap();
-  orderedIds.forEach((id, idx) => {
-    map[String(id)] = (idx + 1) * 10;
-  });
+export function saveForecastOrderMap(map) {
   try {
-    localStorage.setItem(FORECAST_ORDER_STORAGE_KEY, JSON.stringify(map));
-  } catch (err) {
-    console.warn('Failed to save forecast order map to localStorage:', err);
-  }
+    localStorage.setItem(FORECAST_ORDER_STORAGE_KEY, JSON.stringify(map || {}));
+  } catch (err) {}
 }
 
 export async function syncForecastOrdersFromDB() {
   try {
-    const remoteOrders = await fetchForecastOrders();
-    if (remoteOrders && typeof remoteOrders === 'object') {
+    const dbOrders = await fetchForecastOrders();
+    if (dbOrders && typeof dbOrders === 'object' && Object.keys(dbOrders).length > 0) {
       const local = loadForecastOrderMap();
-      const merged = { ...local, ...remoteOrders };
-      localStorage.setItem(FORECAST_ORDER_STORAGE_KEY, JSON.stringify(merged));
+      const merged = { ...local, ...dbOrders };
+      saveForecastOrderMap(merged);
+      return merged;
     }
-  } catch (err) {
-    console.warn('Failed to sync forecast orders from DB:', err);
-  }
+  } catch (err) {}
+  return loadForecastOrderMap();
 }
 
-export function isManualCardPayment(record) {
-  if (!record) return false;
-  const isCard = (record.payment_method || record.payment || record.sheetName) === '기업카드';
-  if (!isCard) return false;
-  const item = String(record.item || '').trim();
-  const memo = String(record.memo || '').trim();
-  return item.includes('기업카드 결제') || item.includes('카드대금') || memo.includes('기업카드 결제') || memo.includes('카드대금');
+export function isFixedRecord(r) {
+  if (!r) return false;
+  return r.fixedCost === '고정비' || r.fixedCost === '고정' || (r.fixedCost && r.fixedCost !== 'false');
 }
 
 /**
- * 잔액전망 통합 엔진
+ * 이체 / 월급 카테고리 거래인지 확인 (오직 카테고리 필드만 기준!)
  */
-export function generateForecastRecords({
-  allRecords = [],
-  monthCursor = new Date(),
-  isManualCardPayment = () => false
-}) {
-  const targetYear = monthCursor.getFullYear();
-  const targetMonth = monthCursor.getMonth(); // 0-indexed (7=8월)
-  const targetMonthKey = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}`;
+export function isTransferOrSalaryRecord(r) {
+  if (!r) return false;
+  const category = String(r.category || '').trim();
+  return category === '이체' || category === '월급';
+}
 
-  const tossRecords = [];
-  const bankRecords = [];
-  const cardRecordsForBilling = [];
-  const manualCardPayments = [];
+/**
+ * 기업은행 시트에 적힌 수기 카드 결제/선결제 출금 건 여부 확인
+ */
+export function isManualCardPayment(r) {
+  if (!r || r.type !== 'expense') return false;
+  const item = String(r.item || '').trim();
+  const memo = String(r.memo || '').trim();
+  return item.includes('비씨카드') || item.includes('BC카드') || item.includes('기업카드출금') || memo.includes('기업카드 결제') || memo.includes('카드선결제') || memo.includes('BC카드선결제') || item.includes('카드선결제');
+}
 
-  // 카드 결제주기: 전월 13일 ~ 당월 12일
-  let cardStartYear = targetYear;
-  let cardStartMonth = targetMonth - 1;
-  if (cardStartMonth < 0) {
-    cardStartMonth = 11;
-    cardStartYear -= 1;
-  }
-  const cardStartDate = `${cardStartYear}-${String(cardStartMonth + 1).padStart(2, '0')}-13`;
-  const cardEndDate = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-12`;
+/**
+ * 토스은행 + 기업은행 통합 잔액전망 엔진
+ */
+export function generateForecastRecords(ledgerDataSources = {}) {
+  const cardList = ledgerDataSources.card || [];
+  const tossRecords = cardList.filter(r => r.payment === '토스은행' || r.sheetName === '토스은행');
+  const cardRecords = cardList.filter(r => r.payment === '기업카드' || r.sheetName === '기업카드');
+  const bankRecords = ledgerDataSources.bank || [];
 
-  const orderMap = loadForecastOrderMap();
-  const aggregateOverrides = loadForecastAggregateOverrides();
-
-  // 1. 전체 실거래 순회 및 분류
-  allRecords.forEach(r => {
-    const sheet = r.payment_method || r.payment || r.sheetName || '';
-    const dateStr = normalizeLedgerDate(r.date);
-    if (!dateStr) return;
-
-    if (isManualCardPayment(r)) {
-      if (dateStr.startsWith(targetMonthKey)) {
-        manualCardPayments.push(r);
-      }
-      return;
-    }
-
-    if (sheet === '기업카드') {
-      if (dateStr >= cardStartDate && dateStr <= cardEndDate) {
-        cardRecordsForBilling.push(r);
-      }
-    } else if (sheet === '토스은행') {
-      if (dateStr.startsWith(targetMonthKey)) {
-        tossRecords.push(r);
-      }
-    } else if (sheet === '기업은행') {
-      if (dateStr.startsWith(targetMonthKey)) {
-        bankRecords.push(r);
-      }
+  // 2026-01부터 시작하는 모든 월 목록 추출 (기업카드의 13일~12일 결제월 기준까지 완벽 포함!)
+  const monthSet = new Set();
+  [...tossRecords, ...bankRecords].forEach(r => {
+    const dStr = normalizeLedgerDate(r.date);
+    if (dStr >= '2026-01-01') {
+      monthSet.add(dStr.slice(0, 7));
     }
   });
 
-  // 2. 가상 행(토스 생활비 지출 & 기업카드 결제대금) 산출
-  let tossLivingExpenses = 0;
+  cardRecords.forEach(r => {
+    const dStr = normalizeLedgerDate(r.date);
+    if (dStr >= '2026-01-01') {
+      const [y, m, d] = dStr.split('-').map(Number);
+      let billingMonth = m;
+      let billingYear = y;
+      if (d >= 13) {
+        billingMonth += 1;
+        if (billingMonth > 12) {
+          billingMonth = 1;
+          billingYear += 1;
+        }
+      }
+      if (billingMonth === 1) billingMonth = 2;
+      monthSet.add(`${billingYear}-${String(billingMonth).padStart(2, '0')}`);
+    }
+  });
+
+  const nowIso = new Date().toISOString().slice(0, 7);
+  monthSet.add(nowIso);
+  const months = Array.from(monthSet).sort();
+
+  const forecastPool = [];
+
+  // 1. 토스은행 고정비 및 모든 이체/송금/월급 거래들 단독 행으로 100% 추가
   tossRecords.forEach(r => {
-    const isFixed = r.fixed_cost === '고정비' || r.fixedCost === '고정비';
-    if (!isFixed && (r.type || 'expense').toLowerCase() === 'expense') {
-      tossLivingExpenses += Number(r.amount || 0);
-    }
-  });
+    const isFixed = isFixedRecord(r);
+    const isTransOrSal = isTransferOrSalaryRecord(r);
 
-  let cardBillingTotal = 0;
-  cardRecordsForBilling.forEach(r => {
-    const amt = Number(r.amount || 0);
-    cardBillingTotal += ((r.type || 'expense').toLowerCase() === 'income' ? -amt : amt);
-  });
-
-  // 3. 표시용 레코드 구성 (통합 정렬 리스트)
-  const displayRows = [];
-
-  // 3-1. 토스은행 고정비 / 수입 레코드
-  tossRecords.forEach(r => {
-    const isFixed = r.fixed_cost === '고정비' || r.fixedCost === '고정비';
-    const isIncome = (r.type || 'expense').toLowerCase() === 'income';
-    if (isFixed || isIncome) {
-      displayRows.push({
+    if (isFixed || isTransOrSal) {
+      forecastPool.push({
         ...r,
         id: `fc-toss-${r.id}`,
         originalId: r.id,
-        isForecastItem: true,
-        sourceSheet: '토스은행'
+        source: 'forecast',
+        payment: '토스은행'
       });
     }
   });
 
-  // 3-2. 기업은행 레코드
+  // 2. 기업은행 통장의 모든 실제 거래 추가 & 실제 카드 출금 거래에 카드 세부내역 바인딩!
+  const monthsWithActualCardPayment = new Set();
+
   bankRecords.forEach(r => {
-    displayRows.push({
+    const isCardPay = isManualCardPayment(r);
+    const dStr = normalizeLedgerDate(r.date);
+    const mStr = dStr.slice(0, 7);
+
+    let subRecords = null;
+    let hasCardAccordion = false;
+
+    if (isCardPay) {
+      monthsWithActualCardPayment.add(mStr);
+      const [y, m] = mStr.split('-').map(Number);
+      let cardStart = null, cardEnd = null;
+      if (m === 2) {
+        cardStart = `${y}-01-01`;
+        cardEnd = `${y}-02-12`;
+      } else {
+        const pStr = `${y}-${String(m - 1).padStart(2, '0')}`;
+        cardStart = `${pStr}-13`;
+        cardEnd = `${mStr}-12`;
+      }
+
+      if (cardStart && cardEnd) {
+        const monthCards = cardRecords.filter(c => {
+          const cd = normalizeLedgerDate(c.date);
+          return cd >= cardStart && cd <= cardEnd;
+        });
+        if (monthCards.length > 0) {
+          subRecords = [...monthCards].sort(compareLedgerRecords);
+          hasCardAccordion = true;
+        }
+      }
+    }
+
+    forecastPool.push({
       ...r,
       id: `fc-bank-${r.id}`,
       originalId: r.id,
-      isForecastItem: true,
-      sourceSheet: '기업은행'
+      source: 'forecast',
+      payment: '기업은행',
+      hasCardAccordion,
+      subRecords
     });
   });
 
-  // 3-3. 가상 토스 생활비 합산행
-  const tossVarKey = `fc-var-toss-${targetMonthKey}`;
-  const tossVarOverride = aggregateOverrides[tossVarKey] || {};
-  displayRows.push({
-    id: tossVarKey,
-    date: tossVarOverride.date || `${targetMonthKey}-25`,
-    type: 'expense',
-    amount: tossLivingExpenses,
-    balance: 0,
-    payment: '토스은행',
-    item: tossVarOverride.item || '토스 생활비 (변동비 합계)',
-    person: tossVarOverride.person || '',
-    category: tossVarOverride.category || '생활',
-    memo: tossVarOverride.memo || '토스 계좌 실시간 변동지출 자동 합산',
-    fixedCost: tossVarOverride.fixedCost || '',
-    isVirtualAggregate: true,
-    sourceSheet: '토스은행'
+  // 3. 월별 가변비 합산 생성 (토스 순수가변 생활비 & 실제 출금 없는 미래 월의 27일 예상 청구액)
+  months.forEach(mStr => {
+    const [y, m] = mStr.split('-').map(Number);
+    const mNum = m;
+
+    // A. 토스은행 생활비(가변) (매월 1일)
+    const tossMonthVars = tossRecords.filter(r => {
+      const d = normalizeLedgerDate(r.date);
+      const isFixed = isFixedRecord(r);
+      const isTransOrSal = isTransferOrSalaryRecord(r);
+      return d.startsWith(mStr) && !isFixed && !isTransOrSal;
+    });
+
+    const tossVarExpense = tossMonthVars.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
+    const tossVarIncome = tossMonthVars.reduce((sum, r) => sum + (r.type === 'income' ? Number(r.amount || 0) : 0), 0);
+
+    const overrides = loadForecastAggregateOverrides();
+    const tossOv = overrides[`fc-var-toss-${mStr}`] || {};
+
+    if (tossMonthVars.length > 0 || (tossOv && tossOv.fixedCost === '고정비')) {
+      forecastPool.push({
+        id: `fc-var-toss-${mStr}`,
+        date: tossOv.date || `${mStr}-01`,
+        item: tossOv.item || '생활비',
+        amount: tossVarExpense - tossVarIncome,
+        incomeAmount: tossVarIncome,
+        expenseAmount: tossVarExpense,
+        type: 'aggregate',
+        payment: tossOv.payment || '토스은행',
+        category: tossOv.category !== undefined ? tossOv.category : '',
+        person: tossOv.person !== undefined ? tossOv.person : '',
+        memo: tossOv.memo || '토스 생활비',
+        fixedCost: tossOv.fixedCost !== undefined ? tossOv.fixedCost : '',
+        source: 'forecast',
+        isAggregate: true,
+        hasCardAccordion: false,
+        subRecords: [...tossMonthVars].sort(compareLedgerRecords)
+      });
+    }
+
+    // B. 미래 월 기업카드 예상 청구분 (실제 통장 출금이 없는 월에만 27일 가상행으로 생성)
+    if (!monthsWithActualCardPayment.has(mStr)) {
+      let cardStart = null, cardEnd = null;
+      if (m === 2) {
+        cardStart = `${y}-01-01`;
+        cardEnd = `${y}-02-12`;
+      } else {
+        const pStr = `${y}-${String(m - 1).padStart(2, '0')}`;
+        cardStart = `${pStr}-13`;
+        cardEnd = `${mStr}-12`;
+      }
+
+      if (cardStart && cardEnd) {
+        const monthCards = cardRecords.filter(c => {
+          const cd = normalizeLedgerDate(c.date);
+          return cd >= cardStart && cd <= cardEnd;
+        });
+
+        const cardOv = overrides[`fc-est-card-${mStr}`] || overrides[`fc-est-card-bank-${mStr}`] || {};
+
+        if (monthCards.length > 0 || (cardOv && cardOv.fixedCost === '고정비')) {
+          const cardExp = monthCards.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : 0), 0);
+          const cardInc = monthCards.reduce((sum, r) => sum + (r.type === 'income' ? Number(r.amount || 0) : 0), 0);
+
+          forecastPool.push({
+            id: `fc-est-card-${mStr}`,
+            date: cardOv.date || `${mStr}-27`,
+            item: cardOv.item || '기업카드',
+            amount: cardExp - cardInc,
+            incomeAmount: cardInc,
+            expenseAmount: cardExp,
+            type: 'aggregate',
+            payment: cardOv.payment || '기업은행',
+            category: cardOv.category || '상환',
+            person: cardOv.person || '쥬쥬',
+            memo: cardOv.memo || '쥬쥬 기업카드 결제',
+            fixedCost: cardOv.fixedCost !== undefined ? cardOv.fixedCost : '',
+            source: 'forecast',
+            isAggregate: true,
+            hasCardAccordion: true,
+            subRecords: [...monthCards].sort(compareLedgerRecords)
+          });
+        }
+      }
+    }
   });
 
-  // 3-4. 가상 기업카드 결제대금 합산행
-  const cardEstKey = `fc-est-card-${targetMonthKey}`;
-  const cardEstOverride = aggregateOverrides[cardEstKey] || {};
-  displayRows.push({
-    id: cardEstKey,
-    date: cardEstOverride.date || `${targetMonthKey}-23`,
-    type: 'expense',
-    amount: Math.max(0, cardBillingTotal),
-    balance: 0,
-    payment: '토스은행',
-    item: cardEstOverride.item || '기업카드 결제대금',
-    person: cardEstOverride.person || '',
-    category: cardEstOverride.category || '카드대금',
-    memo: cardEstOverride.memo || `${cardStartDate.slice(5)} ~ ${cardEndDate.slice(5)} 실사용 합산`,
-    fixedCost: cardEstOverride.fixedCost || '고정비',
-    isVirtualAggregate: true,
-    sourceSheet: '기업카드'
+  // 4. 잔액전망 전용 독립 순서 매핑 적용 후 날짜순 정렬
+  const forecastOrderMap = loadForecastOrderMap();
+  forecastPool.forEach(r => {
+    const rawId = String(r.id || '').replace(/^fc-(toss|bank)-/, '');
+    const origId = String(r.originalId || '');
+    if (forecastOrderMap[rawId] !== undefined) {
+      r.orderIndex = forecastOrderMap[rawId];
+    } else if (forecastOrderMap[origId] !== undefined) {
+      r.orderIndex = forecastOrderMap[origId];
+    } else if (forecastOrderMap[r.id] !== undefined) {
+      r.orderIndex = forecastOrderMap[r.id];
+    }
   });
 
-  // 4. 정렬 순서 적용 (orderMap 기반)
-  displayRows.forEach((row, idx) => {
-    const savedOrder = orderMap[String(row.id)] || orderMap[String(row.originalId)];
-    row.orderIndex = savedOrder ?? ((idx + 1) * 10);
-  });
+  forecastPool.sort(compareLedgerRecords);
 
-  displayRows.sort(compareLedgerRecords);
-
-  return {
-    displayRows,
-    tossLivingExpenses,
-    cardBillingTotal,
-    cardStartDate,
-    cardEndDate
+  // 5. 각 계좌의 시작 잔액 합산 (2026년 통합 시작 잔액 - 토스 + 기업)
+  const getAccountOpeningBalance = (records) => {
+    if (!Array.isArray(records) || records.length === 0) return 0;
+    const sorted = [...records].filter(r => normalizeLedgerDate(r.date) >= '2026-01-01').sort(compareLedgerRecords);
+    if (sorted.length === 0) return 0;
+    const first = sorted[0];
+    const rawBal = Number(first.balance);
+    if (!Number.isFinite(rawBal)) return 0;
+    const firstAmt = Number(first.amount || 0);
+    const opening = rawBal - (first.type === 'income' ? firstAmt : -firstAmt);
+    return Math.max(0, opening);
   };
+
+  const tossOpening = getAccountOpeningBalance(tossRecords);
+  const bankOpening = getAccountOpeningBalance(bankRecords);
+  const totalOpeningBalance = tossOpening + bankOpening;
+
+  // 6. 통합 시작 잔액에서 출발하여 전체 실시간 연속 누적 잔액(Running Balance) 계산!
+  let runningBalance = totalOpeningBalance;
+  forecastPool.forEach(r => {
+    if (r.incomeAmount !== undefined || r.expenseAmount !== undefined) {
+      runningBalance += Number(r.incomeAmount || 0) - Number(r.expenseAmount || 0);
+    } else {
+      const amt = Number(r.amount || 0);
+      if (r.type === 'income') {
+        runningBalance += amt;
+      } else {
+        runningBalance -= amt;
+      }
+    }
+    r.balance = runningBalance;
+  });
+
+  return forecastPool;
 }
 
 /**
- * 다음 달 고정비 원클릭 복사 엔진 (+1 month copy)
+ * 고정비 항목의 핵심 키워드를 정규화하여 추출 (예: 'SKT-자동납부-713178' -> 'SKT')
  */
-export async function copyMonthFixedRecordsToNextMonth({
-  allRecords = [],
-  sourceMonthCursor = new Date(),
-  saveRecordsBatchFn = insertLedgerRecordsBatch,
-  saveOffsetGroupFn = upsertLedgerOffsetGroup
-}) {
-  const sy = sourceMonthCursor.getFullYear();
-  const sm = sourceMonthCursor.getMonth() + 1; // 1-indexed
-  const sourceMonthKey = `${sy}-${String(sm).padStart(2, '0')}`;
+export function normalizeFixedCostItemKey(item = '') {
+  return String(item)
+    .replace(/\([^)]*\)/g, '') // 괄호 안 텍스트 제거 (예: (주), (로켓와우클럽) 등)
+    .replace(/[㈜주식회사\-_\s]/g, '') // 특수문자, 주식회사, 대시, 공백 제거
+    .replace(/자동납부|자동이체|이체용/g, '') // 부가 수식어 제거
+    .toLowerCase()
+    .trim();
+}
 
-  let ty = sy;
-  let tm = sm + 1;
-  if (tm > 12) {
-    tm = 1;
-    ty += 1;
+/**
+ * 다음 달 기존 거래 풀(existingList) 중에 candidate와 동일한 고정비가 이미 존재하는지 검사
+ */
+export function findMatchingExistingFixedRecord(candidate, existingList) {
+  if (!Array.isArray(existingList) || existingList.length === 0) return null;
+
+  const candKey = normalizeFixedCostItemKey(candidate.item);
+  const candAmt = Number(candidate.amount || 0);
+  const candMemo = (candidate.memo || '').trim();
+
+  // 1단계: 핵심 키워드가 일치하는 기존 거래들 필터링
+  const keyMatches = existingList.filter(ex => {
+    const exKey = normalizeFixedCostItemKey(ex.item);
+    if (!candKey || !exKey) return false;
+    return exKey.includes(candKey) || candKey.includes(exKey);
+  });
+
+  if (keyMatches.length === 0) return null;
+
+  // 2단계: 키워드 일치 항목이 1건뿐인 경우
+  if (keyMatches.length === 1) {
+    const single = keyMatches[0];
+    const sameAmount = Number(single.amount || 0) === candAmt;
+    const isBothFixed = isFixedRecord(single) && isFixedRecord(candidate);
+    if (sameAmount || isBothFixed) {
+      return single;
+    }
   }
-  const targetMonthKey = `${ty}-${String(tm).padStart(2, '0')}`;
 
-  // 1. 해당 월(sourceMonth)의 고정비 및 상계 거래 추출
-  const toCopyBank = [];
-  const toCopyCard = [];
+  // 3단계: 동일 키워드가 2건 이상인 경우 (예: 메리츠보험 2건 등 다건 고정비)
+  const exactMatch = keyMatches.find(ex => {
+    const sameAmount = Number(ex.amount || 0) === candAmt;
+    const sameMemo = candMemo && ex.memo && ex.memo.trim() === candMemo;
+    return sameAmount || sameMemo;
+  });
+
+  return exactMatch || null;
+}
+
+/**
+ * 이번 달의 고정비 및 상계 묶음을 다음 달로 넘기는 원클릭 Push 엔진
+ * (기업카드 13일~12일 결제주기 고정비 자동 연동 및 스마트 중복 방지 포함!)
+ */
+export async function copyMonthFixedRecordsToNextMonth(sourceMonthKey, ledgerDataSources = {}, options = {}) {
+  const [sy, sm] = sourceMonthKey.split('-').map(Number);
+  const targetMonthKey = sm === 12
+    ? `${sy + 1}-01`
+    : `${sy}-${String(sm + 1).padStart(2, '0')}`;
+  const [ty, tm] = targetMonthKey.split('-').map(Number);
+
+  const currentSource = options.source || 'forecast';
+
+  // 1. 데이터 소스 분류
+  const cardList = ledgerDataSources.card || [];
+  const tossRecords = cardList.filter(r => r.payment === '토스은행' || r.sheetName === '토스은행');
+  const cardRecords = cardList.filter(r => r.payment === '기업카드' || r.sheetName === '기업카드');
+  const bankRecords = ledgerDataSources.bank || [];
+  const cashRecords = ledgerDataSources.cash || [];
+
+  // A. 일반 통장 거래 풀 (토스은행, 기업은행, 현금)
+  let bankCandidates = [];
+  if (currentSource === 'forecast') {
+    bankCandidates = [...tossRecords, ...bankRecords];
+  } else if (currentSource === 'bank') {
+    bankCandidates = [...bankRecords];
+  } else if (currentSource === 'cash') {
+    bankCandidates = [...cashRecords];
+  } else if (currentSource === 'card' && options.payment !== '기업카드') {
+    bankCandidates = [...tossRecords];
+  }
+
+  const sourceBankCandidates = bankCandidates.filter(r => {
+    const d = normalizeLedgerDate(r.date);
+    return d.startsWith(sourceMonthKey) && !r.id.startsWith('fc-');
+  });
+
+  // 대상 월(targetMonthKey)에 이미 존재하는 통장 거래 풀 (중복 방지용)
+  const targetBankExisting = bankCandidates.filter(r => {
+    const d = normalizeLedgerDate(r.date);
+    return d.startsWith(targetMonthKey) && !r.id.startsWith('fc-');
+  });
+
+  const offsetGroups = loadOffsetGroups();
+  const sourceOffsetGroupIds = new Set();
   const sourceOffsetRecordIds = new Set();
 
-  const allOffsetGroups = loadOffsetGroups();
-  Object.values(allOffsetGroups).forEach(g => {
-    (g.recordIds || []).forEach(id => sourceOffsetRecordIds.add(String(id)));
-  });
-
-  allRecords.forEach(r => {
-    const dStr = normalizeLedgerDate(r.date);
-    if (!dStr || !dStr.startsWith(sourceMonthKey)) return;
-
-    const isFixed = r.fixed_cost === '고정비' || r.fixedCost === '고정비';
-    const isOffset = sourceOffsetRecordIds.has(String(r.id)) || (r.offset_group_id != null);
-    const sheet = r.payment_method || r.payment || r.sheetName || '토스은행';
-
-    if (sheet === '기업카드') {
-      if (isFixed) toCopyCard.push(r);
-    } else {
-      if (isFixed || isOffset) toCopyBank.push(r);
+  Object.values(offsetGroups).forEach(g => {
+    if (g.date && g.date.startsWith(sourceMonthKey) && Array.isArray(g.recordIds)) {
+      sourceOffsetGroupIds.add(g.id);
+      g.recordIds.forEach(id => sourceOffsetRecordIds.add(String(id)));
     }
   });
+
+  // 복사 대상 1차 필터링
+  let toCopyBank = sourceBankCandidates.filter(r => {
+    if (isManualCardPayment(r)) return false; // 수기 통장 카드출금은 제외하여 9/27 자동집계 보호
+    const isFixed = isFixedRecord(r);
+    const isOffset = sourceOffsetRecordIds.has(String(r.id)) || sourceOffsetRecordIds.has(String(r.originalId));
+    const isSalaryOrTransfer = isTransferOrSalaryRecord(r);
+    return isFixed || isOffset || isSalaryOrTransfer;
+  });
+
+  // 통장 스마트 중복 방지 (이미 대상 월에 등록된 고정비/급여/상계 거래는 제외)
+  const usedTargetBankIds = new Set();
+  toCopyBank = toCopyBank.filter(candidate => {
+    const existing = findMatchingExistingFixedRecord(
+      candidate,
+      targetBankExisting.filter(ex => !usedTargetBankIds.has(ex.id))
+    );
+    if (existing) {
+      usedTargetBankIds.add(existing.id);
+      return false; // 이미 존재하므로 복사 스킵!
+    }
+    return true;
+  });
+
+  // B. 기업카드 고정비 거래 풀 (결제주기 13일~12일 기반!)
+  let toCopyCard = [];
+  if (currentSource === 'forecast' || currentSource === 'bank' || (currentSource === 'card' && options.payment === '기업카드')) {
+    let cardStart = null, cardEnd = null;
+    let targetCardStart = null, targetCardEnd = null;
+
+    if (sm === 2) {
+      cardStart = `${sy}-01-01`;
+      cardEnd = `${sy}-02-12`;
+    } else {
+      const pStr = `${sy}-${String(sm - 1).padStart(2, '0')}`;
+      cardStart = `${pStr}-13`;
+      cardEnd = `${sourceMonthKey}-12`;
+    }
+
+    if (tm === 2) {
+      targetCardStart = `${ty}-01-01`;
+      targetCardEnd = `${ty}-02-12`;
+    } else {
+      const tpStr = `${ty}-${String(tm - 1).padStart(2, '0')}`;
+      targetCardStart = `${tpStr}-13`;
+      targetCardEnd = `${targetMonthKey}-12`;
+    }
+
+    if (cardStart && cardEnd) {
+      const cycleCards = cardRecords.filter(c => {
+        const cd = normalizeLedgerDate(c.date);
+        return cd >= cardStart && cd <= cardEnd && !c.id.startsWith('fc-');
+      });
+      toCopyCard = cycleCards.filter(isFixedRecord);
+
+      // 대상 월 결제주기에 이미 등록되어 있는 실제 카드 거래 목록
+      const targetCardExisting = cardRecords.filter(c => {
+        const cd = normalizeLedgerDate(c.date);
+        return cd >= targetCardStart && cd <= targetCardEnd && !c.id.startsWith('fc-');
+      });
+
+      // 카드 스마트 중복 방지 (이미 9월 주기에 긁힌 SKT, 쿠팡 등은 제외!)
+      const usedTargetCardIds = new Set();
+      toCopyCard = toCopyCard.filter(candidate => {
+        const existing = findMatchingExistingFixedRecord(
+          candidate,
+          targetCardExisting.filter(ex => !usedTargetCardIds.has(ex.id))
+        );
+        if (existing) {
+          usedTargetCardIds.add(existing.id);
+          return false; // 이미 존재하므로 복사 스킵!
+        }
+        return true;
+      });
+    }
+  }
 
   const totalCount = toCopyBank.length + toCopyCard.length;
   if (totalCount === 0) {
@@ -319,7 +555,7 @@ export async function copyMonthFixedRecordsToNextMonth({
     const safeDay = Math.min(Number(day), maxDaysInTargetMonth);
     const newDateStr = `${targetMonthKey}-${String(safeDay).padStart(2, '0')}`;
 
-    const newId = generateLedgerId(newDateStr, idx);
+    const newId = `cp_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 6)}`;
     idMapping[String(r.id)] = newId;
     if (r.originalId) idMapping[String(r.originalId)] = newId;
 
@@ -363,7 +599,7 @@ export async function copyMonthFixedRecordsToNextMonth({
     const safeDay = Math.min(cd, maxDays);
     const newDateStr = `${nextY}-${String(nextM).padStart(2, '0')}-${String(safeDay).padStart(2, '0')}`;
 
-    const newId = generateLedgerId(newDateStr, idx);
+    const newId = `cp_card_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 6)}`;
     idMapping[String(c.id)] = newId;
     if (c.originalId) idMapping[String(c.originalId)] = newId;
 
@@ -388,37 +624,103 @@ export async function copyMonthFixedRecordsToNextMonth({
     (newRecordsBySheet['기업카드'] ||= []).push(newCardRecord);
   });
 
-  // 3. 일괄 저장 실행
-  const flatToInsert = Object.values(newRecordsBySheet).flat();
-  if (flatToInsert.length > 0) {
-    await saveRecordsBatchFn(flatToInsert);
+  // 3. Supabase DB 일괄 삽입
+  for (const sheetName of Object.keys(newRecordsBySheet)) {
+    const list = newRecordsBySheet[sheetName];
+    await insertLedgerRecordsBatch(list);
   }
 
-  // 4. 상계 그룹 복제 및 연결
-  let offsetGroupCount = 0;
-  for (const group of Object.values(allOffsetGroups)) {
-    const groupRecordIds = group.recordIds || [];
-    const mappedIds = groupRecordIds
-      .map(id => idMapping[String(id)])
-      .filter(Boolean);
+  // 4. 상계 묶음 다음 달 버전 자동 복제 (금액 0원 버전으로 안전 생성!)
+  for (const gId of sourceOffsetGroupIds) {
+    const oldGroup = offsetGroups[gId];
+    if (!oldGroup || !Array.isArray(oldGroup.recordIds)) continue;
 
-    if (mappedIds.length === groupRecordIds.length && mappedIds.length > 0) {
-      const newGroupId = `offset-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const newMappedIds = oldGroup.recordIds.map(oldId => idMapping[String(oldId)]).filter(Boolean);
+    if (newMappedIds.length === oldGroup.recordIds.length) {
+      const oldDay = (oldGroup.date || '').slice(8) || '10';
+      const maxDaysInTargetMonth = new Date(ty, tm, 0).getDate();
+      const safeDay = Math.min(Number(oldDay), maxDaysInTargetMonth);
+      const newGroupDate = `${targetMonthKey}-${String(safeDay).padStart(2, '0')}`;
+      const newGroupId = `og_${newGroupDate}_${Math.random().toString(36).slice(2, 7)}`;
+
+      const [ny, nm, nd] = newGroupDate.split('-').map(Number);
+      let newTitle = String(oldGroup.title || `${nm}/${nd} 상계 묶음`).trim();
+
+      // 날짜 패턴 자동 치환 (예: '8/25' -> '9/25', '8.25' -> '9.25', '8월' -> '9월', '2026-08-25' -> '2026-09-25')
+      newTitle = newTitle
+        .replace(new RegExp(`(^|\\D)${sm}\\s*\\/\\s*\\d{1,2}`), `$1${nm}/${nd}`)
+        .replace(new RegExp(`(^|\\D)${sm}\\s*\\.\\s*\\d{1,2}`), `$1${nm}.${nd}`)
+        .replace(new RegExp(`(^|\\D)${sm}월`), `$1${nm}월`)
+        .replace(new RegExp(`${sy}-${String(sm).padStart(2, '0')}-\\d{2}`), newGroupDate);
+
+      // 치환이 안 되었거나 기본 형태인 경우 새 날짜 기준으로 깔끔하게 정규화
+      if (newTitle === oldGroup.title && (oldGroup.title.includes(`${sm}/`) || oldGroup.title.includes(`${sm}.`))) {
+        newTitle = `${nm}/${nd} 상계 묶음`;
+      }
+
       const newGroup = {
         id: newGroupId,
-        title: group.title || '상계 묶음',
-        recordIds: mappedIds
+        date: newGroupDate,
+        title: newTitle,
+        inAmount: 0,
+        outAmount: 0,
+        recordIds: newMappedIds,
+        createdAt: new Date().toISOString()
       };
-      await saveOffsetGroupFn(newGroup);
-      offsetGroupCount++;
+
+      offsetGroups[newGroupId] = newGroup;
+      upsertLedgerOffsetGroup(newGroup).catch(e => console.warn('upsertOffsetGroup warn:', e));
+    }
+  }
+  saveOffsetGroups(offsetGroups);
+
+  // 5. 가상 집계행(토스 생활비 / 기업카드 결제행) 고정비 설정 다음 달로 스마트 상속
+  const overrides = loadForecastAggregateOverrides();
+  let overridesModified = false;
+
+  // 5-1. 토스 생활비 고정비 상속
+  const sourceTossOv = overrides[`fc-var-toss-${sourceMonthKey}`];
+  if (sourceTossOv && sourceTossOv.fixedCost === '고정비') {
+    const targetTossKey = `fc-var-toss-${targetMonthKey}`;
+    if (!overrides[targetTossKey] || !overrides[targetTossKey].fixedCost) {
+      overrides[targetTossKey] = {
+        ...(overrides[targetTossKey] || {}),
+        date: `${targetMonthKey}-01`,
+        item: sourceTossOv.item || '생활비',
+        fixedCost: '고정비',
+        category: sourceTossOv.category || '',
+        person: sourceTossOv.person || '',
+        memo: sourceTossOv.memo || '토스 생활비'
+      };
+      overridesModified = true;
     }
   }
 
-  return {
-    ok: true,
-    count: flatToInsert.length,
-    offsetGroupCount,
-    targetMonth: tm,
-    targetYear: ty
-  };
+  // 5-2. 기업카드 결제행 고정비 상속
+  const sourceCardOv = overrides[`fc-est-card-${sourceMonthKey}`] || overrides[`fc-est-card-bank-${sourceMonthKey}`];
+  if (sourceCardOv && sourceCardOv.fixedCost === '고정비') {
+    const targetCardKey = `fc-est-card-${targetMonthKey}`;
+    const targetCardBankKey = `fc-est-card-bank-${targetMonthKey}`;
+    if (!overrides[targetCardKey] || !overrides[targetCardKey].fixedCost) {
+      const cardOvData = {
+        ...(overrides[targetCardKey] || {}),
+        date: `${targetMonthKey}-27`,
+        item: sourceCardOv.item || '기업카드',
+        fixedCost: '고정비',
+        category: sourceCardOv.category || '',
+        person: sourceCardOv.person || '',
+        memo: sourceCardOv.memo || '기업카드 결제'
+      };
+      overrides[targetCardKey] = cardOvData;
+      overrides[targetCardBankKey] = cardOvData;
+      overridesModified = true;
+    }
+  }
+
+  if (overridesModified) {
+    localStorage.setItem(FORECAST_AGGREGATE_OVERRIDES_KEY, JSON.stringify(overrides));
+    saveForecastAggregateOverridesToDB(overrides).catch(e => console.warn('saveForecastAggregateOverridesToDB warn:', e));
+  }
+
+  return { ok: true, count: totalCount, sourceMonthKey, targetMonthKey, targetMonthNum: tm, sourceMonthNum: sm };
 }
