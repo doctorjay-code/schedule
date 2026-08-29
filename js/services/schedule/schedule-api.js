@@ -1,8 +1,3 @@
-/**
- * Schedule Supabase API Service
- * Manages fetching, parsing, and syncing schedule records with Supabase PostgreSQL backend.
- */
-
 import {
   getAllWeeksData,
   setAllWeeksData,
@@ -48,7 +43,6 @@ export function syncScheduleToSupabase() {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(flushScheduledSave, 300);
 }
-export const syncToGoogleSheets = syncScheduleToSupabase;
 
 async function flushScheduledSave() {
   if (saveInProgress || !saveQueued) return;
@@ -104,7 +98,6 @@ export async function syncScheduleFromSupabase() {
   }
   return fetched;
 }
-export const syncFromGoogleSheets = syncScheduleFromSupabase;
 
 export async function syncColorSettingsFromSupabase() {
   try {
@@ -119,7 +112,6 @@ export async function syncColorSettingsFromSupabase() {
     console.warn('Color settings sync error:', e);
   }
 }
-export const syncColorSettingsFromSheets = syncColorSettingsFromSupabase;
 
 export async function syncColorSettingsToSupabase() {
   try {
@@ -143,7 +135,6 @@ export async function syncColorSettingsToSupabase() {
     setSyncStatus('error');
   }
 }
-export const syncColorSettingsToSheets = syncColorSettingsToSupabase;
 
 /**
  * 날짜 정렬 키 추출
@@ -200,91 +191,67 @@ export function parseSupabaseScheduleRecords(records) {
     });
   });
 
-  // 각 주차의 첫 번째 실제 날짜 기준으로 정렬
-  const keys = Object.keys(grouped).sort((a, b) => {
-    const aFirstDate = grouped[a][0]?.date || '';
-    const bFirstDate = grouped[b][0]?.date || '';
-    const [ay, am, ad] = parseDateSortKey(aFirstDate, extractYearFromTitle(a));
-    const [by, bm, bd] = parseDateSortKey(bFirstDate, extractYearFromTitle(b));
-    return ay !== by ? ay - by : am !== bm ? am - bm : ad - bd;
+  const parsedWeeks = Object.keys(grouped).map(title => {
+    const items = grouped[title];
+    items.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+    return { title, items };
   });
 
-  const parsedWeeks = [];
-  if (keys.length > 0) {
-    keys.forEach(wTitle => {
-      // (date + time) 조합 기준 중복 제거 + orderIndex 오름차순 정렬
-      const seenKeys = new Set();
-      const items = grouped[wTitle]
-        .filter(item => {
-          const key = `${item.date}_${item.time}`;
-          if (seenKeys.has(key)) return false;
-          seenKeys.add(key);
-          return true;
-        })
-        .sort((a, b) => a.orderIndex - b.orderIndex);
-
-      const firstDate = items[0]?.date ? items[0].date.split('(')[0].trim() : '';
-      const lastDate  = items[items.length - 1]?.date ? items[items.length - 1].date.split('(')[0].trim() : '';
-      parsedWeeks.push({
-        title: `${wTitle} (${firstDate} ~ ${lastDate})`,
-        items: items
-      });
-    });
-  }
+  // 주차 정렬: 각 주차 첫 항목 날짜 기준
+  parsedWeeks.sort((wA, wB) => {
+    const yA = extractYearFromTitle(wA.title);
+    const yB = extractYearFromTitle(wB.title);
+    const dateA = wA.items[0]?.date || '';
+    const dateB = wB.items[0]?.date || '';
+    const [yearA, monthA, dayA] = parseDateSortKey(dateA, yA);
+    const [yearB, monthB, dayB] = parseDateSortKey(dateB, yB);
+    if (yearA !== yearB) return yearA - yearB;
+    if (monthA !== monthB) return monthA - monthB;
+    return dayA - dayB;
+  });
 
   setAllWeeksData(parsedWeeks);
-  setCurrentWeekIndex(getTodayWeekIndex());
-  if (apiLoadWeekDataFn) apiLoadWeekDataFn(getCurrentWeekIndex());
-  saveLastScheduleSnapshot();
+  const todayIdx = getTodayWeekIndex();
+  setCurrentWeekIndex(todayIdx >= 0 ? todayIdx : 0);
 }
 
 /**
- * 전체 일정을 Supabase DB에 안정 합성키로 일괄 저장
+ * 전체 allWeeksData를 schedules 테이블 형식으로 변환 후 원자적 Upsert (단일 일괄 처리)
  */
 async function postAllSchedules() {
-  const allWeeks = getAllWeeksData();
-  const allItemsToPost = [];
-  let globalOrder = 0;
+  const currentWeeks = getAllWeeksData();
+  if (!currentWeeks || currentWeeks.length === 0) return;
 
-  allWeeks.forEach(wObj => {
-    const wName = wObj.title.split(' (')[0];
-    (wObj.items || []).forEach(it => {
-      // 내용 기반 안정 id 통일 (주차__날짜__시간)
-      const stableId = `${wName}__${it.date}__${it.time}`;
+  const flatRows = [];
+  const now = new Date().toISOString();
 
-      allItemsToPost.push({
-        id: stableId,
-        week_title: wName,
-        date: it.date,
-        time: it.time,
-        region: it.region || '',
-        clinic: it.clinic || '',
-        trans_status: it.transStatus || '',
-        trans_detail: it.transDetail || '',
-        hr_status: it.hrStatus || '',
-        hr_detail: it.hrDetail || '',
-        ot_status: it.otStatus || '',
-        ot_detail: it.otDetail || '',
-        is_holiday: Boolean(it.isHoliday),
-        order_index: globalOrder++,
-        updated_at: new Date().toISOString()
+  currentWeeks.forEach((weekObj) => {
+    const weekTitle = weekObj.title;
+    (weekObj.items || []).forEach((item, index) => {
+      flatRows.push({
+        id: `${weekTitle}__${item.date}__${item.time}`,
+        week_title: weekTitle,
+        date: item.date,
+        time: item.time,
+        region: item.region || '',
+        clinic: item.clinic || '',
+        trans_status: item.transStatus || '',
+        trans_detail: item.transDetail || '',
+        hr_status: item.hrStatus || '',
+        hr_detail: item.hrDetail || '',
+        ot_status: item.otStatus || '',
+        ot_detail: item.otDetail || '',
+        is_holiday: Boolean(item.isHoliday),
+        order_index: index,
+        updated_at: now
       });
     });
   });
 
-  if (allItemsToPost.length === 0) return;
-
-  const chunkSize = 100;
-  const chunks = [];
-  for (let i = 0; i < allItemsToPost.length; i += chunkSize) {
-    chunks.push(allItemsToPost.slice(i, i + chunkSize));
-  }
-
-  await Promise.all(chunks.map(chunk =>
-    supabaseRest('schedules', {
-      method: 'POST',
-      prefer: 'resolution=merge-duplicates',
-      body: chunk
-    })
-  ));
+  // 단 1회의 대량 Upsert 호출로 원자적 동기화 완료
+  await supabaseRest('schedules', {
+    method: 'POST',
+    prefer: 'resolution=merge-duplicates',
+    body: flatRows
+  });
 }
