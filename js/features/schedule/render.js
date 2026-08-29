@@ -15,10 +15,11 @@ export {
   createClinicTd,
   createTransTd,
   createHrTd,
-  createOtTd
+  createOtTd,
+  renderMonthlyCalendar,
+  switchViewModeUI
 } from './schedule-view.js';
 
 export {
-  renderMonthlyCalendar,
-  switchViewModeUI
+  renderMonthlyCalendarView
 } from './monthly-view.js';

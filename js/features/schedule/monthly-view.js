@@ -18,11 +18,11 @@ export function renderMonthlyCalendarView({ state, isRedDate }) {
   if (monthLegendBar) {
     monthLegendBar.innerHTML = '';
     const rColors = state.colorSettings?.regionColors || {
-      '\uC11C\uC6B8': '#E0E7FF',
-      '\uC9C4\uC8FC': '#FEF3C7',
-      '\uB300\uAD6C': '#DBEAFE',
-      '\uC774\uB3D9': '#D1FAE5',
-      '\uAE30\uD0C0': '#FFEDD5'
+      '서울': '#E0E7FF',
+      '진주': '#FEF3C7',
+      '대구': '#DBEAFE',
+      '이동': '#D1FAE5',
+      '기타': '#FFEDD5'
     };
     Object.keys(rColors).forEach(regionKey => {
       const item = document.createElement('div');
@@ -39,7 +39,7 @@ export function renderMonthlyCalendarView({ state, isRedDate }) {
   const getRegionColor = regionName => {
     if (!regionName) return '#CBD5E1';
     const rColors = state.colorSettings?.regionColors || {};
-    return rColors[regionName] || rColors['\uAE30\uD0C0'] || '#FFEDD5';
+    return rColors[regionName] || rColors['기타'] || '#FFEDD5';
   };
   const findItemsForDay = (month, day) => {
     let morning = null;
@@ -56,8 +56,8 @@ export function renderMonthlyCalendarView({ state, isRedDate }) {
             const itemDay = parseInt(parts[parts.length - 1], 10);
             if (itemMonth === month && itemDay === day) {
               foundWeekIndex = weekIndex;
-              if (item.time === '\uC624\uC804') morning = item;
-              else if (item.time === '\uC624\uD6C4') afternoon = item;
+              if (item.time === '오전') morning = item;
+              else if (item.time === '오후') afternoon = item;
             }
           }
         }
@@ -91,7 +91,6 @@ export function renderMonthlyCalendarView({ state, isRedDate }) {
       const clinicText = escapeHtml(item.clinic || '-');
       return `<div class="monthly-cell-slot ${className}"><span class="color-dot" style="background-color: ${color}"></span><span class="slot-clinic">${clinicText}</span></div>`;
     };
-    cell.innerHTML = `<div class="${dateNumClass}">${targetDay}</div>${slotHtml(morningItem, 'm-slot')}${slotHtml(afternoonItem, 'a-slot')}`;
     const openItem = item => {
       if (dayData.weekIndex !== -1 && item) {
         state.currentWeekIndex = dayData.weekIndex;
@@ -116,3 +115,5 @@ export function renderMonthlyCalendarView({ state, isRedDate }) {
   const nextMonthPadding = (7 - (totalRendered % 7)) % 7;
   for (let day = 1; day <= nextMonthPadding; day++) monthlyDaysGrid.appendChild(createCellNode(nextM, day, true));
 }
+
+export { renderMonthlyCalendarView as renderMonthlyCalendar };
