@@ -90,26 +90,30 @@ async function runComprehensiveTests() {
   const bankRecs = filterLedgerRecords(mockMultiMonthRecords, { payment: '기업은행', source: 'bank' });
   assert.strictEqual(bankRecs.length, 1, '기업은행 필터링 누락 (1건이어야 함)');
 
-  console.log('--- 2. Testing Multi-Month Range Integrity (Anti-Single-Month Truncation) ---');
-  // 잔액전망 생성 시 1월~10월 전체 데이터가 들어갔을 때 여러 월(Multi-Month)이 모두 보존되어야 함! (8월만 잘리면 실패)
+  console.log('--- 2. Testing Multi-Month Range Integrity (ForAll Invariant) ---');
+  // 잔액전망 생성 시 전체 데이터가 들어갔을 때 모든 월이 다중 월(Multi-Month)로 완벽하게 보존되어야 함!
   const forecastRes = generateForecastRecords({
     allRecords: mockMultiMonthRecords,
     monthCursor: new Date('2026-08-15')
   });
   const forecastRows = forecastRes.displayRows || [];
-  const distinctForecastMonths = new Set(forecastRows.map(r => String(r.date).slice(0, 7)));
-  assert.ok(distinctForecastMonths.size >= 2, `잔액전망 다중 월 누락 버그: 단일 월(${Array.from(distinctForecastMonths).join(',')})만 생성됨. 전체 월 범위가 유지되어야 합니다.`);
+  const allMonthsInForecast = Array.from(new Set(forecastRows.map(r => String(r.date).slice(0, 7))));
+  assert.ok(allMonthsInForecast.length >= 2, '다중 월 범위 누락 버그: 단일 월만 생성됨');
 
-  // 미래 월(9월, 10월 등)이라도 기업카드 결제대금 행이 항상 생성되는지 검증
-  const monthsWithCardBill = new Set(
-    forecastRows.filter(r => (r.item || '').includes('기업카드 결제대금')).map(r => String(r.date).slice(0, 7))
-  );
-  assert.ok(monthsWithCardBill.has('2026-09') || monthsWithCardBill.has('2026-10'), '미래 월(9월/10월)에 기업카드 결제대금 행 누락 버그');
+  // [일반화 불변식]: 존재하는 모든 월(Month M)에 대해 기업카드 결제대금 및 토스 생활비 통합 행과 subRecords가 100% 완비되어야 함!
+  allMonthsInForecast.forEach(monthKey => {
+    const monthRows = forecastRows.filter(r => String(r.date).startsWith(monthKey));
 
-  // subRecords (인라인 아코디언 세부행) 연결 무결성 검증
-  const cardBillRows = forecastRows.filter(r => (r.item || '').includes('기업카드 결제대금'));
-  assert.ok(cardBillRows.length > 0, '기업카드 결제대금 행이 생성되지 않음');
-  assert.ok(cardBillRows.some(r => Array.isArray(r.subRecords)), '기업카드 결제대금 행에 subRecords 세부내역 배열 누락');
+    // 규칙 1: 모든 월에 기업카드 결제대금 행과 subRecords 배열이 존재해야 함
+    const cardBill = monthRows.find(r => (r.id && r.id.startsWith('fc-est-card-')) || (r.item && r.item.includes('기업카드 결제대금')));
+    assert.ok(cardBill, `[${monthKey}] 월에 기업카드 결제대금 통합 행 누락`);
+    assert.ok(Array.isArray(cardBill.subRecords), `[${monthKey}] 월의 기업카드 행에 subRecords 배열 누락`);
+
+    // 규칙 2: 모든 월에 토스 생활비 통합 행과 subRecords 배열이 존재해야 함
+    const tossLiving = monthRows.find(r => (r.id && r.id.startsWith('fc-var-toss-')) || (r.item && r.item.includes('토스 생활비')));
+    assert.ok(tossLiving, `[${monthKey}] 월에 토스 생활비 통합 행 누락`);
+    assert.ok(Array.isArray(tossLiving.subRecords), `[${monthKey}] 월의 토스 생활비 행에 subRecords 배열 누락`);
+  });
 
   console.log('--- 3. Testing 7-Column Visual Visibility & Styling Contract ---');
   // renderTransactionRow로 렌더링된 행에서 잔액 셀(balanceCell)의 글자색과 정렬이 실제로 지정되어 눈에 보이는지 검증
