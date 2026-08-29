@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <!-- GitHub Pages Trigger -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>스마트 일정 관리</title>
@@ -13,27 +12,25 @@
   <meta name="apple-mobile-web-app-title" content="스마트일정">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
-  <link rel="stylesheet" href="style.css?v=20260829_2311">
+  <link rel="stylesheet" href="style.css?v=20260829_2315">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <!-- Security Auth Overlay -->
-  <div id="authModalOverlay" class="auth-modal-overlay active">
+  <!-- Security Auth Overlay (Clean Modular Gate) -->
+  <div class="auth-modal-overlay active" id="authModalOverlay">
     <div class="auth-card">
       <div class="auth-icon">🔒</div>
-      <h2 class="auth-title">보안 일정 시스템 접속</h2>
+      <h2 class="auth-title">스마트 일정 관리</h2>
       <p class="auth-subtitle">일정을 열람하려면 비밀번호를 입력해주세요.</p>
-      
       <div class="auth-input-group">
-        <input type="password" id="authPasswordInput" class="auth-input" placeholder="비밀번호 입력..." autocomplete="off" />
-        <button id="authSubmitBtn" class="auth-submit-btn">접속하기</button>
+        <input type="password" id="authPasswordInput" class="auth-input" placeholder="비밀번호 입력..." autocomplete="current-password" inputmode="numeric">
+        <button id="authSubmitBtn" class="auth-submit-btn">접속</button>
       </div>
-      
-      <div id="authErrorMsg" class="auth-error-msg hidden"></div>
-      <div id="authLockoutTimer" class="auth-lockout-timer hidden"></div>
-      <p class="auth-build-time">최종 수정: 2026-08-07 09:21</p>
+      <div class="auth-error-msg hidden" id="authErrorMsg"></div>
+      <div class="auth-lockout-timer hidden" id="authLockoutTimer"></div>
+      <div class="auth-build-time">최종 수정: 2026-08-29 23:15</div>
     </div>
   </div>
 
@@ -43,10 +40,10 @@
 
     <!-- Header -->
     <header class="app-header">
-      <!-- Primary Menu: Schedule vs Ledger -->
+      <!-- 0th Row: Mode Switch (일정 / 가계부) -->
       <div class="primary-switch-container">
         <button class="primary-switch-btn active" id="scheduleMenuBtn">📅 일정</button>
-        <button class='primary-switch-btn' id='ledgerMenuBtn' type='button'>가계부</button>
+        <button class="primary-switch-btn" id="ledgerMenuBtn">가계부</button>
       </div>
 
       <!-- Schedule Submenu: Weekly vs Monthly -->
@@ -57,11 +54,11 @@
 
       <!-- Ledger Submenu: Weekly vs Monthly -->
       <div class="view-switch-container hidden" id="ledgerSubnav">
-        <button class="view-switch-btn active" id="ledgerAllViewBtn" type="button">&#xC804;&#xCCB4;</button>
-        <button class="view-switch-btn" id="ledgerMonthlyViewBtn" type="button">&#xC6D4;&#xAC04;</button>
+        <button class="view-switch-btn active" id="ledgerAllViewBtn" type="button">전체</button>
+        <button class="view-switch-btn" id="ledgerMonthlyViewBtn" type="button">월간</button>
       </div>
 
-      <!-- 1st Row: Centered Week/Month Navigator -->
+      <!-- 1st Row: Centered Week Navigator -->
       <div class="week-navigator centered schedule-only">
         <button class="nav-btn" id="prevWeekBtn">◀</button>
         <button type="button" class="week-title schedule-period-picker" id="weekTitle" title="월·주차 선택" aria-label="월·주차 선택"><span class="period-title-text">2026.08.17–08.23</span><span class="dropdown-arrow" aria-hidden="true">▾</span></button>
@@ -80,25 +77,33 @@
         <button class="alert-chip alert-unapplied" id="unappliedSummaryBtn">전체 미신청 <span id="unappliedCount">0</span>건 📋</button>
         <button class="alert-chip alert-unapproved" id="unapprovedSummaryBtn">전체 미승인 <span id="unapprovedCount">1</span>건 ⏳</button>
       </div>
-    <div class="week-navigator centered hidden" id="ledgerCardNavigator">
-        <button class="nav-btn" id="ledgerPrevPeriodBtn" type="button" aria-label="&#xC774;&#xC804; &#xAE30;&#xAC04;">&#x25C0;</button>
-        <h1 class="week-title" id="ledgerPeriodTitle">&#xC774;&#xBC88; &#xC8FC;<span class="dropdown-arrow">&#x25BE;</span></h1>
-        <button class="nav-btn" id="ledgerNextPeriodBtn" type="button" aria-label="&#xB2E4;&#xC74C; &#xAE30;&#xAC04;">&#x25B6;</button>
-        <button class="today-btn" id="ledgerLatestBtn" type="button">&#xC624;&#xB298;</button>
-        <button class="nav-btn" id="ledgerRefreshBtn" type="button" title="가계부 최신 동기화"><span class="sync-icon">&#x1F504;</span></button>
-        <button class="nav-btn" id="ledgerReportBtn" type="button" title="&#xC9C0;&#xCD9C; &#xB9AC;&#xD3EC;&#xD2B8;">&#x1F4CA;</button>
-        <button class="nav-btn" id="ledgerColorSettingsBtn" type="button" title="&#xAC70;&#xB798; &#xD0DC;&#xADF8; &#xC0C9;&#xC0C1;">&#x1F3A8;</button>
-      </div><div id="ledgerSyncBtn" class="sync-status hidden" role="button" tabindex="0" data-state="saved">&#xCD5C;&#xC2E0; &#xB0B4;&#xC5ED; &#xBC18;&#xC601;</div><div class="alert-row hidden" id="ledgerSourceSwitch" role="group" aria-label="&#xAC00;&#xACC4;&#xBD80; &#xC2DC;&#xD2B8; &#xC804;&#xD658;">
+
+      <!-- Ledger Row 1: Week Navigator -->
+      <div class="week-navigator centered hidden" id="ledgerCardNavigator">
+        <button class="nav-btn" id="ledgerPrevPeriodBtn" type="button" aria-label="이전 기간">◀</button>
+        <h1 class="week-title" id="ledgerPeriodTitle">이번 주<span class="dropdown-arrow">▾</span></h1>
+        <button class="nav-btn" id="ledgerNextPeriodBtn" type="button" aria-label="다음 기간">▶</button>
+        <button class="today-btn" id="ledgerLatestBtn" type="button">오늘</button>
+        <button class="nav-btn" id="ledgerRefreshBtn" type="button" title="가계부 최신 동기화"><span class="sync-icon">🔄</span></button>
+        <button class="nav-btn" id="ledgerReportBtn" type="button" title="지출 리포트">📊</button>
+        <button class="nav-btn" id="ledgerColorSettingsBtn" type="button" title="거래 태그 색상">🎨</button>
+      </div>
+
+      <div id="ledgerSyncBtn" class="sync-status hidden" role="button" tabindex="0" data-state="saved">최신 내역 반영</div>
+
+      <!-- Ledger Row 2: Sheet / Source Selector (현금 / 기업카드 / 토스은행 / 기업은행 / 잔액전망) -->
+      <div class="alert-row hidden" id="ledgerSourceSwitch" role="group" aria-label="가계부 시트 전환">
         <button class="alert-chip ledger-source-chip" id="ledgerCashSourceBtn" data-ledger-source="cash" type="button">현금</button>
         <button class="alert-chip ledger-source-chip" id="ledgerCompanyCardBtn" data-ledger-source="card" data-ledger-payment="기업카드" type="button">기업카드</button>
         <button class="alert-chip ledger-source-chip active" id="ledgerTossBankBtn" data-ledger-source="card" data-ledger-payment="토스은행" type="button">토스은행</button>
         <button class="alert-chip ledger-source-chip" id="ledgerBankSourceBtn" data-ledger-source="bank" type="button">기업은행</button>
         <button class="alert-chip ledger-source-chip" id="ledgerForecastSourceBtn" data-ledger-source="forecast" type="button">잔액전망</button>
       </div>
-<span class="ledger-stage-badge hidden" id="ledgerDataBadge">0건</span><input type="hidden" id="ledgerPayment" value="">
-</header>
+      <span class="ledger-stage-badge hidden" id="ledgerDataBadge">0건</span>
+      <input type="hidden" id="ledgerPayment" value="">
+    </header>
 
-    <!-- 3rd Row: Quick Filter Chips & Multi-Edit Mode Switch -->
+    <!-- Schedule Row 3: Quick Filters -->
     <div class="filter-bar schedule-only">
       <button class="filter-chip active" data-filter="all">전체</button>
       <button class="filter-chip" data-filter="jinju">진주</button>
@@ -110,7 +115,8 @@
       <button class="filter-chip multi-edit-chip" id="toggleMultiEditBtn" title="다중 편집 모드">✏️</button>
     </div>
 
-    <div class="filter-bar hidden" id="ledgerPersonSwitch" role="group" aria-label="&#xAC70;&#xB798; &#xD544;&#xD130;">
+    <!-- Ledger Row 3: Filter Chips (전체, 사용자, 사용처, 고정비, 0원, 선택) -->
+    <div class="filter-bar hidden" id="ledgerPersonSwitch" role="group" aria-label="거래 필터">
       <div class="ledger-filter-primary" role="group" aria-label="빠른 거래 필터">
         <button class="filter-chip active" id="ledgerFilterAllBtn" type="button">전체</button>
         <button class="filter-chip" id="ledgerPersonFilterToggle" type="button" aria-expanded="false">사용자</button>
@@ -142,7 +148,8 @@
         <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="기타" type="button">기타</button>
       </div>
     </div>
-<!-- Main Schedule Table (Weekly Grid) -->
+
+    <!-- Main Schedule Table (Weekly Grid) -->
     <main class="table-wrapper" id="weeklyViewWrapper">
       <table class="schedule-table">
         <thead>
@@ -186,13 +193,13 @@
     <!-- Ledger View Container (기업카드 / 현금 / 기업은행 / 토스은행 / 잔액전망) -->
     <main class="monthly-wrapper hidden" id="ledgerMonthlyWrapper">
       <div class="monthly-calendar-header">
-        <div class="day-name sunday">&#xC77C;</div>
-        <div class="day-name">&#xC6D4;</div>
-        <div class="day-name">&#xD654;</div>
-        <div class="day-name">&#xC218;</div>
-        <div class="day-name">&#xBAA9;</div>
-        <div class="day-name">&#xAE08;</div>
-        <div class="day-name saturday">&#xD1A0;</div>
+        <div class="day-name sunday">일</div>
+        <div class="day-name">월</div>
+        <div class="day-name">화</div>
+        <div class="day-name">수</div>
+        <div class="day-name">목</div>
+        <div class="day-name">금</div>
+        <div class="day-name saturday">토</div>
       </div>
       <div class="monthly-calendar-grid" id="ledgerMonthlyDaysGrid">
         <!-- Dynamic Ledger Month rendering -->
@@ -218,485 +225,494 @@
       </table>
     </main>
 
-    <!-- Multi Edit Action Bar (Floating Bar) -->
-    <div id="multiActionBar" class="multi-action-bar hidden">
-      <span id="selectedCountLabel" class="selected-count">0개 선택됨</span>
-      <div class="multi-action-btns">
-        <button id="bulkCopyBtn" class="action-btn copy-btn">📋 복사</button>
-        <button id="bulkPasteBtn" class="action-btn paste-btn">📥 붙여넣기</button>
-        <button id="bulkDeleteBtn" class="action-btn delete-btn">🗑️ 삭제</button>
+    <!-- Multi-Edit Action Bottom Bar Group -->
+    <div class="bottom-action-group schedule-only">
+      <!-- Copy Status Toast Bar (Right above bottom bar) -->
+      <div class="copy-buffer-bar hidden" id="copyBufferBar">
+        <span>📋 <strong id="copiedItemLabel">8.10(월) 오전</strong> 일정 복사됨</span>
+        <button class="clear-copy-btn" id="clearCopyBtn" title="복사 취소">✕</button>
+      </div>
+
+      <!-- Multi-Edit Action Bottom Bar (Copy, Paste, Jinju Fill) -->
+      <div class="multi-action-bar hidden" id="multiActionBar">
+        <span id="selectedCountLabel">0개 선택됨</span>
+        <div class="multi-btn-row">
+          <button class="multi-action-btn copy-btn" id="bulkCopyBtn">📋 복사</button>
+          <button class="multi-action-btn paste-btn" id="bulkPasteBtn">📥 붙여넣기</button>
+        </div>
       </div>
     </div>
 
-    <!-- Copy Buffer Floating Bar -->
-    <div id="copyBufferBar" class="copy-buffer-bar hidden">
-      <span class="buffer-text">📋 <span id="copiedItemLabel">복사된 항목</span></span>
-      <button id="clearCopyBtn" class="buffer-clear-btn" title="복사 취소">✕</button>
+    <!-- Ledger Multi-Edit Action Bottom Bar Group -->
+    <div class="bottom-action-group ledger-only">
+      <!-- Copy Status Toast Bar -->
+      <div class="copy-buffer-bar hidden" id="ledgerCopyBufferBar">
+        <span>📋 <strong id="ledgerCopiedItemLabel">선택 내역</strong> 복사됨</span>
+        <button class="clear-copy-btn" id="ledgerClearCopyBtn" title="복사 취소">✕</button>
+      </div>
+
+      <!-- Ledger Multi-Action Bottom Bar (Offset Grouping, Bulk Delete, Paste) -->
+      <div class="multi-action-bar hidden" id="ledgerMultiActionBar">
+        <span id="ledgerSelectedCountLabel">0개 선택됨</span>
+        <div class="multi-btn-row">
+          <button class="multi-action-btn offset-btn" id="ledgerBulkOffsetBtn" style="background:#10B981; color:#fff;" title="선택한 항목들을 0원 상계 그룹으로 묶습니다.">🔗 0원 상계</button>
+          <button class="multi-action-btn copy-btn" id="ledgerBulkCopyBtn">📋 복사</button>
+          <button class="multi-action-btn paste-btn" id="ledgerBulkPasteBtn">📥 붙여넣기</button>
+          <button class="multi-action-btn delete-btn" id="ledgerBulkDeleteBtn" style="background:#EF4444; color:#fff;">🗑️ 삭제</button>
+        </div>
+      </div>
     </div>
 
-    <!-- Floating Quick Action Button -->
-    <button class="fab-btn" id="fabAddBtn" title="빠른 일정 등록">＋</button>
+    <!-- Modals -->
+    <!-- Schedule Edit Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+      <div class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="modalDateDisplay">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h3 id="modalDateDisplay">일정 편집</h3>
+          <div class="modal-header-actions">
+            <button class="apply-weekdays-btn" id="applyWeekdaysBtn" title="이 지역·진료 설정을 이번 주 화~목(오전)에 모두 적용합니다.">화~목 전체적용</button>
+            <button class="copy-schedule-btn" id="copyScheduleBtn" title="이 시간대 일정을 복사합니다.">📋 복사</button>
+            <button class="close-btn" id="modalCloseBtn" aria-label="닫기">✕</button>
+          </div>
+        </div>
+        <div class="sheet-body">
+          <!-- 1. Region -->
+          <div class="section-card region-card">
+            <div class="card-header">
+              <span>지역</span>
+            </div>
+            <div class="btn-group five-option-grid" id="regionBtnGroup">
+              <button class="option-btn" data-val="진주">진주</button>
+              <button class="option-btn" data-val="서울">서울</button>
+              <button class="option-btn" data-val="대구">대구</button>
+              <button class="option-btn" data-val="이동">이동</button>
+              <button class="option-btn" data-val="기타">기타</button>
+            </div>
+            <input type="text" class="input-text hidden" id="customRegionInput" placeholder="직접 입력...">
+          </div>
 
-    <!-- Average Balance Modal Container (Dynamic Component Injection) -->
+          <!-- 2. Clinic -->
+          <div class="section-card clinic-card">
+            <div class="card-header">
+              <span>진료</span>
+            </div>
+            <div class="btn-group eight-option-grid" id="clinicBtnGroup">
+              <button class="option-btn" data-val="O">O</button>
+              <button class="option-btn" data-val="X">X</button>
+              <button class="option-btn" data-val="행정">행정</button>
+              <button class="option-btn" data-val="당직">당직</button>
+              <button class="option-btn" data-val="당직OFF">당직OFF</button>
+              <button class="option-btn" data-val="반휴">반휴</button>
+              <button class="option-btn" data-val="주말">주말</button>
+              <button class="option-btn" data-val="기타">기타</button>
+            </div>
+            <input type="text" class="input-text hidden" id="customClinicInput" placeholder="직접 입력...">
+          </div>
+
+          <!-- 3. Transport -->
+          <div class="section-card trans-card">
+            <div class="card-header">
+              <span>교통비</span>
+              <div class="toggle-group" id="transStatusToggle">
+                <button class="status-toggle-btn status-paid" data-val="결제">결제</button>
+                <button class="status-toggle-btn status-unpaid" data-val="미결제">미결제</button>
+              </div>
+            </div>
+            <div class="category-select-wrapper">
+              <select class="select-btn" id="transSelectCategory" aria-label="교통비 카테고리 선택">
+                <option value="">- 항목 선택 -</option>
+                <option value="KTX">KTX</option>
+                <option value="SRT">SRT</option>
+                <option value="버스">버스</option>
+                <option value="택시">택시</option>
+                <option value="주유">주유</option>
+                <option value="통행료">통행료</option>
+                <option value="주차">주차</option>
+                <option value="기타">기타(직접입력)</option>
+              </select>
+              <div class="custom-category-wrapper hidden" id="customTransWrapper">
+                <input type="text" class="input-text custom-category-input" id="customTransCategoryInput" placeholder="교통 항목 직접 입력...">
+                <button class="btn-reset-category" id="resetTransCategoryBtn" title="선택 목록으로 돌아가기">↩</button>
+              </div>
+            </div>
+            <input type="text" class="input-text" id="transDetailInput" placeholder="세부 내용 (예: KTX 59,800원)">
+          </div>
+
+          <!-- 4. HR -->
+          <div class="section-card hr-card">
+            <div class="card-header">
+              <span>국인체</span>
+              <div class="toggle-group" id="hrStatusToggle">
+                <button class="status-toggle-btn status-applied" data-val="신청">신청</button>
+                <button class="status-toggle-btn status-unapplied" data-val="미신청">미신청</button>
+              </div>
+            </div>
+            <div class="category-select-wrapper">
+              <select class="select-btn" id="hrSelectCategory" aria-label="국인체 카테고리 선택">
+                <option value="">- 항목 선택 -</option>
+                <option value="국인체">국인체</option>
+                <option value="여비">여비</option>
+                <option value="수당">수당</option>
+                <option value="서류">서류</option>
+                <option value="기타">기타(직접입력)</option>
+              </select>
+              <div class="custom-category-wrapper hidden" id="customHrWrapper">
+                <input type="text" class="input-text custom-category-input" id="customHrCategoryInput" placeholder="국인체 항목 직접 입력...">
+                <button class="btn-reset-category" id="resetHrCategoryBtn" title="선택 목록으로 돌아가기">↩</button>
+              </div>
+            </div>
+            <input type="text" class="input-text" id="hrDetailInput" placeholder="세부 내용 (예: 진주 여비 12,000원)">
+          </div>
+
+          <!-- 5. Overtime -->
+          <div class="section-card ot-card">
+            <div class="card-header">
+              <span>시간외수당</span>
+              <div class="toggle-group" id="otStatusToggle">
+                <button class="status-toggle-btn status-approved" data-val="승인">승인</button>
+                <button class="status-toggle-btn status-unapproved" data-val="미승인">미승인</button>
+              </div>
+            </div>
+            <div class="category-select-wrapper">
+              <select class="select-btn" id="otSelectCategory" aria-label="시간외수당 카테고리 선택">
+                <option value="">- 항목 선택 -</option>
+                <option value="시간외">시간외</option>
+                <option value="야간">야간</option>
+                <option value="휴일">휴일</option>
+                <option value="당직">당직</option>
+                <option value="특근">특근</option>
+                <option value="기타">기타(직접입력)</option>
+              </select>
+              <div class="custom-category-wrapper hidden" id="customOtWrapper">
+                <input type="text" class="input-text custom-category-input" id="customOtCategoryInput" placeholder="수당 항목 직접 입력...">
+                <button class="btn-reset-category" id="resetOtCategoryBtn" title="선택 목록으로 돌아가기">↩</button>
+              </div>
+            </div>
+            <input type="text" class="input-text" id="otDetailInput" placeholder="세부 내용 (예: 1.5시간, 2시간)">
+          </div>
+
+          <button class="save-btn" id="saveScheduleBtn">저장하기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Details Modal (미결제 / 미신청 / 미승인 리스트) -->
+    <div class="modal-overlay" id="summaryModalOverlay">
+      <div class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="summaryModalTitle">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h3 id="summaryModalTitle">미결제 항목 모아보기</h3>
+          <button class="close-btn" id="summaryModalCloseBtn" aria-label="닫기">✕</button>
+        </div>
+        <div class="sheet-body">
+          <div class="summary-list" id="summaryModalList">
+            <!-- Dynamic List Items -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Week Select Modal Overlay (월간/주차 통합 네비게이터) -->
+    <div class="modal-overlay" id="weekSelectModalOverlay">
+      <div class="bottom-sheet week-picker-sheet" role="dialog" aria-modal="true" aria-labelledby="weekPickerHeaderYear">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <div class="modal-title-with-nav">
+            <button class="picker-year-nav" id="pickerPrevYearBtn">◀</button>
+            <h3 id="weekPickerHeaderYear">2026년</h3>
+            <button class="picker-year-nav" id="pickerNextYearBtn">▶</button>
+          </div>
+          <button class="close-btn" id="weekSelectModalCloseBtn" aria-label="닫기">✕</button>
+        </div>
+        <div class="sheet-body week-picker-body">
+          <div class="picker-section-label">월간 달력 바로가기</div>
+          <div class="month-grid-picker" id="monthGridPicker">
+            <!-- Dynamic 12 Months -->
+          </div>
+          <div class="picker-section-label" style="margin-top: 16px;">주간 일정 선택</div>
+          <div class="week-list-picker" id="weekListPicker">
+            <!-- Dynamic Weeks -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Month Select Modal Overlay (월간 전용 연/월 선택기) -->
+    <div class="modal-overlay" id="monthSelectModalOverlay">
+      <div class="bottom-sheet week-picker-sheet" role="dialog" aria-modal="true" aria-labelledby="monthPickerHeaderYear">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <div class="modal-title-with-nav">
+            <button class="picker-year-nav" id="monthPickerPrevYearBtn">◀</button>
+            <h3 id="monthPickerHeaderYear">2026년</h3>
+            <button class="picker-year-nav" id="monthPickerNextYearBtn">▶</button>
+          </div>
+          <button class="close-btn" id="monthSelectModalCloseBtn" aria-label="닫기">✕</button>
+        </div>
+        <div class="sheet-body week-picker-body">
+          <div class="picker-section-label">확인할 월을 선택하세요</div>
+          <div class="month-grid-picker" id="monthDirectGridPicker">
+            <!-- Dynamic 12 Month Buttons -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Statistics Summary Modal Overlay (통계 및 시간외수당 분석 리포트) -->
+    <div class="modal-overlay" id="statsModalOverlay">
+      <div class="bottom-sheet stats-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="statsHeaderTitle">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <div class="modal-title-with-nav">
+            <button class="picker-year-nav" id="statsPrevYearBtn">◀</button>
+            <h3 id="statsHeaderTitle">2026년 통계</h3>
+            <button class="picker-year-nav" id="statsNextYearBtn">▶</button>
+          </div>
+          <button class="close-btn" id="statsModalCloseBtn" aria-label="닫기">✕</button>
+        </div>
+        <div class="sheet-body stats-modal-body">
+          <div class="stats-period-tabs">
+            <button class="stats-tab active" data-range="month">월별</button>
+            <button class="stats-tab" data-range="quarter">분기별</button>
+            <button class="stats-tab" data-range="half">반기별</button>
+            <button class="stats-tab" data-range="year">연간</button>
+          </div>
+          <div class="stats-sub-picker" id="statsSubPicker"></div>
+          <div class="stats-cards-grid">
+            <div class="metric-card ot-card">
+              <div class="metric-icon">⏰</div>
+              <div class="metric-info">
+                <span class="metric-label">총 시간외수당</span>
+                <strong class="metric-value" id="statsTotalOt">0시간</strong>
+              </div>
+            </div>
+            <div class="metric-card jinju-card">
+              <div class="metric-icon">📍</div>
+              <div class="metric-info">
+                <span class="metric-label">진주 근무</span>
+                <strong class="metric-value" id="statsJinjuDays">0일</strong>
+              </div>
+            </div>
+            <div class="metric-card clinic-card">
+              <div class="metric-icon">🏥</div>
+              <div class="metric-info">
+                <span class="metric-label">진료 일수</span>
+                <strong class="metric-value" id="statsClinicDays">0일</strong>
+              </div>
+            </div>
+            <div class="metric-card trans-card">
+              <div class="metric-icon">🚅</div>
+              <div class="metric-info">
+                <span class="metric-label">교통비 합계</span>
+                <strong class="metric-value" id="statsTotalTrans">0원</strong>
+              </div>
+            </div>
+          </div>
+          <div class="stats-section-label">세부 항목 분석</div>
+          <div class="stats-breakdown-list" id="statsBreakdownList"></div>
+          <div class="stats-section-label" style="margin-top: 16px;">월별 시간외 추이</div>
+          <div class="stats-chart-wrap">
+            <canvas id="statsOtChart"></canvas>
+          </div>
+        </div>
+        <div class="stats-modal-footer">
+          <button class="export-stats-btn" id="exportStatsBtn">📥 CSV 내보내기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Color Settings Custom Modal Overlay (색상 커스텀 팔레트) -->
+    <div class="modal-overlay" id="colorSettingsModalOverlay">
+      <div class="bottom-sheet color-settings-sheet" role="dialog" aria-modal="true" aria-labelledby="colorSettingsHeaderTitle">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h3 id="colorSettingsHeaderTitle">🎨 스마트 색상 커스텀 설정</h3>
+          <button class="close-btn" id="colorSettingsModalCloseBtn" aria-label="닫기">✕</button>
+        </div>
+        <div class="sheet-body color-settings-body">
+          <p class="settings-desc">10가지 파스텔 팔레트 중 원하는 색상을 클릭하여 지정하세요.</p>
+          <div class="color-section-box">
+            <h4 class="section-title">📍 지역 색상</h4>
+            <div class="palette-chips-container" id="regionColorChipsContainer"></div>
+          </div>
+          <div class="color-section-box">
+            <h4 class="section-title">🏥 진료 상태 색상</h4>
+            <div class="palette-chips-container" id="clinicColorChipsContainer"></div>
+          </div>
+          <div class="color-section-box">
+            <h4 class="section-title">🚨 상단 미처리 알림 색상</h4>
+            <div class="palette-chips-container" id="alertColorChipsContainer"></div>
+          </div>
+          <div class="color-section-box">
+            <h4 class="section-title">✨ 단어 자동 색상 규칙</h4>
+            <p class="sub-desc">특정 단어가 포함되면 해당 색상으로 자동 하이라이트됩니다.</p>
+            <div class="word-rule-input-group">
+              <input type="text" class="input-text word-rule-input" id="newWordRuleInput" placeholder="단어 입력 (예: 세미나, 학회)">
+              <div class="palette-chips-row compact" id="newWordRuleColorRow"></div>
+              <button class="add-rule-btn" id="addWordRuleBtn">+ 규칙 추가</button>
+            </div>
+            <div class="word-rules-list" id="wordRulesListContainer"></div>
+          </div>
+          <div class="settings-action-footer">
+            <button class="reset-settings-btn" id="resetColorSettingsBtn">기본값 초기화</button>
+            <button class="save-btn" id="saveColorSettingsBtn">저장 및 적용</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ledger Transaction Modal Overlay (가계부 거래 등록/수정 모달) -->
+    <div class="modal-overlay" id="ledgerTransactionModalOverlay">
+      <div class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="ledgerTransactionModalTitle">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h3 id="ledgerTransactionModalTitle">거래 상세 입력</h3>
+          <button class="close-btn" id="ledgerTransactionModalCloseBtn" type="button" aria-label="닫기">✕</button>
+        </div>
+        <form class="sheet-body" id="ledgerTransactionForm">
+          <input id="ledgerModalEditId" name="ledgerEditId" type="hidden">
+
+          <div class="section-card date-card">
+            <div class="card-header"><span>날짜 · 구분</span></div>
+            <div class="input-row-split">
+              <input class="input-text inline-input" id="ledgerModalDate" name="date" type="date" required>
+              <div class="btn-group ledger-modal-fixed-wrap" id="ledgerModalFixedCostGroup" data-allow-empty="true">
+                <button class="option-btn" data-val="고정비" type="button">고정비</button>
+              </div>
+              <input id="ledgerModalFixedCost" name="fixedCost" type="hidden">
+            </div>
+          </div>
+
+          <div class="section-card trans-card">
+            <div class="card-header"><span>금액</span></div>
+            <div class="input-row-split">
+              <select class="select-btn" id="ledgerModalType" name="type" aria-label="수입 또는 지출">
+                <option value="expense">지출</option>
+                <option value="income">수입</option>
+              </select>
+              <input class="input-text inline-input" id="ledgerModalAmount" name="amount" type="text" inputmode="numeric" placeholder="금액 (0원 가능)" autocomplete="off">
+            </div>
+          </div>
+
+          <div class="form-group ledger-modal-category-field">
+            <label>사용처</label>
+            <div class="btn-group category-grid-14" id="ledgerModalCategoryGroup">
+              <button class="option-btn" data-val="식비" type="button">식비</button>
+              <button class="option-btn" data-val="교통" type="button">교통</button>
+              <button class="option-btn" data-val="문화" type="button">문화</button>
+              <button class="option-btn" data-val="생활" type="button">생활</button>
+              <button class="option-btn" data-val="보험" type="button">보험</button>
+              <button class="option-btn" data-val="상환" type="button">상환</button>
+              <button class="option-btn" data-val="이체" type="button">이체</button>
+              <button class="option-btn" data-val="월급" type="button">월급</button>
+              <button class="option-btn" data-val="저축" type="button">저축</button>
+              <button class="option-btn" data-val="이자" type="button">이자</button>
+              <button class="option-btn" data-val="용돈" type="button">용돈</button>
+              <button class="option-btn" data-val="입금" type="button">입금</button>
+              <button class="option-btn" data-val="출금" type="button">출금</button>
+              <button class="option-btn" data-val="기타" type="button">기타</button>
+            </div>
+            <input id="ledgerModalCategory" name="category" type="hidden">
+          </div>
+
+          <div class="section-card hr-card">
+            <div class="card-header"><span>결제수단 · 항목</span></div>
+            <div class="input-row-split">
+              <select class="select-btn" id="ledgerModalPayment" name="payment" aria-label="결제수단">
+                <option value="현금">현금</option>
+                <option value="기업카드">기업카드</option>
+                <option value="토스은행">토스은행</option>
+                <option value="기업은행">기업은행</option>
+              </select>
+              <input class="input-text inline-input" id="ledgerModalItem" name="item" maxlength="60" placeholder="항목" required>
+            </div>
+          </div>
+
+          <div class="section-card ot-card">
+            <div class="card-header"><span>비고</span></div>
+            <div class="input-row-split">
+              <select class="select-btn" id="ledgerModalPerson" aria-label="사용자">
+                <option value="기타">- 사용자(기타) -</option>
+                <option value="쥬쥬">쥬쥬</option>
+                <option value="지니">지니</option>
+                <option value="콩콩">콩콩</option>
+                <option value="기타">기타</option>
+              </select>
+              <input class="input-text inline-input" id="ledgerModalMemo" name="memo" maxlength="100" placeholder="나머지 비고">
+            </div>
+          </div>
+
+          <div class="ledger-modal-actions">
+            <button class="ledger-modal-delete-btn hidden" id="ledgerModalDeleteBtn" type="button">🗑️ 삭제</button>
+            <button class="save-btn" id="ledgerModalSaveBtn" type="submit">저장</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Ledger Report Modal Overlay -->
+    <div class="modal-overlay" id="ledgerReportOverlay">
+      <div class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="ledgerReportTitle">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h3 id="ledgerReportTitle">가계부 리포트</h3>
+          <button class="close-btn" id="ledgerReportCloseBtn" type="button" aria-label="닫기">✕</button>
+        </div>
+        <div class="sheet-body ledger-report-body">
+          <div class="form-group"><label id="ledgerReportPeriod">선택 기간</label></div>
+          <section class="ledger-report-summary">
+            <article><span>수입</span><strong id="ledgerReportIncome">0</strong></article>
+            <article><span>지출</span><strong id="ledgerReportExpense">0</strong></article>
+            <article><span>잔액</span><strong id="ledgerReportBalance">0</strong></article>
+          </section>
+          <section class="ledger-report-groups">
+            <article><h4>분류별 지출</h4><div id="ledgerReportCategoryStats" class="ledger-stat-list"></div></article>
+            <article><h4>구분별 지출</h4><div id="ledgerReportPersonStats" class="ledger-stat-list"></div></article>
+            <article><h4>결제수단별 지출</h4><div id="ledgerReportPaymentStats" class="ledger-stat-list"></div></article>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ledger Color Settings Modal Overlay -->
+    <div class="modal-overlay" id="ledgerColorOverlay">
+      <div class="bottom-sheet color-settings-sheet" role="dialog" aria-modal="true" aria-labelledby="ledgerColorTitle">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h3 id="ledgerColorTitle">🎨 커스텀 색상 설정</h3>
+          <button class="close-btn" id="ledgerColorCloseBtn" type="button" aria-label="닫기">✕</button>
+        </div>
+        <div class="sheet-body color-settings-body">
+          <p class="settings-desc">10가지 파스텔 팔레트 중 원하는 색상을 클릭하여 지정하세요.</p>
+          <div id="ledgerColorSettingsContent"></div>
+          <div class="color-section-box">
+            <h4 class="section-title">🎨 기타 / 특정 단어 색상 규칙</h4>
+            <p class="sub-desc">거래 항목에 지정한 단어가 포함되면 해당 색상을 적용합니다.</p>
+            <div class="word-rule-input-group">
+              <input type="text" class="input-text word-rule-input" id="ledgerNewRuleWordInput" placeholder="단어 입력 (예: 건강 검진 풀이전용)">
+              <div class="palette-chips-row compact" id="ledgerNewRuleColorRow"></div>
+              <button type="button" class="add-rule-btn" id="ledgerAddWordRuleBtn">+ 규칙 추가</button>
+            </div>
+            <div class="word-rules-list" id="ledgerWordRulesListContainer"></div>
+          </div>
+          <div class="settings-action-footer">
+            <button type="button" class="reset-settings-btn" id="ledgerColorResetBtn">기본값 초기화</button>
+            <button type="button" class="save-btn" id="ledgerColorSaveBtn">저장 및 적용</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dynamic Injected Root -->
     <div id="averageBalanceModalRoot"></div>
   </div>
 
-  <!-- Unified Bottom Sheet / Modal (Responsive Glassmorphism) -->
-  <div class="modal-overlay" id="modalOverlay">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h3 id="modalTitle">일정 상세 편집</h3>
-        <button class="modal-close-btn" id="modalCloseBtn">✕</button>
-      </div>
-
-      <div class="modal-body">
-        <!-- Date Header Display (Non-editable) -->
-        <div class="form-group row-flex">
-          <label>날짜/시간</label>
-          <div class="modal-date-display" id="modalDateDisplay"></div>
-        </div>
-
-        <!-- 1. Region (지역) Selection Pills -->
-        <div class="form-group">
-          <label>지역</label>
-          <div class="btn-group" id="regionBtnGroup">
-            <button class="pill-btn" data-val="진주">진주</button>
-            <button class="pill-btn" data-val="서울">서울</button>
-            <button class="pill-btn" data-val="대구">대구</button>
-            <button class="pill-btn" data-val="이동">이동</button>
-            <button class="pill-btn" data-val="">미지정</button>
-          </div>
-        </div>
-
-        <!-- 2. Clinic (진료) Selection Pills -->
-        <div class="form-group">
-          <label>진료</label>
-          <div class="btn-group" id="clinicBtnGroup">
-            <button class="pill-btn" data-val="O">O</button>
-            <button class="pill-btn" data-val="X">X</button>
-            <button class="pill-btn" data-val="행정">행정</button>
-            <button class="pill-btn" data-val="휴일">휴일</button>
-            <button class="pill-btn" data-val="반휴">반휴</button>
-            <button class="pill-btn" data-val="당직">당직</button>
-            <button class="pill-btn" data-val="당직OFF">당직OFF</button>
-            <button class="pill-btn" data-val="주말">주말</button>
-            <button class="pill-btn" data-val="">미지정</button>
-          </div>
-        </div>
-
-        <!-- 3. Transport (교통비) Group -->
-        <div class="form-group">
-          <label>교통비</label>
-          <div class="btn-group" id="transStatusBtnGroup">
-            <button class="pill-btn" data-val="결제">결제</button>
-            <button class="pill-btn" data-val="미결제">미결제</button>
-            <button class="pill-btn" data-val="해당없음">해당없음</button>
-            <button class="pill-btn" data-val="">미지정</button>
-          </div>
-          <input type="text" class="form-input" id="transDetailInput" placeholder="교통 상세 내용 (예: KTX 59,800원)" />
-        </div>
-
-        <!-- 4. HR (국인체) Group -->
-        <div class="form-group">
-          <label>국인체</label>
-          <div class="btn-group" id="hrStatusBtnGroup">
-            <button class="pill-btn" data-val="신청">신청</button>
-            <button class="pill-btn" data-val="미신청">미신청</button>
-            <button class="pill-btn" data-val="해당없음">해당없음</button>
-            <button class="pill-btn" data-val="">미지정</button>
-          </div>
-          <input type="text" class="form-input" id="hrDetailInput" placeholder="국인체 상세 내용 (예: 여비 신청 완료)" />
-        </div>
-
-        <!-- 5. Overtime (시간외수당) Group -->
-        <div class="form-group">
-          <label>시간외수당</label>
-          <div class="btn-group" id="otStatusBtnGroup">
-            <button class="pill-btn" data-val="승인">승인</button>
-            <button class="pill-btn" data-val="미승인">미승인</button>
-            <button class="pill-btn" data-val="해당없음">해당없음</button>
-            <button class="pill-btn" data-val="">미지정</button>
-          </div>
-          <input type="text" class="form-input" id="otDetailInput" placeholder="수당 상세 내용 (예: 야간 2시간)" />
-        </div>
-
-        <!-- 6. Holiday Checkbox (휴일 빨간색 강조) -->
-        <div class="form-group row-flex">
-          <label for="isHolidayCheckbox">휴일/공휴일 빨간색 표시</label>
-          <input type="checkbox" id="isHolidayCheckbox" class="form-checkbox" />
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn-primary" id="modalSaveBtn">저장하기</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Summary Alert Details Modal (미결제 / 미신청 / 미승인 모아보기) -->
-  <div class="modal-overlay" id="summaryModalOverlay">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h3 id="summaryModalTitle">미결제 항목 모아보기</h3>
-        <button class="modal-close-btn" id="summaryModalCloseBtn">✕</button>
-      </div>
-      <div class="modal-body" id="summaryModalList">
-        <!-- Dynamically injected summary list items -->
-      </div>
-    </div>
-  </div>
-
-  <!-- Week Select Modal Overlay (주차 및 월간 네비게이터) -->
-  <div class="modal-overlay" id="weekSelectModalOverlay">
-    <div class="modal-card week-picker-card">
-      <div class="modal-header">
-        <div class="modal-title-with-nav">
-          <button class="picker-year-nav" id="pickerPrevYearBtn">◀</button>
-          <h3 id="weekPickerHeaderYear">2026년</h3>
-          <button class="picker-year-nav" id="pickerNextYearBtn">▶</button>
-        </div>
-        <button class="modal-close-btn" id="weekSelectModalCloseBtn">✕</button>
-      </div>
-      <div class="modal-body week-picker-body">
-        <!-- 1. Monthly Direct Access Grid -->
-        <div class="picker-section-label">월간 달력 바로가기</div>
-        <div class="month-grid-picker" id="monthGridPicker">
-          <!-- Dynamically Injected 12 Months -->
-        </div>
-
-        <!-- 2. Weekly Direct Access List -->
-        <div class="picker-section-label" style="margin-top: 16px;">주간 일정 선택</div>
-        <div class="week-list-picker" id="weekListPicker">
-          <!-- Dynamically Injected Weeks for selected Year -->
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Month Select Modal Overlay (월간 달력 전용 연/월 선택기) -->
-  <div class="modal-overlay" id="monthSelectModalOverlay">
-    <div class="modal-card week-picker-card">
-      <div class="modal-header">
-        <div class="modal-title-with-nav">
-          <button class="picker-year-nav" id="monthPickerPrevYearBtn">◀</button>
-          <h3 id="monthPickerHeaderYear">2026년</h3>
-          <button class="picker-year-nav" id="monthPickerNextYearBtn">▶</button>
-        </div>
-        <button class="modal-close-btn" id="monthSelectModalCloseBtn">✕</button>
-      </div>
-      <div class="modal-body week-picker-body">
-        <div class="picker-section-label">확인할 월을 선택하세요</div>
-        <div class="month-grid-picker" id="monthDirectGridPicker">
-          <!-- Dynamically Injected 12 Month Buttons -->
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Color Settings Custom Modal Overlay (색상 커스텀 팔레트) -->
-  <div class="modal-overlay" id="colorSettingsModalOverlay">
-    <div class="modal-card color-settings-card">
-      <div class="modal-header">
-        <h3>🎨 스마트 색상 커스텀 설정</h3>
-        <button class="modal-close-btn" id="colorSettingsModalCloseBtn">✕</button>
-      </div>
-      <div class="modal-body color-settings-body">
-        <div class="color-settings-scroll-area">
-        <p class="settings-desc">원하는 항목의 색상 칩을 눌러 자유롭게 파스텔 톤을 지정할 수 있습니다.</p>
-
-        <!-- 1. Region Color Palette (진주/서울/대구/이동) -->
-        <div class="color-section-group">
-          <h4 class="color-section-title">📍 지역(근무지) 색상</h4>
-          <div class="color-picker-grid" id="regionColorGrid">
-            <!-- Dynamically Injected Color Rows -->
-          </div>
-        </div>
-
-        <!-- 2. Clinic Color Palette (진료/행정/당직/주말/휴일 등) -->
-        <div class="color-section-group">
-          <h4 class="color-section-title">🏥 진료 상태 색상</h4>
-          <div class="color-picker-grid" id="clinicColorGrid">
-            <!-- Dynamically Injected Color Rows -->
-          </div>
-        </div>
-
-        <!-- 3. Alert Status Color Palette (미결제/미신청/미승인) -->
-        <div class="color-section-group">
-          <h4 class="color-section-title">🚨 상단 알림 칩 색상</h4>
-          <div class="color-picker-grid" id="alertColorGrid">
-            <!-- Dynamically Injected Alert Color Rows -->
-          </div>
-        </div>
-
-        <!-- 4. Word-based Auto Color Rules (특정 단어 포함 시 자동 색상 적용) -->
-        <div class="color-section-group">
-          <h4 class="color-section-title">✨ 단어 포함 시 자동 색상 규칙</h4>
-          <div class="word-rule-container" id="wordRuleList">
-            <!-- Dynamically Injected Word Rules -->
-          </div>
-          <div class="word-rule-adder">
-            <input type="text" id="newWordRuleInput" class="form-input" placeholder="새 규칙 단어 (예: 야간, 특근)" />
-            <select id="newWordRuleTarget" class="form-input select-input">
-              <option value="all">전체 열</option>
-              <option value="trans">교통비</option>
-              <option value="hr">국인체</option>
-              <option value="ot">수당</option>
-            </select>
-            <button id="addWordRuleBtn" class="pill-btn add-rule-btn">＋ 규칙 추가</button>
-          </div>
-        </div>
-        </div>
-      </div>
-      <div class="modal-footer color-modal-footer">
-        <button class="pill-btn reset-btn" id="resetDefaultColorsBtn">기본값 복원</button>
-        <button class="btn-primary" id="saveColorSettingsBtn">설정 저장</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Statistics Summary Modal Overlay (통계 및 시간외수당 분석 리포트) -->
-  <div class="modal-overlay" id="statsModalOverlay">
-    <div class="modal-card stats-modal-card">
-      <div class="modal-header">
-        <div class="modal-title-with-nav">
-          <button class="picker-year-nav" id="statsPrevYearBtn">◀</button>
-          <h3 id="statsHeaderTitle">2026년 상반기 통계</h3>
-          <button class="picker-year-nav" id="statsNextYearBtn">▶</button>
-        </div>
-        <button class="modal-close-btn" id="statsModalCloseBtn">✕</button>
-      </div>
-      <div class="modal-body stats-modal-body">
-        
-        <!-- Period Tab Switch (월별 / 분기별 / 반기별 / 연간) -->
-        <div class="stats-period-tabs">
-          <button class="stats-tab active" data-range="month">월별</button>
-          <button class="stats-tab" data-range="quarter">분기별</button>
-          <button class="stats-tab" data-range="half">반기별</button>
-          <button class="stats-tab" data-range="year">연간</button>
-        </div>
-
-        <!-- Sub Period Picker (예: 1월~12월, 1분기~4분기 등) -->
-        <div class="stats-sub-picker" id="statsSubPicker">
-          <!-- Dynamically Injected Sub Period Buttons -->
-        </div>
-
-        <!-- Key Metrics Cards Grid -->
-        <div class="stats-cards-grid">
-          <div class="metric-card ot-card">
-            <div class="metric-icon">⏰</div>
-            <div class="metric-info">
-              <span class="metric-label">총 시간외수당</span>
-              <strong class="metric-value" id="statsTotalOt">0시간</strong>
-            </div>
-          </div>
-          <div class="metric-card jinju-card">
-            <div class="metric-icon">📍</div>
-            <div class="metric-info">
-              <span class="metric-label">진주 근무</span>
-              <strong class="metric-value" id="statsJinjuDays">0일</strong>
-            </div>
-          </div>
-          <div class="metric-card clinic-card">
-            <div class="metric-info">🏥</div>
-            <div class="metric-info">
-              <span class="metric-label">진료 일수</span>
-              <strong class="metric-value" id="statsClinicDays">0일</strong>
-            </div>
-          </div>
-          <div class="metric-card trans-card">
-            <div class="metric-icon">🚅</div>
-            <div class="metric-info">
-              <span class="metric-label">교통비 합계</span>
-              <strong class="metric-value" id="statsTotalTrans">0원</strong>
-            </div>
-          </div>
-        </div>
-
-        <!-- Detailed Breakdown List (월별 상세 누적 통계) -->
-        <div class="stats-section-label">세부 항목 분석</div>
-        <div class="stats-breakdown-list" id="statsBreakdownList">
-          <!-- Dynamically Injected Detailed Breakdown Rows -->
-        </div>
-
-        <!-- Chart Section (Canvas) -->
-        <div class="stats-section-label" style="margin-top: 16px;">월별 시간외 추이</div>
-        <div class="stats-chart-wrap">
-          <canvas id="statsOtChart"></canvas>
-        </div>
-
-      </div>
-      <div class="modal-footer stats-modal-footer">
-        <button class="pill-btn export-btn" id="exportStatsBtn">📥 CSV 내보내기</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="ledgerTransactionModalOverlay">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h3 id="ledgerTransactionModalTitle">&#xAC70;&#xB798; &#xC785;&#xB825;</h3>
-        <button class="modal-close-btn" id="ledgerTransactionModalCloseBtn" type="button">&#x2715;</button>
-      </div>
-      <form class="modal-body" id="ledgerTransactionForm" autocomplete="off">
-        <input type="hidden" id="ledgerEditId" name="ledgerEditId" value="">
-        <div class="form-group row-flex">
-          <label for="ledgerDateInput">&#xB0A0;&#xC9DC;</label>
-          <input type="date" class="form-input" id="ledgerDateInput" name="date" required>
-        </div>
-        <div class="form-group">
-          <label>&#xAD6C;&#xBD84; (&#xC785;&#xCD9C;&#xAE08;)</label>
-          <div class="btn-group" id="ledgerTypeBtnGroup">
-            <button class="pill-btn" data-val="income" type="button">&#xC218;&#xC785;</button>
-            <button class="pill-btn active" data-val="expense" type="button">&#xC9C0;&#xCD9C;</button>
-          </div>
-          <input type="hidden" id="ledgerTypeInput" name="type" value="expense">
-        </div>
-        <div class="form-group row-flex">
-          <label for="ledgerAmountInput">&#xAE08;&#xC561;</label>
-          <input type="text" class="form-input" id="ledgerAmountInput" name="amount" inputmode="numeric" placeholder="0" required>
-        </div>
-        <div class="form-group">
-          <label>&#xACB0;&#xC81C;&#xC218;&#xB2E8;</label>
-          <div class="btn-group" id="ledgerPaymentBtnGroup">
-            <button class="pill-btn" data-val="기업카드" type="button">기업카드</button>
-            <button class="pill-btn" data-val="토스은행" type="button">토스은행</button>
-            <button class="pill-btn" data-val="현금" type="button">현금</button>
-            <button class="pill-btn" data-val="기업은행" type="button">기업은행</button>
-          </div>
-          <input type="hidden" id="ledgerPaymentInput" name="payment" value="토스은행">
-        </div>
-        <div class="form-group row-flex">
-          <label for="ledgerItemInput">&#xB0B4;&#xC6A9;</label>
-          <input type="text" class="form-input" id="ledgerItemInput" name="item" placeholder="&#xAC70;&#xB798; &#xB0B4;&#xC6A9; &#xC785;&#xB825;" required>
-        </div>
-        <div class="form-group">
-          <label>&#xC0AC;&#xC6A9;&#xC790;</label>
-          <div class="btn-group" id="ledgerPersonBtnGroup">
-            <button class="pill-btn" data-val="쥬쥬" type="button">쥬쥬</button>
-            <button class="pill-btn" data-val="지니" type="button">지니</button>
-            <button class="pill-btn" data-val="콩콩" type="button">콩콩</button>
-            <button class="pill-btn" data-val="기타" type="button">기타</button>
-          </div>
-          <input type="hidden" id="ledgerPersonInput" name="person" value="기타">
-        </div>
-        <div class="form-group row-flex">
-          <label for="ledgerCategoryInput">&#xBD84;&#xB958;</label>
-          <input type="text" class="form-input" id="ledgerCategoryInput" name="category" list="ledgerCategorySuggestions" placeholder="&#xBD84;&#xB958; &#xC120;&#xD0DD; &#xB610;&#xB294; &#xC9C1;&#xC811; &#xC785;&#xB825;">
-          <datalist id="ledgerCategorySuggestions">
-            <option value="&#xC2DD;&#xBE44;"></option>
-            <option value="&#xAD50;&#xD1B5;"></option>
-            <option value="&#xBB38;&#xD654;"></option>
-            <option value="&#xC0DD;&#xD65C;"></option>
-            <option value="&#xBCF4;&#xD5D8;"></option>
-            <option value="&#xC0C1;&#xD658;"></option>
-            <option value="&#xC774;&#xCCB4;"></option>
-            <option value="&#xC6D4;&#xAE09;"></option>
-            <option value="&#xC800;&#xCD95;"></option>
-            <option value="&#xC774;&#xC790;"></option>
-            <option value="&#xC6A9;&#xB3C8;"></option>
-            <option value="&#xC785;&#xAE08;"></option>
-            <option value="&#xCD9C;&#xAE08;"></option>
-            <option value="&#xAE30;&#xD0C0;"></option>
-          </datalist>
-        </div>
-        <div class="form-group row-flex">
-          <label for="ledgerFixedCostInput">&#xACE0;&#xC815;&#xBE44; &#xC5EC;&#xBD80;</label>
-          <input type="checkbox" id="ledgerFixedCostInput" name="fixedCost" value="고정비" class="form-checkbox">
-        </div>
-        <div class="form-group row-flex">
-          <label for="ledgerMemoInput">&#xBE44;&#xACE0;</label>
-          <input type="text" class="form-input" id="ledgerMemoInput" name="memo" placeholder="&#xBA54;&#xBAA8; &#xC785;&#xB825;">
-        </div>
-      </form>
-      <div class="modal-footer" style="display:flex; justify-content:space-between; gap:8px;">
-        <button class="pill-btn delete-btn hidden" id="ledgerTransactionDeleteBtn" type="button">&#xC0AD;&#xC81C;</button>
-        <button class="btn-primary" id="ledgerTransactionSaveBtn" type="button">&#xC800;&#xC7A5;</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="ledgerColorSettingsModalOverlay">
-    <div class="modal-card color-settings-card">
-      <div class="modal-header">
-        <h3>&#x1F3A8; &#xAC00;&#xACC4;&#xBD80; &#xD0DC;&#xADF8; &#xC0C9;&#xC0C1; &#xC124;&#xC815;</h3>
-        <button class="modal-close-btn" id="ledgerColorSettingsModalCloseBtn" type="button">&#x2715;</button>
-      </div>
-      <div class="modal-body color-settings-body">
-        <div class="color-settings-scroll-area">
-          <p class="settings-desc">&#xC0AC;&#xC6A9;&#xC790;&#xBCC4;, &#xACB0;&#xC81C;&#xC218;&#xB2E8;&#xBCC4;, &#xBD84;&#xB958;&#xBCC4; &#xAC70;&#xB798; &#xD0DC;&#xADF8; &#xC0C9;&#xC0C1;&#xC744; &#xC9C0;&#xC815;&#xD569;&#xB2C8;&#xB2E4;.</p>
-          <div class="color-section-group">
-            <h4 class="color-section-title">&#x1F464; &#xC0AC;&#xC6A9;&#xC790; &#xD0DC;&#xADF8; &#xC0C9;&#xC0C1;</h4>
-            <div class="color-picker-grid" id="ledgerPersonColorGrid"></div>
-          </div>
-          <div class="color-section-group">
-            <h4 class="color-section-title">&#x1F4B3; &#xACB0;&#xC81C;&#xC218;&#xB2E8; &#xD0DC;&#xADF8; &#xC0C9;&#xC0C1;</h4>
-            <div class="color-picker-grid" id="ledgerPaymentColorGrid"></div>
-          </div>
-          <div class="color-section-group">
-            <h4 class="color-section-title">&#x1F4CA; &#xBD84;&#xB958; &#xD0DC;&#xADF8; &#xC0C9;&#xC0C1;</h4>
-            <div class="color-picker-grid" id="ledgerCategoryColorGrid"></div>
-          </div>
-          <div class="color-section-group">
-            <h4 class="color-section-title">&#x2728; &#xAC00;&#xACC4;&#xBD80; &#xB2E8;&#xC5B4; &#xC790;&#xB3D9; &#xC0C9;&#xC0C1; &#xADDC;&#xCE59;</h4>
-            <div class="word-rule-container" id="ledgerWordRuleList"></div>
-            <div class="word-rule-adder">
-              <input type="text" id="newLedgerWordRuleInput" class="form-input" placeholder="&#xB2E8;&#xC5B4; (&#xC608;: &#xCE74;&#xD398;, &#xC8FC;&#xC720;)">
-              <button id="addLedgerWordRuleBtn" class="pill-btn add-rule-btn" type="button">&#xFF0B; &#xADDC;&#xCE59; &#xCD94;&#xAC0AC;</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer color-modal-footer">
-        <button class="pill-btn reset-btn" id="resetDefaultLedgerColorsBtn" type="button">&#xAE30;&#xBCF8;&#xAC12; &#xBCF5;&#xC6D0;</button>
-        <button class="btn-primary" id="saveLedgerColorSettingsBtn" type="button">&#xC124;&#xC815; &#xC800;&#xC7A5;</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="ledgerReportModalOverlay">
-    <div class="modal-card stats-modal-card">
-      <div class="modal-header">
-        <h3 id="ledgerReportTitle">&#x1F4CA; &#xC9C0;&#xCD9C; &#xB9AC;&#xD3EC;&#xD2B8;</h3>
-        <button class="modal-close-btn" id="ledgerReportModalCloseBtn" type="button">&#x2715;</button>
-      </div>
-      <div class="modal-body stats-modal-body">
-        <div class="stats-section-label" id="ledgerReportPeriod">&#xAE30;&#xAC04;</div>
-        <div class="stats-cards-grid">
-          <div class="metric-card clinic-card">
-            <div class="metric-info">
-              <span class="metric-label">&#xCD1D; &#xC218;&#xC785;</span>
-              <strong class="metric-value" id="ledgerReportIncome">0</strong>
-            </div>
-          </div>
-          <div class="metric-card ot-card">
-            <div class="metric-info">
-              <span class="metric-label">&#xCD1D; &#xC9C0;&#xCD9C;</span>
-              <strong class="metric-value" id="ledgerReportExpense">0</strong>
-            </div>
-          </div>
-          <div class="metric-card jinju-card">
-            <div class="metric-info">
-              <span class="metric-label">&#xC21C;&#xC9C0;&#xCD9C;</span>
-              <strong class="metric-value" id="ledgerReportBalance">0</strong>
-            </div>
-          </div>
-        </div>
-        <div class="stats-section-label" style="margin-top:14px;">&#xBD84;&#xB958;&#xBCC4; &#xC9C0;&#xCD9C;</div>
-        <div class="stats-breakdown-list" id="ledgerReportCategoryStats"></div>
-        <div class="stats-section-label" style="margin-top:14px;">&#xC0AC;&#xC6A9;&#xC790;&#xBCC4; &#xC9C0;&#xCD9C;</div>
-        <div class="stats-breakdown-list" id="ledgerReportPersonStats"></div>
-        <div class="stats-section-label" style="margin-top:14px;">&#xACB0;&#xC81C;&#xC218;&#xB2E8;&#xBCC4; &#xC9C0;&#xCD9C;</div>
-        <div class="stats-breakdown-list" id="ledgerReportPaymentStats"></div>
-      </div>
-      <div class="modal-footer stats-modal-footer">
-        <button class="pill-btn export-btn" id="exportLedgerCsvBtn" type="button">&#x1F4E5; CSV &#xB0B4;&#xBCF4;&#xB0B4;&#xAE30;</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="ledgerToast" class="ledger-toast hidden" role="status" aria-live="polite"></div>
-
-  <!-- Modular Security Bootstrap -->
-  <script type="module" src="js/bootstrap.js"></script>
+  <script type="module">
+    const t = Date.now();
+    const styleLink = document.querySelector('link[href^="style.css"]');
+    if (styleLink) styleLink.href = `style.css?t=${t}`;
+    import(`./js/bootstrap.js?t=${t}`);
+  </script>
 </body>
 </html>
