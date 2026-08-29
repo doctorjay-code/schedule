@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="스마트일정">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
-  <link rel="stylesheet" href="style.css?v=20260828_1900">
+  <link rel="stylesheet" href="style.css?v=20260829_2141">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -702,31 +702,51 @@
       </div>
     </div>
 
-  </div>
-
-  <script type="module">
-    const t = Date.now();
-    const styleLink = document.querySelector('link[href^="style.css"]');
-    if (styleLink) styleLink.href = `style.css?t=${t}`;
-    import(`./js/bootstrap.js?t=${t}`);
-  </script>
-<div class="modal-overlay" id="ledgerAverageBalanceOverlay">
-  <section class="bottom-sheet ledger-average-sheet" role="dialog" aria-modal="true" aria-labelledby="ledgerAverageBalanceTitle">
-    <div class="sheet-handle"></div>
-    <div class="sheet-header"><h3 id="ledgerAverageBalanceTitle">&#xD3C9;&#xADE0; &#xC794;&#xC561; &#xACC4;&#xC0B0;&#xAE30;</h3><button id="ledgerAverageBalanceCloseBtn" type="button" class="close-btn" aria-label="&#xB2EB;&#xAE30;">&#x2715;</button></div>
-    <div class="sheet-body ledger-average-body">
-      <div class="ledger-average-section"><div class="ledger-average-section-title"><span>01</span><strong>&#xAE30;&#xBCF8; &#xC815;&#xBCF4;</strong></div><div class="ledger-average-grid"><label><span>&#xC2DC;&#xC791; &#xC794;&#xC561;</span><input id="ledgerAverageOpeningBalanceInput" inputmode="numeric" placeholder="0"></label><label><span>&#xC2DC;&#xC791;&#xC77C;</span><input id="ledgerAverageStartDateInput" type="date"></label><label><span>&#xC885;&#xB8CC;&#xC77C;</span><input id="ledgerAverageEndDateInput" type="date"></label></div></div>
-    <div class="ledger-average-section"><div class="ledger-average-transaction-head"><span>&#xC77C;&#xC790;&#xBCC4; &#xC785;&#xCD9C;&#xAE08;</span><button id="ledgerAverageAddTransactionBtn" type="button">&#xAC70;&#xB798; &#xCD94;&#xAC00;</button></div><div id="ledgerAverageTransactionRows"></div></div>
-    <div class="ledger-average-result"><p>&#xD3C9;&#xADE0; &#xC794;&#xC561;</p><strong id="ledgerAverageResultValue">0</strong><span id="ledgerAverageResultPeriod"></span><dl><div><dt>&#xC2DC;&#xC791; &#xC794;&#xC561;</dt><dd id="ledgerAverageOpeningResult">0</dd></div><div><dt>&#xC885;&#xB8CC; &#xC794;&#xC561;</dt><dd id="ledgerAverageEndingResult">0</dd></div><div><dt>&#xAC70;&#xB798; &#xAC74;&#xC218;</dt><dd id="ledgerAverageTransactionCount">0</dd></div></dl></div>
+    <!-- Ledger Average Balance Modal Overlay -->
+    <div class="modal-overlay" id="ledgerAverageBalanceOverlay">
+      <section class="bottom-sheet ledger-average-sheet" role="dialog" aria-modal="true" aria-labelledby="ledgerAverageBalanceTitle">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h3 id="ledgerAverageBalanceTitle">평균 잔액 계산기</h3>
+          <button id="ledgerAverageBalanceCloseBtn" type="button" class="close-btn" aria-label="닫기">✕</button>
+        </div>
+        <div class="sheet-body ledger-average-body">
+          <div class="ledger-average-section">
+            <div class="ledger-average-section-title"><span>01</span><strong>기본 정보</strong></div>
+            <div class="ledger-average-grid">
+              <label><span>시작 잔액</span><input id="ledgerAverageOpeningBalanceInput" inputmode="numeric" placeholder="0"></label>
+              <label><span>시작일</span><input id="ledgerAverageStartDateInput" type="date"></label>
+              <label><span>종료일</span><input id="ledgerAverageEndDateInput" type="date"></label>
+            </div>
+          </div>
+          <div class="ledger-average-section">
+            <div class="ledger-average-transaction-head">
+              <span>일자별 입출금</span>
+              <button id="ledgerAverageAddTransactionBtn" type="button">거래 추가</button>
+            </div>
+            <div id="ledgerAverageTransactionRows"></div>
+          </div>
+          <div class="ledger-average-result">
+            <p>평균 잔액</p>
+            <strong id="ledgerAverageResultValue">0</strong>
+            <span id="ledgerAverageResultPeriod"></span>
+            <dl>
+              <div><dt>시작 잔액</dt><dd id="ledgerAverageOpeningResult">0</dd></div>
+              <div><dt>종료 잔액</dt><dd id="ledgerAverageEndingResult">0</dd></div>
+              <div><dt>거래 건수</dt><dd id="ledgerAverageTransactionCount">0</dd></div>
+            </dl>
+          </div>
+        </div>
+      </section>
     </div>
-  </section>
-</div>
-<div class="modal-overlay" id="ledgerTransactionModalOverlay">
+
+    <!-- Ledger Transaction Edit/Create Modal Overlay -->
+    <div class="modal-overlay" id="ledgerTransactionModalOverlay">
       <div class="bottom-sheet" id="ledgerTransactionBottomSheet" role="dialog" aria-modal="true" aria-labelledby="ledgerTransactionModalTitle">
         <div class="sheet-handle"></div>
         <div class="sheet-header">
-          <h3 id="ledgerTransactionModalTitle">&#xAC70;&#xB798; &#xC0C1;&#xC138;</h3>
-          <button class="close-btn" id="ledgerTransactionModalCloseBtn" type="button" aria-label="&#xB2EB;&#xAE30;">&#x2715;</button>
+          <h3 id="ledgerTransactionModalTitle">거래 상세</h3>
+          <button class="close-btn" id="ledgerTransactionModalCloseBtn" type="button" aria-label="닫기">✕</button>
         </div>
         <form class="sheet-body" id="ledgerTransactionForm">
           <input id="ledgerModalEditId" name="ledgerEditId" type="hidden">
@@ -808,5 +828,14 @@
         </form>
       </div>
     </div>
+
+  </div>
+
+  <script type="module">
+    const t = Date.now();
+    const styleLink = document.querySelector('link[href^="style.css"]');
+    if (styleLink) styleLink.href = `style.css?t=${t}`;
+    import(`./js/bootstrap.js?t=${t}`);
+  </script>
 </body>
 </html>
