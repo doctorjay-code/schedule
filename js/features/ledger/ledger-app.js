@@ -421,6 +421,79 @@ function initLedgerApp() {
   }
 }
 
+function bindLedgerDomEvents() {
+  const sourceButtons = [
+    { id: 'ledgerCashSourceBtn', source: 'cash', payment: '현금' },
+    { id: 'ledgerCompanyCardBtn', source: 'card', payment: '기업카드' },
+    { id: 'ledgerTossBankBtn', source: 'card', payment: '토스은행' },
+    { id: 'ledgerBankSourceBtn', source: 'bank', payment: '기업은행' },
+    { id: 'ledgerForecastSourceBtn', source: 'forecast', payment: '' }
+  ];
+
+  sourceButtons.forEach(btnInfo => {
+    const btn = document.getElementById(btnInfo.id);
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      sourceButtons.forEach(b => document.getElementById(b.id)?.classList.remove('active'));
+      btn.classList.add('active');
+      ledgerState.source = btnInfo.source;
+      if (btnInfo.payment) ledgerState.payment = btnInfo.payment;
+      applyLedgerDataSources();
+    });
+  });
+
+  const refreshBtn = document.getElementById('ledgerRefreshBtn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      const badge = document.getElementById('ledgerDataBadge');
+      if (badge) badge.textContent = '동기화 중...';
+      fetchLedgerData().then(res => {
+        ledgerState.records = res.records || [];
+        if (badge) badge.textContent = '최신 거래 반영';
+        applyLedgerDataSources();
+      }).catch(err => {
+        console.error('Ledger refresh error:', err);
+        if (badge) badge.textContent = '오프라인';
+      });
+    });
+  }
+
+  const multiToggleBtn = document.getElementById('ledgerToggleMultiEditBtn');
+  if (multiToggleBtn) {
+    multiToggleBtn.addEventListener('click', () => {
+      setMultiEditMode(!ledgerState.multiEditMode);
+    });
+  }
+
+  const prevPeriodBtn = document.getElementById('ledgerPrevPeriodBtn');
+  if (prevPeriodBtn) {
+    prevPeriodBtn.addEventListener('click', () => {
+      const cur = new Date(ledgerState.monthCursor);
+      cur.setMonth(cur.getMonth() - 1);
+      ledgerState.monthCursor = cur;
+      applyLedgerDataSources();
+    });
+  }
+
+  const nextPeriodBtn = document.getElementById('ledgerNextPeriodBtn');
+  if (nextPeriodBtn) {
+    nextPeriodBtn.addEventListener('click', () => {
+      const cur = new Date(ledgerState.monthCursor);
+      cur.setMonth(cur.getMonth() + 1);
+      ledgerState.monthCursor = cur;
+      applyLedgerDataSources();
+    });
+  }
+
+  const latestBtn = document.getElementById('ledgerLatestBtn');
+  if (latestBtn) {
+    latestBtn.addEventListener('click', () => {
+      ledgerState.monthCursor = new Date();
+      applyLedgerDataSources();
+    });
+  }
+}
+
 // Global initialization and Realtime subscription
 export function initLedgerView() {
   const scheduleMenuBtn = document.getElementById('scheduleMenuBtn');
@@ -428,6 +501,8 @@ export function initLedgerView() {
 
   if (scheduleMenuBtn) scheduleMenuBtn.addEventListener('click', showScheduleViewTab);
   if (ledgerMenuBtn) ledgerMenuBtn.addEventListener('click', showLedgerViewTab);
+
+  bindLedgerDomEvents();
 
   registerColorUpdateCallback(() => {
     if (ledgerState.active) applyLedgerDataSources();
