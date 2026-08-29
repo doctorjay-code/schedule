@@ -1,6 +1,7 @@
 import { state, pastelPalette, saveColorSettings, defaultColorSettings } from '../../services/schedule/state.js';
 import { registerColorUpdateCallback } from '../../services/schedule/api.js';
 import { switchViewModeUI } from '../schedule/render.js';
+import { showScheduleView, showLedgerView } from '../../shared/view-coordinator.js';
 import { openWeekSelectModal } from '../schedule/modals/week-picker.js';
 import { openMonthSelectModal } from '../schedule/modals/month-picker.js';
 import { startOfWeek, toIso, escapeHtml, formatMoney, getLedgerTagColor, recalculateRunningBalances, normalizeLedgerDate, compareLedgerRecords } from './ledger-utils.js';
@@ -1009,29 +1010,12 @@ function setLedgerPeriod(period) {
 }
 
 function showLedger() {
-  document.querySelector('.app-container')?.classList.add('ledger-active');
-  document.getElementById('ledgerViewWrapper')?.classList.remove('hidden');
-  document.getElementById('weeklyViewWrapper')?.classList.add('hidden');
-  document.getElementById('monthlyViewWrapper')?.classList.add('hidden');
-  document.getElementById('scheduleSubnav')?.classList.add('hidden');
-  document.getElementById('ledgerSourceSwitch')?.classList.remove('hidden');
-  document.getElementById('scheduleMenuBtn')?.classList.remove('active');
-  document.getElementById('ledgerMenuBtn')?.classList.add('active');
+  showLedgerView();
   setLedgerSource(ledgerState.source);
 }
 
 function showSchedule() {
-  document.querySelector('.app-container')?.classList.remove('ledger-active');
-  document.getElementById('ledgerViewWrapper')?.classList.add('hidden');
-  document.getElementById('scheduleSubnav')?.classList.remove('hidden');
-  document.getElementById('ledgerSubnav')?.classList.add('hidden');
-  document.getElementById('ledgerSourceSwitch')?.classList.add('hidden');
-  document.getElementById('ledgerCardNavigator')?.classList.add('hidden');
-  document.getElementById('ledgerSyncBtn')?.classList.add('hidden');
-  document.getElementById('ledgerRefreshBtn')?.classList.add('hidden');
-  document.getElementById('ledgerPersonSwitch')?.classList.add('hidden');
-  document.getElementById('scheduleMenuBtn')?.classList.add('active');
-  document.getElementById('ledgerMenuBtn')?.classList.remove('active');
+  showScheduleView();
   switchViewModeUI(state.currentView);
 }
 export function initLedgerView() {
@@ -1489,51 +1473,6 @@ function renderLedgerReport() {
   setText('ledgerReportExpense', formatMoney(expense));
   setText('ledgerReportBalance', (income - expense < 0 ? '-' : '') + formatMoney(income - expense));
   renderStatList('ledgerReportCategoryStats', groupExpenses(items, 'category'));
-  renderStatList('ledgerReportPersonStats', groupExpenses(items, 'person'));
-  renderStatList('ledgerReportPaymentStats', groupExpenses(items, 'payment'));
+  renderStatList('ledgerPersonStats', groupExpenses(items, 'person'));
+  renderStatList('ledgerPaymentStats', groupExpenses(items, 'payment'));
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
