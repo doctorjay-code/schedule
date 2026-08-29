@@ -59,7 +59,11 @@ export function showLedgerView(options = {}) {
 
   // Show ledger elements
   document.getElementById('ledgerViewWrapper')?.classList.remove('hidden');
+  document.getElementById('ledgerSubnav')?.classList.remove('hidden');
+  document.getElementById('ledgerRefreshBtn')?.classList.remove('hidden');
+  document.getElementById('ledgerSyncBtn')?.classList.remove('hidden');
   document.getElementById('ledgerSourceSwitch')?.classList.remove('hidden');
+  document.getElementById('ledgerCardNavigator')?.classList.remove('hidden');
 
   if (typeof onMainTabChangeCallback === 'function') {
     onMainTabChangeCallback('ledger', options);

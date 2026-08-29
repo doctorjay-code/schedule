@@ -28,7 +28,7 @@ let colorLoadPromise = null;
 
 function loadLedgerFeature() {
   if (!ledgerLoadPromise) {
-    ledgerLoadPromise = import(getVersionedUrl('../ledger/ledger-app.js'))
+    ledgerLoadPromise = import(getVersionedUrl('./js/features/ledger/ledger-app.js'))
       .then(module => {
         ledgerLifecycle = module.initLedgerView();
         return ledgerLifecycle;
@@ -59,7 +59,7 @@ function leaveLedgerFeature() {
 }
 async function getStatsFeature() {
   if (!statsLoadPromise) {
-    statsLoadPromise = import('./modals/stats.js')
+    statsLoadPromise = import(getVersionedUrl('./js/features/schedule/modals/stats.js'))
       .then(module => {
         module.setupStatsModalEvents({ bindOpen: false });
         statsFeature = module;
@@ -82,7 +82,7 @@ async function openStatsFeature() {
 }
 async function getColorFeature() {
   if (!colorLoadPromise) {
-    colorLoadPromise = import('./modals/color-settings.js')
+    colorLoadPromise = import(getVersionedUrl('./js/features/schedule/modals/color-settings.js'))
       .then(module => {
         module.setupColorSettingsEvents({ bindOpen: false });
         colorFeature = module;
