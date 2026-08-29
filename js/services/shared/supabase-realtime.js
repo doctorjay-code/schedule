@@ -32,7 +32,7 @@ export function initSupabaseRealtime() {
             postgres_changes: [
               { event: '*', schema: 'public', table: 'ledger_transactions' },
               { event: '*', schema: 'public', table: 'schedules' },
-              { event: '*', schema: 'public', table: 'schedule_settings' }
+              { event: '*', schema: 'public', table: 'app_settings' }
             ]
           }
         },
@@ -60,7 +60,7 @@ export function initSupabaseRealtime() {
               if (ledgerDebounceTimer) clearTimeout(ledgerDebounceTimer);
               ledgerDebounceTimer = setTimeout(() => ledgerRefreshCallback(), 100);
             }
-          } else if (table === 'schedules' || table === 'schedule_settings') {
+          } else if (table === 'schedules' || table === 'app_settings') {
             if (scheduleRefreshCallback) {
               if (scheduleDebounceTimer) clearTimeout(scheduleDebounceTimer);
               scheduleDebounceTimer = setTimeout(() => scheduleRefreshCallback(), 100);

@@ -70,7 +70,7 @@ export async function syncScheduleFromSupabase() {
   try {
     const [scheduleRows, colorSettingRows] = await Promise.all([
       supabaseRest('schedules?order=week_title.asc,order_index.asc,id.asc'),
-      supabaseRest('schedule_settings?key=eq.color_settings')
+      supabaseRest('app_settings?key=eq.color_settings')
     ]);
 
     if (Array.isArray(scheduleRows) && scheduleRows.length > 0) {
@@ -101,7 +101,7 @@ export async function syncScheduleFromSupabase() {
 
 export async function syncColorSettingsFromSupabase() {
   try {
-    const colorSettingRows = await supabaseRest('schedule_settings?key=eq.color_settings');
+    const colorSettingRows = await supabaseRest('app_settings?key=eq.color_settings');
     if (Array.isArray(colorSettingRows) && colorSettingRows.length > 0) {
       setColorSettings(colorSettingRows[0]?.value);
       saveColorSettings();
@@ -120,7 +120,7 @@ export async function syncColorSettingsToSupabase() {
     saveColorSettings();
     notifyColorUpdated();
 
-    await supabaseRest('schedule_settings', {
+    await supabaseRest('app_settings', {
       method: 'POST',
       prefer: 'resolution=merge-duplicates',
       body: {

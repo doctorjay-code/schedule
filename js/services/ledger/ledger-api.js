@@ -233,10 +233,10 @@ export async function deleteLedgerOffsetGroup(groupId, fetchImpl = fetch) {
 }
 
 /**
- * Supabase DB 잔액전망 순서 맵 CRUD 함수 (schedule_settings JSON 맵 연동)
+ * Supabase DB 잔액전망 순서 맵 CRUD 함수 (app_settings JSON 맵 연동)
  */
 export async function fetchForecastOrders(fetchImpl = fetch) {
-  const rows = await supabaseRest('schedule_settings?key=eq.forecast_orders', { fetchImpl });
+  const rows = await supabaseRest('app_settings?key=eq.forecast_orders', { fetchImpl });
   if (Array.isArray(rows) && rows.length > 0) {
     return rows[0]?.value || {};
   }
@@ -246,7 +246,7 @@ export async function fetchForecastOrders(fetchImpl = fetch) {
 export async function saveForecastOrders(orderMap, fetchImpl = fetch) {
   if (!orderMap || typeof orderMap !== 'object') return { ok: false };
 
-  await supabaseRest('schedule_settings', {
+  await supabaseRest('app_settings', {
     method: 'POST',
     fetchImpl,
     prefer: 'resolution=merge-duplicates',
@@ -261,10 +261,10 @@ export async function saveForecastOrders(orderMap, fetchImpl = fetch) {
 }
 
 /**
- * Supabase DB 잔액전망 가상행 오버라이드 CRUD 함수 (schedule_settings JSON 연동)
+ * Supabase DB 잔액전망 가상행 오버라이드 CRUD 함수 (app_settings JSON 연동)
  */
 export async function fetchForecastAggregateOverrides(fetchImpl = fetch) {
-  const rows = await supabaseRest('schedule_settings?key=eq.forecast_aggregate_overrides', { fetchImpl });
+  const rows = await supabaseRest('app_settings?key=eq.forecast_aggregate_overrides', { fetchImpl });
   if (Array.isArray(rows) && rows.length > 0) {
     return rows[0]?.value || {};
   }
@@ -274,7 +274,7 @@ export async function fetchForecastAggregateOverrides(fetchImpl = fetch) {
 export async function saveForecastAggregateOverridesToDB(overrides, fetchImpl = fetch) {
   if (!overrides || typeof overrides !== 'object') return { ok: false };
 
-  await supabaseRest('schedule_settings', {
+  await supabaseRest('app_settings', {
     method: 'POST',
     fetchImpl,
     prefer: 'resolution=merge-duplicates',
@@ -292,7 +292,7 @@ export async function saveForecastAggregateOverridesToDB(overrides, fetchImpl = 
  * 색상 설정 CRUD 함수
  */
 export async function fetchColorSettingsFromDB(fetchImpl = fetch) {
-  const rows = await supabaseRest('schedule_settings?key=eq.color_settings', { fetchImpl });
+  const rows = await supabaseRest('app_settings?key=eq.color_settings', { fetchImpl });
   if (Array.isArray(rows) && rows.length > 0) {
     return rows[0]?.value;
   }
@@ -300,7 +300,7 @@ export async function fetchColorSettingsFromDB(fetchImpl = fetch) {
 }
 
 export async function saveColorSettingsToDB(colorSettings, fetchImpl = fetch) {
-  await supabaseRest('schedule_settings', {
+  await supabaseRest('app_settings', {
     method: 'POST',
     fetchImpl,
     prefer: 'resolution=merge-duplicates',
