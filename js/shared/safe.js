@@ -1,4 +1,4 @@
-﻿// Shared helpers for rendering data from users or Google Sheets.
+// Shared safe rendering helpers (HTML escaping & CSS color sanitization)
 export function escapeHtml(value) {
   const node = document.createElement('span');
   node.textContent = String(value ?? '');
