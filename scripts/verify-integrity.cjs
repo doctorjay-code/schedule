@@ -172,7 +172,7 @@ if (domOk) {
 // -------------------------------------------------------------
 // Step 4: Run Calculation Unit Tests
 // -------------------------------------------------------------
-console.log('\n\x1b[36m[4/4] Running Business Calculation Unit Tests...\x1b[0m');
+console.log('\n\x1b[36m[4/5] Running Business Logic & Calculation Unit Tests...\x1b[0m');
 let unitTestOk = true;
 try {
   totalChecks++;
@@ -180,7 +180,16 @@ try {
   logPass(testOutput.trim());
 } catch (err) {
   unitTestOk = false;
-  logFail('Calculation unit tests failed', err.stdout || err.message);
+  logFail('Schedule calculation unit tests failed', err.stdout || err.message);
+}
+
+try {
+  totalChecks++;
+  const testOutput = execSync('node scripts/test-ledger-filtering.cjs', { cwd: ROOT_DIR, encoding: 'utf8' });
+  logPass(testOutput.trim());
+} catch (err) {
+  unitTestOk = false;
+  logFail('Ledger filtering & balance calculation unit tests failed', err.stdout || err.message);
 }
 
 // -------------------------------------------------------------

@@ -28,7 +28,13 @@ let ledgerState = {
   recordsLoaded: false,
   multiEditMode: false,
   selectedLedgerIds: new Set(),
-  copiedRecords: []
+  copiedRecords: [],
+  showOffsetGroups: false,
+  filters: {
+    person: new Set(),
+    category: new Set(),
+    fixed: 'all'
+  }
 };
 
 let ledgerTransactionModal = null;
@@ -307,6 +313,9 @@ function renderLedgerTable() {
   const filtered = filterLedgerRecords(ledgerState.records, {
     source: ledgerState.source,
     payment: filterPayment,
+    person: ledgerState.filters?.person,
+    category: ledgerState.filters?.category,
+    fixed: ledgerState.filters?.fixed || 'all',
     monthCursor: ledgerState.monthCursor,
     isCompanyCard
   });
@@ -543,6 +552,36 @@ function bindLedgerDomEvents() {
   if (cancelMultiBtn) {
     cancelMultiBtn.addEventListener('click', () => {
       setMultiEditMode(false);
+    });
+  }
+
+  const filterAllBtn = document.getElementById('ledgerFilterAllBtn');
+  if (filterAllBtn) {
+    filterAllBtn.addEventListener('click', () => {
+      ledgerState.filters = { person: new Set(), category: new Set(), fixed: 'all' };
+      document.querySelectorAll('#ledgerPersonSwitch .filter-chip').forEach(b => b.classList.remove('active'));
+      filterAllBtn.classList.add('active');
+      applyLedgerDataSources();
+    });
+  }
+
+  const fixedFilterBtn = document.getElementById('ledgerFixedFilterBtn');
+  if (fixedFilterBtn) {
+    fixedFilterBtn.addEventListener('click', () => {
+      const isFixed = ledgerState.filters?.fixed === 'fixed';
+      if (!ledgerState.filters) ledgerState.filters = { person: new Set(), category: new Set(), fixed: 'all' };
+      ledgerState.filters.fixed = isFixed ? 'all' : 'fixed';
+      fixedFilterBtn.classList.toggle('active', !isFixed);
+      applyLedgerDataSources();
+    });
+  }
+
+  const offsetFilterBtn = document.getElementById('ledgerOffsetFilterBtn');
+  if (offsetFilterBtn) {
+    offsetFilterBtn.addEventListener('click', () => {
+      ledgerState.showOffsetGroups = !ledgerState.showOffsetGroups;
+      offsetFilterBtn.classList.toggle('active', ledgerState.showOffsetGroups);
+      applyLedgerDataSources();
     });
   }
 }

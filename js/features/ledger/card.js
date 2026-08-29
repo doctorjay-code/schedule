@@ -9,6 +9,8 @@ export function filterLedgerRecords(records, filterTypeOrFilters, filterValue) {
 
   // 1. 복합 필터 객체(Multi-faceted Filters) 정규화
   let filters = {
+    payment: null,
+    source: null,
     person: new Set(),
     category: new Set(),
     fixed: 'all'
@@ -16,6 +18,9 @@ export function filterLedgerRecords(records, filterTypeOrFilters, filterValue) {
 
   if (filterTypeOrFilters && typeof filterTypeOrFilters === 'object' && !Array.isArray(filterTypeOrFilters) && !(filterTypeOrFilters instanceof Set)) {
     // 객체 형태로 전달된 경우
+    if (filterTypeOrFilters.payment) filters.payment = filterTypeOrFilters.payment;
+    if (filterTypeOrFilters.source) filters.source = filterTypeOrFilters.source;
+
     if (filterTypeOrFilters.person instanceof Set) filters.person = filterTypeOrFilters.person;
     else if (Array.isArray(filterTypeOrFilters.person)) filters.person = new Set(filterTypeOrFilters.person);
 
@@ -29,7 +34,11 @@ export function filterLedgerRecords(records, filterTypeOrFilters, filterValue) {
     if (filterType === 'all' || !filterType) {
       return records;
     }
-    if (filterType === 'fixed') {
+    if (filterType === 'payment') {
+      filters.payment = filterValue;
+    } else if (filterType === 'source') {
+      filters.source = filterValue;
+    } else if (filterType === 'fixed') {
       filters.fixed = filterValue || 'fixed';
     } else {
       let selectedSet = new Set();
@@ -45,34 +54,42 @@ export function filterLedgerRecords(records, filterTypeOrFilters, filterValue) {
     }
   }
 
+  const hasPaymentFilter = Boolean(filters.payment);
+  const hasSourceFilter = Boolean(filters.source && filters.source !== 'all');
   const hasPersonFilter = filters.person && filters.person.size > 0;
   const hasCategoryFilter = filters.category && filters.category.size > 0;
   const hasFixedFilter = filters.fixed && filters.fixed !== 'all';
 
   // 필터 조건이 하나도 없으면 원본 그대로 반환
-  if (!hasPersonFilter && !hasCategoryFilter && !hasFixedFilter) {
+  if (!hasPaymentFilter && !hasSourceFilter && !hasPersonFilter && !hasCategoryFilter && !hasFixedFilter) {
     return records;
   }
 
   const hasJuJu = hasPersonFilter && (filters.person.has('진주') || filters.person.has('쥬쥬'));
 
   return records.filter(record => {
-    // 1. 사용자 조건 (AND)
+    // 1. 결제수단 / 시트 조건 (AND)
+    if (hasPaymentFilter) {
+      const recPayment = record.payment || record.payment_method || record.sheetName || '';
+      if (recPayment !== filters.payment) return false;
+    }
+
+    // 2. 사용자 조건 (AND)
     if (hasPersonFilter) {
       const p = record.person || record.user_name || '기타';
       const personMatched = (hasJuJu && (p === '진주' || p === '쥬쥬')) || filters.person.has(p);
       if (!personMatched) return false;
     }
 
-    // 2. 사용처 조건 (AND)
+    // 3. 사용처 조건 (AND)
     if (hasCategoryFilter) {
       const c = record.category || '';
       if (!filters.category.has(c)) return false;
     }
 
-    // 3. 고정비 조건 (AND)
+    // 4. 고정비 조건 (AND)
     if (hasFixedFilter) {
-      const fixed = String(record.fixedCost || '').trim();
+      const fixed = String(record.fixedCost || record.fixed_cost || '').trim();
       const isFixed = fixed === '고정비' || fixed === '고정' || fixed === 'true';
       if (filters.fixed === 'fixed' && !isFixed) return false;
       if (filters.fixed === 'variable' && isFixed) return false;
