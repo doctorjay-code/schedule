@@ -312,6 +312,48 @@ if (contractOk) {
 }
 
 // -------------------------------------------------------------
+// Step 6: Essential Interactive Buttons Event Binding Verification
+// Ensures critical user-facing buttons have actual click listeners bound.
+// -------------------------------------------------------------
+console.log('\n\x1b[36m[6/6] Checking Essential Interactive Buttons Event Listeners...\x1b[0m');
+const ESSENTIAL_BUTTON_BINDINGS = [
+  { id: 'ledgerAllViewBtn', desc: '가계부 전체보기 전환 버튼' },
+  { id: 'ledgerMonthlyViewBtn', desc: '가계부 월간보기 전환 버튼' },
+  { id: 'ledgerPeriodTitle', desc: '가계부 월/기간 선택 타이틀 버튼' },
+  { id: 'ledgerReportBtn', desc: '가계부 지출 리포트 모달 버튼' },
+  { id: 'ledgerColorSettingsBtn', desc: '가계부 태그 색상 설정 모달 버튼' },
+  { id: 'ledgerRefreshBtn', desc: '가계부 최신 동기화 버튼' },
+  { id: 'openStatsModalBtn', desc: '일정 통계 모달 버튼' },
+  { id: 'openColorSettingsBtn', desc: '일정 색상 설정 모달 버튼' },
+  { id: 'weekTitle', desc: '일정 주차 선택 타이틀 버튼' }
+];
+
+const allJsCodeCombined = jsFiles.map(file => fs.readFileSync(file, 'utf8')).join('\n');
+let buttonsOk = true;
+
+ESSENTIAL_BUTTON_BINDINGS.forEach(({ id, desc }) => {
+  totalChecks++;
+  // Pattern 1: getElementById('id')?.addEventListener('click'...)
+  // Pattern 2: querySelector('#id')?.addEventListener('click'...)
+  // Pattern 3: const x = getElementById('id'); ... x.addEventListener('click'...)
+  // Pattern 4: delegation match (e.target.closest('#id'))
+  const idRegex = new RegExp(`(?:getElementById|querySelector)\\s*\\(\\s*['"]#?${id}['"]\\s*\\)[\\s\\S]{0,100}addEventListener\\s*\\(\\s*['"]click['"]`, 'g');
+  const varRegex = new RegExp(`const\\s+(\\w+)\\s*=\\s*document\\.getElementById\\(['"]${id}['"]\\);[\\s\\S]{0,150}\\1(?:\\??\\.)addEventListener\\(['"]click['"]`, 'g');
+  const delegateRegex = new RegExp(`closest\\(['"]#?${id}['"]\\)|matches\\(['"]#?${id}['"]\\)|id\\s*===\\s*['"]${id}['"]`, 'g');
+
+  const isBound = idRegex.test(allJsCodeCombined) || varRegex.test(allJsCodeCombined) || delegateRegex.test(allJsCodeCombined);
+
+  if (!isBound) {
+    buttonsOk = false;
+    logFail(`Missing click listener for essential button: "#${id}" (${desc})`, `No active click event listener was found across any JS module.`);
+  }
+});
+
+if (buttonsOk) {
+  logPass(`All ${ESSENTIAL_BUTTON_BINDINGS.length} essential buttons have active event listeners registered.`);
+}
+
+// -------------------------------------------------------------
 // Summary
 // -------------------------------------------------------------
 console.log('\n\x1b[1m=== 📊 Verification Summary ===\x1b[0m');

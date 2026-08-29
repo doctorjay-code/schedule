@@ -397,7 +397,45 @@ function renderForecastTable(container) {
   });
 }
 
+function updateLedgerPeriodTitle() {
+  const periodTitle = document.getElementById('ledgerPeriodTitle');
+  if (!periodTitle) return;
+  const cursor = ledgerState.monthCursor instanceof Date ? ledgerState.monthCursor : new Date();
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth() + 1;
+  periodTitle.innerHTML = `${year}.${String(month).padStart(2, '0')} (${month}월)<span class="dropdown-arrow">▾</span>`;
+}
+
+function applySourceButtonColors() {
+  const colorSettings = state.colorSettings || {};
+  const sourceButtons = [
+    { id: 'ledgerCashSourceBtn', payment: '현금' },
+    { id: 'ledgerCompanyCardBtn', payment: '기업카드' },
+    { id: 'ledgerTossBankBtn', payment: '토스은행' },
+    { id: 'ledgerBankSourceBtn', payment: '기업은행' }
+  ];
+
+  sourceButtons.forEach(({ id, payment }) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    const tagColor = getLedgerTagColor(colorSettings, 'payment', payment);
+    if (tagColor) {
+      btn.style.setProperty('--chip-color', tagColor);
+      btn.style.borderColor = tagColor;
+      if (btn.classList.contains('active')) {
+        btn.style.backgroundColor = tagColor;
+        btn.style.color = '#0F172A';
+      } else {
+        btn.style.backgroundColor = '';
+        btn.style.color = '';
+      }
+    }
+  });
+}
+
 function applyLedgerDataSources() {
+  updateLedgerPeriodTitle();
+  applySourceButtonColors();
   renderLedgerTable();
   updateMultiActionBar();
   updateCopyBufferBar();
@@ -426,6 +464,52 @@ function initLedgerApp() {
 }
 
 function bindLedgerDomEvents() {
+  // 1. 전체 / 월간 서브메뉴 전환
+  const allViewBtn = document.getElementById('ledgerAllViewBtn');
+  const monthlyViewBtn = document.getElementById('ledgerMonthlyViewBtn');
+  if (allViewBtn && monthlyViewBtn) {
+    allViewBtn.addEventListener('click', () => {
+      allViewBtn.classList.add('active');
+      monthlyViewBtn.classList.remove('active');
+      document.getElementById('fundplanAllTimeWrapper')?.classList.remove('hidden');
+      document.getElementById('ledgerMonthlyWrapper')?.classList.add('hidden');
+    });
+    monthlyViewBtn.addEventListener('click', () => {
+      monthlyViewBtn.classList.add('active');
+      allViewBtn.classList.remove('active');
+      document.getElementById('ledgerMonthlyWrapper')?.classList.remove('hidden');
+      document.getElementById('fundplanAllTimeWrapper')?.classList.add('hidden');
+    });
+  }
+
+  // 2. 월/기간 선택 타이틀 클릭 시 월 선택 모달 열기
+  const periodTitle = document.getElementById('ledgerPeriodTitle');
+  if (periodTitle) {
+    periodTitle.addEventListener('click', () => {
+      const cur = ledgerState.monthCursor instanceof Date ? ledgerState.monthCursor : new Date();
+      openMonthSelectModal({
+        selectedYear: cur.getFullYear(),
+        selectedMonth: cur.getMonth() + 1,
+        onSelect: (year, month) => {
+          const next = new Date(cur);
+          next.setFullYear(year);
+          next.setMonth(month - 1);
+          ledgerState.monthCursor = next;
+          applyLedgerDataSources();
+        }
+      });
+    });
+  }
+
+  // 3. 지출 리포트 & 색상 설정 모달 버튼
+  document.getElementById('ledgerReportBtn')?.addEventListener('click', () => {
+    showLedgerToast('📊 지출 리포트 화면 준비 중');
+  });
+
+  document.getElementById('ledgerColorSettingsBtn')?.addEventListener('click', () => {
+    getLedgerColorSettings().open();
+  });
+
   const sourceButtons = [
     { id: 'ledgerCashSourceBtn', source: 'cash', payment: '현금' },
     { id: 'ledgerCompanyCardBtn', source: 'card', payment: '기업카드' },

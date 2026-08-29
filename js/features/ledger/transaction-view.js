@@ -215,6 +215,7 @@ export function renderTransactionRow(item, listTarget = 'fundplanAllTimeList', o
   tagRow.appendChild(expenseCell);
   const balanceCell = makeDayEndCell();
   balanceCell.className += ' ledger-cell-money ledger-cell-balance';
+  balanceCell.style.borderBottom = '2px solid #1E3A8A';
   if (item.isSubDetail) {
     balanceCell.textContent = '';
   } else {

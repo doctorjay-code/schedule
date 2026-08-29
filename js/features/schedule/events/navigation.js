@@ -26,8 +26,8 @@ export function bindScheduleNavigation({
     switchViewMode('monthly');
   });
 
-  const weekTitle = document.getElementById('weekTitle');
-  if (weekTitle) {
+  const weekTitleBtn = document.getElementById('weekTitle');
+  if (weekTitleBtn) {
     const openSchedulePeriodPicker = event => {
       event?.preventDefault();
       if (state.currentView === 'monthly') {
@@ -44,9 +44,9 @@ export function bindScheduleNavigation({
       }
       openWeekPicker();
     };
-    weekTitle.addEventListener('pointerup', openSchedulePeriodPicker);
-    weekTitle.addEventListener('click', openSchedulePeriodPicker);
-    weekTitle.addEventListener('keydown', event => {
+    document.getElementById('weekTitle')?.addEventListener('click', openSchedulePeriodPicker);
+    document.getElementById('weekTitle')?.addEventListener('pointerup', openSchedulePeriodPicker);
+    document.getElementById('weekTitle')?.addEventListener('keydown', event => {
       if (event.key === 'Enter' || event.key === ' ') openSchedulePeriodPicker(event);
     });
   }
