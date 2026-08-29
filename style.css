@@ -1,4 +1,4 @@
-/* Palette Variables (Google Sheets Row 3 Pastel Tints) */
+/* Palette Variables (Schedule & Ledger Pastel Tints) */
 :root {
   --bg-app: #F8F9FA;
   --bg-table: #FFFFFF;
@@ -2690,7 +2690,7 @@ body {
 .schedule-table .ledger-fixed-cost-tag,
 .ledger-schedule-table .ledger-fixed-cost-tag { display: inline-flex; align-items: center; min-height: 18px; padding: 1px 5px; border-radius: 999px; background: #EEF2FF; color: #4338CA; font-size: 10px; font-weight: 700; line-height: 1; white-space: nowrap; }
 
-/* Google Sheets 읽기 전용 연결 단계 */
+/* 가계부 입력 컨트롤 상태 */
 #ledgerToggleEntryBtn:disabled { opacity: 0.55; cursor: not-allowed; filter: grayscale(0.3); }
 
 /* 가계부 행 드래그 앤 드롭 (Mobile Touch & PC Drag) */
