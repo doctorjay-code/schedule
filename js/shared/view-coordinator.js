@@ -26,13 +26,15 @@ export function showScheduleView(options = {}) {
 
   // Subnav & navigators
   document.getElementById('scheduleSubnav')?.classList.remove('hidden');
+  document.getElementById('weeklyViewWrapper')?.classList.remove('hidden');
   document.getElementById('ledgerSubnav')?.classList.add('hidden');
   document.getElementById('ledgerCardNavigator')?.classList.add('hidden');
   document.getElementById('ledgerSyncBtn')?.classList.add('hidden');
   document.getElementById('ledgerRefreshBtn')?.classList.add('hidden');
   document.getElementById('ledgerSourceSwitch')?.classList.add('hidden');
   document.getElementById('ledgerPersonSwitch')?.classList.add('hidden');
-  document.getElementById('ledgerViewWrapper')?.classList.add('hidden');
+  document.getElementById('fundplanAllTimeWrapper')?.classList.add('hidden');
+  document.getElementById('ledgerMonthlyWrapper')?.classList.add('hidden');
 
   // Show schedule elements
   document.querySelectorAll('.schedule-only').forEach(el => el.classList.remove('hidden'));
@@ -58,8 +60,12 @@ export function showLedgerView(options = {}) {
   document.getElementById('monthlyViewWrapper')?.classList.add('hidden');
 
   // Show ledger elements
-  document.getElementById('ledgerViewWrapper')?.classList.remove('hidden');
+  document.getElementById('ledgerSubnav')?.classList.remove('hidden');
+  document.getElementById('ledgerCardNavigator')?.classList.remove('hidden');
+  document.getElementById('ledgerSyncBtn')?.classList.remove('hidden');
   document.getElementById('ledgerSourceSwitch')?.classList.remove('hidden');
+  document.getElementById('ledgerPersonSwitch')?.classList.remove('hidden');
+  document.getElementById('fundplanAllTimeWrapper')?.classList.remove('hidden');
 
   if (typeof onMainTabChangeCallback === 'function') {
     onMainTabChangeCallback('ledger', options);
