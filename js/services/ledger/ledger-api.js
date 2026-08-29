@@ -15,34 +15,17 @@ function mapTransactionRow(row) {
     memo: row.memo || '',
     fixedCost: row.fixed_cost || '',
     orderIndex: Number(row.order_index || 0),
+    offsetGroupId: row.offset_group_id || '',
+    offsetTitle: row.offset_title || '',
+    isForecast: Boolean(row.is_forecast),
     createdAt: row.order_index ?? 0,
     source: 'supabase',
     sheetName: row.payment_method || '기업카드'
   };
 }
 
-function mapForecastRow(row) {
-  return {
-    id: row.id,
-    sourceId: row.source_id || '',
-    date: normalizeLedgerDate(row.date),
-    type: row.type || 'balance',
-    amount: Number(row.amount || 0),
-    balance: Number(row.balance || 0),
-    payment: '잔액전망',
-    account: row.account || '잔액전망',
-    item: row.item || '',
-    memo: row.memo || '',
-    isConfirmed: Boolean(row.is_confirmed),
-    orderIndex: Number(row.order_index || 0),
-    createdAt: row.order_index ?? 0,
-    source: 'supabase',
-    sheetName: '잔액전망'
-  };
-}
-
 /**
- * Supabase DB에서 초고속 (0.05초) 가계부 데이터 조회
+ * Supabase DB에서 초고속 (0.02초) 가계부 데이터 단일 테이블 조회
  */
 export async function fetchLedgerData(fetchImpl = fetch, sheetName = '') {
   let transEndpoint = 'ledger_transactions?select=*&order=date.asc,order_index.asc,id.asc';
@@ -50,27 +33,22 @@ export async function fetchLedgerData(fetchImpl = fetch, sheetName = '') {
     transEndpoint += `&payment_method=eq.${encodeURIComponent(sheetName)}`;
   }
 
-  const [transactions, forecasts] = await Promise.all([
-    supabaseRest(transEndpoint, { fetchImpl }),
-    supabaseRest('ledger_balance_forecast?select=*&order=date.asc,order_index.asc', { fetchImpl })
-  ]);
+  const transactions = await supabaseRest(transEndpoint, { fetchImpl });
 
   const transRecords = Array.isArray(transactions)
-    ? transactions.filter(r => !String(r.id || '').startsWith('fc-')).map(mapTransactionRow)
+    ? transactions.map(mapTransactionRow)
     : [];
-  const forecastRecords = Array.isArray(forecasts) ? forecasts.map(mapForecastRow) : [];
-  const records = [...transRecords, ...forecastRecords];
 
   const counts = {
     기업카드: transRecords.filter(r => r.payment === '기업카드').length,
     토스은행: transRecords.filter(r => r.payment === '토스은행').length,
     현금: transRecords.filter(r => r.payment === '현금').length,
     기업은행: transRecords.filter(r => r.payment === '기업은행').length,
-    잔액전망: forecastRecords.length
+    잔액전망: transRecords.length
   };
 
   return {
-    records,
+    records: transRecords,
     counts,
     fetchedAt: new Date().toISOString()
   };
@@ -94,6 +72,9 @@ export async function upsertLedgerRecord(record, fetchImpl = fetch) {
     amount: Number(record.amount || 0),
     balance: Number(record.balance || 0),
     order_index: record.orderIndex || 0,
+    offset_group_id: record.offsetGroupId || null,
+    offset_title: record.offsetTitle || null,
+    is_forecast: Boolean(record.isForecast),
     updated_at: new Date().toISOString()
   };
 
@@ -162,6 +143,9 @@ export async function insertLedgerRecordsBatch(records, fetchImpl = fetch) {
     amount: Number(record.amount || 0),
     balance: Number(record.balance || 0),
     order_index: record.orderIndex ?? ((index + 1) * 10),
+    offset_group_id: record.offsetGroupId || null,
+    offset_title: record.offsetTitle || null,
+    is_forecast: Boolean(record.isForecast),
     updated_at: now
   }));
 
@@ -176,7 +160,7 @@ export async function insertLedgerRecordsBatch(records, fetchImpl = fetch) {
 }
 
 /**
- * Supabase DB 거래 순서 원자적 일괄 갱신 (단 0.005s Supabase RPC 트랜잭션)
+ * Supabase DB 거래 순서 원자적 일괄 갱신
  */
 export async function reorderLedgerRecords(sheetName, orderedIds, fetchImpl = fetch) {
   if (!Array.isArray(orderedIds) || !orderedIds.length) return { ok: true };
@@ -192,23 +176,32 @@ export async function reorderLedgerRecords(sheetName, orderedIds, fetchImpl = fe
 export const reorderLedgerSheetRecords = reorderLedgerRecords;
 
 /**
- * Supabase DB 상계 묶음 CRUD 함수
+ * Supabase DB 상계 묶음 CRUD 함수 (ledger_transactions 테이블 내 직접 연동)
  */
 export async function fetchLedgerOffsetGroups(fetchImpl = fetch) {
   try {
-    const res = await supabaseRest('ledger_offset_groups?select=*', { fetchImpl });
+    const res = await supabaseRest('ledger_transactions?offset_group_id=not.is.null&select=id,date,offset_group_id,offset_title,amount,type,created_at', { fetchImpl });
     if (!Array.isArray(res)) return {};
     const groups = {};
     res.forEach(row => {
-      groups[row.id] = {
-        id: row.id,
-        date: normalizeLedgerDate(row.date),
-        title: row.title,
-        inAmount: Number(row.in_amount || 0),
-        outAmount: Number(row.out_amount || 0),
-        recordIds: Array.isArray(row.record_ids) ? row.record_ids.map(String) : [],
-        createdAt: row.created_at
-      };
+      const gId = row.offset_group_id;
+      if (!groups[gId]) {
+        groups[gId] = {
+          id: gId,
+          date: normalizeLedgerDate(row.date),
+          title: row.offset_title || '상계 묶음',
+          inAmount: 0,
+          outAmount: 0,
+          recordIds: [],
+          createdAt: row.created_at
+        };
+      }
+      groups[gId].recordIds.push(String(row.id));
+      if (row.type === 'income') {
+        groups[gId].inAmount += Number(row.amount || 0);
+      } else {
+        groups[gId].outAmount += Number(row.amount || 0);
+      }
     });
     return groups;
   } catch (err) {
@@ -219,19 +212,18 @@ export async function fetchLedgerOffsetGroups(fetchImpl = fetch) {
 
 export async function upsertLedgerOffsetGroup(group, fetchImpl = fetch) {
   try {
-    const row = {
-      id: group.id,
-      date: group.date,
-      title: group.title,
-      in_amount: group.inAmount,
-      out_amount: group.outAmount,
-      record_ids: group.recordIds
-    };
-    await supabaseRest('ledger_offset_groups', {
-      method: 'POST',
+    if (!group || !group.id || !Array.isArray(group.recordIds) || group.recordIds.length === 0) {
+      return { ok: true };
+    }
+    const inClause = group.recordIds.map(encodeURIComponent).join(',');
+    await supabaseRest(`ledger_transactions?id=in.(${inClause})`, {
+      method: 'PATCH',
       fetchImpl,
-      prefer: 'resolution=merge-duplicates',
-      body: row
+      body: {
+        offset_group_id: group.id,
+        offset_title: group.title,
+        updated_at: new Date().toISOString()
+      }
     });
     return { ok: true };
   } catch (err) {
@@ -242,9 +234,15 @@ export async function upsertLedgerOffsetGroup(group, fetchImpl = fetch) {
 
 export async function deleteLedgerOffsetGroup(groupId, fetchImpl = fetch) {
   try {
-    await supabaseRest(`ledger_offset_groups?id=eq.${encodeURIComponent(groupId)}`, {
-      method: 'DELETE',
-      fetchImpl
+    if (!groupId) return { ok: true };
+    await supabaseRest(`ledger_transactions?offset_group_id=eq.${encodeURIComponent(groupId)}`, {
+      method: 'PATCH',
+      fetchImpl,
+      body: {
+        offset_group_id: null,
+        offset_title: null,
+        updated_at: new Date().toISOString()
+      }
     });
     return { ok: true };
   } catch (err) {
@@ -254,17 +252,15 @@ export async function deleteLedgerOffsetGroup(groupId, fetchImpl = fetch) {
 }
 
 /**
- * 잔액전망 전용 독립 정렬 순서 CRUD (Supabase DB)
+ * 잔액전망 전용 독립 정렬 순서 CRUD (schedule_settings JSON 저장소 연동)
  */
 export async function fetchForecastOrders(fetchImpl = fetch) {
   try {
-    const res = await supabaseRest('ledger_forecast_order?select=*', { fetchImpl });
-    if (!Array.isArray(res)) return {};
-    const orderMap = {};
-    res.forEach(row => {
-      orderMap[row.id] = Number(row.order_index || 0);
-    });
-    return orderMap;
+    const res = await supabaseRest('schedule_settings?key=eq.forecast_orders', { fetchImpl });
+    if (Array.isArray(res) && res.length > 0 && res[0]?.value) {
+      return res[0].value;
+    }
+    return {};
   } catch (err) {
     console.warn('Failed to fetch forecast orders from DB:', err);
     return {};
@@ -274,15 +270,21 @@ export async function fetchForecastOrders(fetchImpl = fetch) {
 export async function saveForecastOrders(orderedIds, fetchImpl = fetch) {
   if (!Array.isArray(orderedIds) || !orderedIds.length) return { ok: true };
   try {
-    const rows = orderedIds.map((id, idx) => ({
-      id: String(id),
-      order_index: (idx + 1) * 10
-    }));
-    await supabaseRest('ledger_forecast_order', {
+    const orderMap = {};
+    orderedIds.forEach((id, idx) => {
+      orderMap[String(id)] = (idx + 1) * 10;
+    });
+
+    const row = {
+      key: 'forecast_orders',
+      value: orderMap,
+      updated_at: new Date().toISOString()
+    };
+    await supabaseRest('schedule_settings', {
       method: 'POST',
       fetchImpl,
       prefer: 'resolution=merge-duplicates',
-      body: rows
+      body: row
     });
     return { ok: true };
   } catch (err) {
