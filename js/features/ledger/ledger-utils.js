@@ -107,3 +107,18 @@ export function compareLedgerRecords(a, b) {
   return (a.id || '').localeCompare(b.id || '');
 }
 
+/**
+ * 표준 날짜 정렬형 가계부 ID 생성기 (tr-YYYYMMDD-xx-xxxxxx)
+ */
+export function generateLedgerId(dateStr = '', orderIndex = 0) {
+  let dKey = '';
+  if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    dKey = dateStr.replace(/-/g, '');
+  } else {
+    const now = new Date();
+    dKey = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  }
+  const oKey = String(Math.abs(orderIndex || 0)).padStart(2, '0').slice(-2);
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `tr-${dKey}-${oKey}-${rand}`;
+}

@@ -1,2 +1,2 @@
-// Monthly schedule rendering boundary.
-export { renderMonthlyCalendar, switchViewModeUI } from './schedule-view.js';
+// Backward-compatibility export
+export * from './monthly-view.js';

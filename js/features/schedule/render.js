@@ -1,5 +1,4 @@
-// Public schedule-rendering entry point.
-// Keep this file small: implementation lives in schedule-render.js.
+// Schedule Rendering Unified Entry Point
 export {
   loadWeekData,
   isRedDate,
@@ -19,4 +18,8 @@ export {
   createOtTd,
   renderMonthlyCalendar,
   switchViewModeUI
-} from './schedule-render.js';
+} from './schedule-view.js';
+
+export {
+  renderMonthlyCalendarView
+} from './monthly-view.js';
