@@ -214,7 +214,8 @@ function renderActiveLedgerPeriod() {
 
   calculated.forEach(record => {
     const isSelected = ledgerState.selectedLedgerIds.has(String(record.id));
-    const tr = renderTransactionRow(record, {
+    renderTransactionRow(record, container, {
+      source: ledgerState.source,
       isCompanyCard: isCard,
       colorSettings: state.colorSettings,
       multiEditMode: ledgerState.multiEditMode,
@@ -227,7 +228,6 @@ function renderActiveLedgerPeriod() {
         }
       }
     });
-    container.appendChild(tr);
   });
 }
 
