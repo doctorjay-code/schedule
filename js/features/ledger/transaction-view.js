@@ -216,6 +216,9 @@ export function renderTransactionRow(item, listTarget = 'fundplanAllTimeList', o
   const balanceCell = makeDayEndCell();
   balanceCell.className += ' ledger-cell-money ledger-cell-balance';
   balanceCell.style.borderBottom = '2px solid #1E3A8A';
+  balanceCell.style.color = '#1E1B4B';
+  balanceCell.style.fontWeight = '600';
+  balanceCell.style.textAlign = 'right';
   if (item.isSubDetail) {
     balanceCell.textContent = '';
   } else {
@@ -224,6 +227,8 @@ export function renderTransactionRow(item, listTarget = 'fundplanAllTimeList', o
       ? `${usageAmount < 0 ? '-' : ''}${formatMoney(usageAmount)}`
       : '';
   }
+  tagRow.appendChild(balanceCell);
+
   if (targetContainer) {
     targetContainer.appendChild(detailRow);
     targetContainer.appendChild(tagRow);
