@@ -323,7 +323,8 @@ function renderLedgerTable() {
 
   calculated.forEach(record => {
     const isSelected = ledgerState.selectedLedgerIds.has(String(record.id));
-    const tr = renderTransactionRow(record, {
+    renderTransactionRow(record, container, {
+      source: ledgerState.source,
       isCompanyCard,
       colorSettings: state.colorSettings,
       multiEditMode: ledgerState.multiEditMode,
@@ -336,7 +337,6 @@ function renderLedgerTable() {
         }
       }
     });
-    container.appendChild(tr);
   });
 }
 
