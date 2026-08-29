@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Automated Full-Stack Integrity Verification Engine
  * Runs before any commit or deployment to ensure 0 runtime errors.
  */
@@ -93,18 +93,13 @@ jsFiles.forEach(file => {
 
     let resolvedPath = null;
     if (imp.type === 'dynamic') {
-      // Dynamic import in browser is relative to HTML root (/schedule/)
-      if (importPath.startsWith('./js/')) {
-        resolvedPath = path.join(ROOT_DIR, importPath);
-      } else if (importPath.startsWith('./') || importPath.startsWith('../')) {
-        const fromHtml = path.join(ROOT_DIR, importPath);
-        const fromFile = path.join(fileDir, importPath);
-        if (fs.existsSync(fromHtml)) resolvedPath = fromHtml;
-        else if (fs.existsSync(fromFile)) resolvedPath = fromFile;
-        else resolvedPath = fromHtml;
-      }
+      // ⚠️ 브라우저 동적 import는 항상 해당 모듈 파일 위치 기준으로 경로를 해석함.
+      // path.resolve(fileDir, importPath)는 fileDir이 디렉터리이므로 한 단계 덜 올라감.
+      // 브라우저는 file URL(파일 경로 자체)을 기준으로 해석하므로, path.resolve(file, '..', importPath)와 동일함.
+      resolvedPath = path.resolve(file, '..', importPath);
     } else {
-      resolvedPath = path.resolve(fileDir, importPath);
+      // 정적 import는 항상 파일 기준 상대경로
+      resolvedPath = path.resolve(file, '..', importPath);
     }
 
     if (!resolvedPath || !fs.existsSync(resolvedPath)) {
