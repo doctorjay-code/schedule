@@ -43,6 +43,96 @@ export function isManualCardPayment(record) {
 }
 
 /**
+ * 🌟 기업카드 실사용 내역을 기반으로 기업은행 매월 27일 결제행 자동 계산 및 실시간 동기화
+ */
+export async function syncBankCardBillRecords({ allRecords = [], upsertRecordFn }) {
+  if (!Array.isArray(allRecords) || typeof upsertRecordFn !== 'function') return;
+
+  const cardRecords = allRecords.filter(r => (r.payment_method || r.payment || r.sheetName) === '기업카드');
+  if (cardRecords.length === 0) return;
+
+  // 전체 카드 거래에서 발생한 모든 청구월 수집
+  const billingMonths = new Set();
+  cardRecords.forEach(r => {
+    const dStr = normalizeLedgerDate(r.date);
+    if (!dStr) return;
+    const [yStr, mStr, dayStr] = dStr.split('-');
+    let y = parseInt(yStr, 10);
+    let m = parseInt(mStr, 10);
+    const day = parseInt(dayStr, 10);
+    if (day >= 13) {
+      m += 1;
+      if (m > 12) { m = 1; y += 1; }
+    }
+    const billMonthKey = `${y}-${String(m).padStart(2, '0')}`;
+    if (billMonthKey >= '2026-08') {
+      billingMonths.add(billMonthKey);
+    }
+  });
+
+  const updates = [];
+  for (const billMonthKey of Array.from(billingMonths).sort()) {
+    const [yStr, mStr] = billMonthKey.split('-');
+    let y = parseInt(yStr, 10);
+    let m = parseInt(mStr, 10) - 1; // 0-indexed
+    let prevY = y;
+    let prevM = m - 1;
+    if (prevM < 0) { prevM = 11; prevY -= 1; }
+
+    const cardStart = `${prevY}-${String(prevM + 1).padStart(2, '0')}-13`;
+    const cardEnd = `${y}-${String(m + 1).padStart(2, '0')}-12`;
+
+    const cycleCards = cardRecords.filter(r => {
+      const d = normalizeLedgerDate(r.date);
+      return d >= cardStart && d <= cardEnd;
+    });
+
+    const cycleTotal = cycleCards.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : -Number(r.amount || 0)), 0);
+    if (cycleTotal <= 0) continue;
+
+    const paymentDate = `${billMonthKey}-27`;
+    const billId = `tr-${billMonthKey.replace('-', '')}-50-crdauto`;
+
+    const existing = allRecords.find(r => {
+      const isBank = (r.payment_method || r.payment || r.sheetName) === '기업은행';
+      const isExpense = (r.type || 'expense').toLowerCase() === 'expense';
+      const d = normalizeLedgerDate(r.date);
+      const isCardMemo = String(r.memo || '').includes('기업카드 결제') || String(r.item || '').includes('기업카드');
+      return isBank && isExpense && isCardMemo && d.startsWith(billMonthKey);
+    });
+
+    if (existing) {
+      if (Number(existing.amount) !== cycleTotal) {
+        updates.push({ ...existing, amount: cycleTotal });
+      }
+    } else {
+      updates.push({
+        id: billId,
+        date: paymentDate,
+        payment_method: '기업은행',
+        type: 'expense',
+        amount: cycleTotal,
+        category: '상환',
+        item: '기업카드',
+        user_name: '쥬쥬',
+        memo: '쥬쥬 기업카드 결제',
+        fixed_cost: '고정비',
+        order_index: 50,
+        forecast_order_index: 50
+      });
+    }
+  }
+
+  for (const row of updates) {
+    try {
+      await upsertRecordFn(row);
+    } catch (e) {
+      console.warn('Auto-sync card bill record error:', e);
+    }
+  }
+}
+
+/**
  * 잔액전망 통합 엔진
  */
 export function generateForecastRecords({

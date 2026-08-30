@@ -16,7 +16,7 @@ import { createFundplanView, createLedgerMonthDividerRow, getRecordMonthGroup } 
 import { fetchLedgerData, upsertLedgerRecord, deleteLedgerRecord, reorderLedgerRecords, reorderForecastRecords, deleteLedgerRecordsBatch, insertLedgerRecordsBatch } from '../../services/ledger/ledger-api.js';
 import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js';
 import { showLedgerToast, findLedgerRecordById, executeLedgerCopy, executeLedgerDelete, executeLedgerPaste } from './ledger-clipboard.js';
-import { generateForecastRecords, isManualCardPayment, saveForecastAggregateOverride, loadForecastAggregateOverrides, syncForecastAggregateOverridesFromDB } from './ledger-forecast.js';
+import { generateForecastRecords, isManualCardPayment, saveForecastAggregateOverride, loadForecastAggregateOverrides, syncForecastAggregateOverridesFromDB, syncBankCardBillRecords } from './ledger-forecast.js';
 import { createOffsetGroupFromRecords, createOffsetGroupRow, deleteOffsetGroup } from './ledger-offset-groups.js';
 import { initAverageBalanceModal } from './modals/average-balance.js';
 
@@ -926,13 +926,16 @@ export function initLedgerView() {
     if (ledgerState.active) applyLedgerDataSources();
   });
 
+  const handleLedgerRealtimeSync = () => {
+    fetchLedgerData().then(res => {
+      ledgerState.records = res.records || [];
+      applyLedgerDataSources();
+      syncBankCardBillRecords({ allRecords: ledgerState.records, upsertRecordFn: upsertLedgerRecord });
+    });
+  };
+
   registerRealtimeCallbacks({
-    onLedgerChange: () => {
-      fetchLedgerData().then(res => {
-        ledgerState.records = res.records || [];
-        applyLedgerDataSources();
-      });
-    }
+    onLedgerChange: handleLedgerRealtimeSync
   });
 
   bindLedgerListActions({

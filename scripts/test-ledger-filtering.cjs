@@ -163,7 +163,29 @@ async function runCoreLedgerInvariants() {
   const offsetJs = fs.readFileSync(path.join(ledgerDir, 'ledger-offset-groups.js'), 'utf8');
   assert.ok(!offsetJs.includes('localStorage'), 'ledger-offset-groups.js에 localStorage 레거시 잔재 발견');
 
-  console.log('✔ 가계부 5대 본질 불변식 100% 검증 완료');
+  console.log('--- 7. Core Invariant 6: Card Bill Payment Row vs Sub-Records 100% Cross-Matching ---');
+  const fcModule = await import('../js/features/ledger/ledger-forecast.js');
+  const { generateForecastRecords: genFc } = fcModule;
+
+  const mockDbRecords = [
+    // 8월 13일 ~ 9월 12일 카드 사용분 2건: 600,000원 + 398,580원 = 998,580원
+    { id: 'card-1', date: '2026-08-15', amount: 600000, type: 'expense', payment_method: '기업카드' },
+    { id: 'card-2', date: '2026-09-05', amount: 398580, type: 'expense', payment_method: '기업카드' },
+    // 9월 27일 기업은행 결제행: 998,580원
+    { id: 'bank-bill-1', date: '2026-09-27', amount: 998580, type: 'expense', payment_method: '기업은행', item: '기업카드', memo: '쥬쥬 기업카드 결제' }
+  ];
+
+  const { displayRows: crossCheckRows } = genFc({ allRecords: mockDbRecords, monthCursor: new Date('2026-09-01') });
+  const billRow = crossCheckRows.find(r => r.date === '2026-09-27' && r.item === '기업카드');
+  assert.ok(billRow, '9월 27일 기업카드 결제행 누락');
+  assert.strictEqual(billRow.amount, 998580, '기업카드 결제행 금액 불일치');
+  assert.strictEqual(billRow.hasCardAccordion, true, '기업카드 아코디언 미부착');
+  assert.strictEqual(billRow.subRecords.length, 2, '기업카드 세부거래 연결 건수 불일치');
+
+  const subTotal = billRow.subRecords.reduce((sum, r) => sum + r.amount, 0);
+  assert.strictEqual(billRow.amount, subTotal, '💥 회계 불일치: 결제행 금액과 카드 세부 거래 합계가 1원이라도 다름!');
+
+  console.log('✔ 가계부 6대 본질 불변식 (카드 결제 대사 일치 포함) 100% 검증 완료');
 }
 
 runCoreLedgerInvariants().catch(err => {
