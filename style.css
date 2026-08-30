@@ -2466,10 +2466,16 @@ body {
   padding: 6px 4px;
 }
 .schedule-table tr.ledger-row-selected td,
-.ledger-schedule-table tr.ledger-row-selected td {
+.schedule-table tr.selected-row td,
+.ledger-schedule-table tr.ledger-row-selected td,
+.ledger-schedule-table tr.selected-row td {
   background-color: #DBEAFE !important;
   color: #1E40AF !important;
   font-weight: 700;
+}
+.ledger-accordion-toggle-cell {
+  cursor: pointer;
+  user-select: none;
 }
 #ledgerPersonSwitch .ledger-filter-options {
   display: grid;

@@ -164,9 +164,9 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
 
     const list = document.getElementById('fundplanAllTimeList');
     if (!list) return;
-    list.replaceChildren();
 
     if (!records.length) {
+      list.replaceChildren();
       const emptyRow = document.createElement('tr');
       const emptyCell = document.createElement('td');
       emptyCell.colSpan = 7;
@@ -176,6 +176,8 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
       list.appendChild(emptyRow);
       return;
     }
+
+    const fragment = document.createDocumentFragment();
 
     // 1. 전체 레코드를 날짜순으로 정렬하고 실시간 연속 누적 잔액(Running Balance)을 먼저 일괄 계산!
     const sortedAndCalculated = recalculateRunningBalances([...records].sort(compareLedgerRecords), isCompanyCard);
@@ -239,7 +241,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
           });
         }
       });
-      list.appendChild(dividerRow);
+      fragment.appendChild(dividerRow);
 
       // 2. Month Transaction Rows (상계 묶음 그룹핑 지원)
       const handledGroupIds = new Set();
@@ -326,45 +328,41 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
 
           groupRow.dataset.monthGroup = month;
           if (!isExpanded) groupRow.style.display = 'none';
-          list.appendChild(groupRow);
+          fragment.appendChild(groupRow);
           monthRowElements.push(groupRow);
 
           // 묶인 세부 거래들 렌더링 (기본 접힘: display: none)
           const subGroupRows = [];
           groupRecords.forEach(sub => {
-            const subPrev = list.children.length;
-            renderTransactionRow({ ...sub, isSubDetail: true }, 'fundplanAllTimeList', { source, colorSettings: activeColorSettings });
-            const subNew = list.children.length;
-            for (let j = subPrev; j < subNew; j++) {
-              const subEl = list.children[j];
+            const subRows = renderTransactionRow({ ...sub, isSubDetail: true }, fragment, {
+              source,
+              colorSettings: activeColorSettings,
+              onRowClick: onRowClick ? () => onRowClick(sub) : null
+            });
+            (subRows || []).forEach(subEl => {
               subEl.dataset.monthGroup = month;
               subEl.dataset.parentOffsetGroupId = matchedGroup.id;
               subEl.style.display = 'none'; // 기본 닫힘
               monthRowElements.push(subEl);
               subGroupRows.push(subEl);
-            }
+            });
           });
 
           return;
         }
 
-        const prevCount = list.children.length;
-        renderTransactionRow(record, 'fundplanAllTimeList', {
+        const mainRows = renderTransactionRow(record, fragment, {
           source,
           colorSettings: activeColorSettings,
           isSelected: ledgerState.selectedLedgerIds ? ledgerState.selectedLedgerIds.has(String(record.id)) : false,
           multiEditMode: Boolean(ledgerState.multiEditMode),
           onRowClick: onRowClick ? () => onRowClick(record) : null
         });
-        const newCount = list.children.length;
-        const mainRows = [];
-        for (let i = prevCount; i < newCount; i++) {
-          const rowEl = list.children[i];
+        (mainRows || []).forEach(rowEl => {
           rowEl.dataset.monthGroup = month;
           if (!isExpanded) rowEl.style.display = 'none';
           monthRowElements.push(rowEl);
-          mainRows.push(rowEl);
-        }
+        });
 
         // 만약 통합 가변/고정 아코디언 행(isAggregate) 또는 실제 카드 출금 행(hasCardAccordion)인 경우:
         // 바로 밑에 세부 거래들(subRecords)을 인라인으로 렌더링 (기본 닫힘)
@@ -373,15 +371,12 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
           record.subRecords.forEach((sub, sIdx) => {
             const isFirstSub = sIdx === 0;
             const isLastSub = sIdx === record.subRecords.length - 1;
-            const subPrev = list.children.length;
-            renderTransactionRow({ ...sub, isSubDetail: true }, 'fundplanAllTimeList', {
+            const subCreated = renderTransactionRow({ ...sub, isSubDetail: true }, fragment, {
               source,
               colorSettings: activeColorSettings,
               onRowClick: onRowClick ? () => onRowClick(sub) : null
             });
-            const subNew = list.children.length;
-            for (let j = subPrev; j < subNew; j++) {
-              const subEl = list.children[j];
+            (subCreated || []).forEach(subEl => {
               subEl.dataset.monthGroup = month;
               subEl.dataset.parentAggregateId = record.id;
               if (isFirstSub) subEl.dataset.subdetailFirst = 'true';
@@ -389,7 +384,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
               subEl.style.display = 'none'; // 기본 닫힘
               monthRowElements.push(subEl);
               subRows.push(subEl);
-            }
+            });
           });
 
           let isSubExpanded = false;
@@ -488,7 +483,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
 
       actionTd.appendChild(copyBtn);
       actionRow.appendChild(actionTd);
-      list.appendChild(actionRow);
+      fragment.appendChild(actionRow);
       monthRowElements.push(actionRow);
     });
 
@@ -526,8 +521,11 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
       grandFooterRow.appendChild(grandExpenseCell);
       grandFooterRow.appendChild(grandBalanceCell);
 
-      list.appendChild(grandFooterRow);
+      fragment.appendChild(grandFooterRow);
     }
+
+    // 🌟 500개 행을 브라우저에 단 1번(1 reflow)에 초고속 주입!
+    list.replaceChildren(fragment);
   }
 
   function setAllExpanded(expanded) {

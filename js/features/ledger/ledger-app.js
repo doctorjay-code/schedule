@@ -85,9 +85,12 @@ function setMultiEditMode(enabled) {
   ledgerState.multiEditMode = Boolean(enabled);
   if (!ledgerState.multiEditMode) {
     ledgerState.selectedLedgerIds.clear();
+    // 🌟 선택 해제 시 기존 선택 행 스타일만 0ms 국소 초기화
+    document.querySelectorAll('tr.ledger-row-selected, tr.selected-row').forEach(r => {
+      r.classList.remove('ledger-row-selected', 'selected-row');
+    });
   }
   updateMultiActionBar();
-  applyLedgerDataSources();
 }
 
 function toggleMultiSelectRow(recordId) {
@@ -104,7 +107,10 @@ function toggleMultiSelectRow(recordId) {
 
   // 🌟 전체 재렌더링 없이 해당 행 엘리먼트들만 0ms 즉시 토글
   const rows = document.querySelectorAll(`tr[data-ledger-id="${sId}"]`);
-  rows.forEach(r => r.classList.toggle('selected-row', isNowSelected));
+  rows.forEach(r => {
+    r.classList.toggle('ledger-row-selected', isNowSelected);
+    r.classList.toggle('selected-row', isNowSelected);
+  });
 
   updateMultiActionBar();
 }

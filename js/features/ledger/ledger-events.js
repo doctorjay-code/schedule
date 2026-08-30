@@ -89,9 +89,9 @@ export function bindLedgerListActions({ onRowClick, onOpen, onReorder }) {
       longTouchTimer = null;
     }
 
-    if (isDragging) {
+    if (isDragging && hasMoved) {
       globalJustDragged = true;
-      setTimeout(() => { globalJustDragged = false; }, 200);
+      setTimeout(() => { globalJustDragged = false; }, 50);
 
       if (hasMoved && activeReorder) {
         const orderedIds = [];
