@@ -16,8 +16,7 @@ import { createFundplanView, createLedgerMonthDividerRow, getRecordMonthGroup } 
 import { fetchLedgerData, upsertLedgerRecord, deleteLedgerRecord, reorderLedgerRecords, deleteLedgerRecordsBatch, insertLedgerRecordsBatch, saveForecastOrders } from '../../services/ledger/ledger-api.js';
 import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js';
 import { showLedgerToast, findLedgerRecordById, executeLedgerCopy, executeLedgerDelete, executeLedgerPaste } from './ledger-clipboard.js';
-import { generateForecastRecords, loadForecastOrderMap, saveForecastOrderMap, syncForecastOrdersFromDB, isManualCardPayment, saveForecastAggregateOverride, loadForecastAggregateOverrides, syncForecastAggregateOverridesFromDB } from './ledger-forecast.js';
-import { createOffsetGroupFromRecords, syncOffsetGroupsFromDB, loadOffsetGroups, createOffsetGroupRow, deleteOffsetGroup } from './ledger-offset-groups.js';
+import { createOffsetGroupFromRecords, createOffsetGroupRow, deleteOffsetGroup } from './ledger-offset-groups.js';
 
 let ledgerState = {
   active: false,

@@ -1,40 +1,39 @@
 import { formatMoney, normalizeLedgerDate } from './ledger-utils.js';
-import { fetchLedgerOffsetGroups, upsertLedgerOffsetGroup, deleteLedgerOffsetGroup as deleteOffsetGroupFromDB } from '../../services/ledger/ledger-api.js';
+import { upsertLedgerOffsetGroup, deleteLedgerOffsetGroup as deleteOffsetGroupFromDB } from '../../services/ledger/ledger-api.js';
 
-const OFFSET_GROUPS_STORAGE_KEY = 'LEDGER_OFFSET_GROUPS_V1';
+/**
+ * 🌟 DB 거래 목록(records)에서 offset_group_id를 가진 거래들을 모아 100% 순수 객체 맵으로 생성
+ */
+export function buildOffsetGroupsFromRecords(records = []) {
+  const groups = {};
+  if (!Array.isArray(records)) return groups;
 
-export function loadOffsetGroups() {
-  try {
-    const raw = localStorage.getItem(OFFSET_GROUPS_STORAGE_KEY);
-    if (!raw) return {};
-    return JSON.parse(raw) || {};
-  } catch (err) {
-    console.warn('Failed to load offset groups:', err);
-    return {};
-  }
-}
-
-export function saveOffsetGroups(groups) {
-  try {
-    localStorage.setItem(OFFSET_GROUPS_STORAGE_KEY, JSON.stringify(groups || {}));
-  } catch (err) {
-    console.warn('Failed to save offset groups:', err);
-  }
-}
-
-export async function syncOffsetGroupsFromDB() {
-  try {
-    const dbGroups = await fetchLedgerOffsetGroups();
-    if (dbGroups && typeof dbGroups === 'object' && Object.keys(dbGroups).length > 0) {
-      const localGroups = loadOffsetGroups();
-      const merged = { ...localGroups, ...dbGroups };
-      saveOffsetGroups(merged);
-      return merged;
+  records.forEach(r => {
+    if (r && r.offset_group_id) {
+      const gId = r.offset_group_id;
+      if (!groups[gId]) {
+        groups[gId] = {
+          id: gId,
+          date: r.date,
+          title: r.offset_title || '상계 묶음',
+          inAmount: 0,
+          outAmount: 0,
+          recordIds: []
+        };
+      }
+      const sId = String(r.id);
+      if (!groups[gId].recordIds.includes(sId)) {
+        groups[gId].recordIds.push(sId);
+      }
+      if (r.type === 'income') {
+        groups[gId].inAmount += Number(r.amount || 0);
+      } else {
+        groups[gId].outAmount += Number(r.amount || 0);
+      }
     }
-  } catch (err) {
-    console.warn('DB offset groups sync fallback to local:', err);
-  }
-  return loadOffsetGroups();
+  });
+
+  return groups;
 }
 
 export function createOffsetGroupFromRecords(records) {
@@ -59,7 +58,6 @@ export function createOffsetGroupFromRecords(records) {
 
   // ID 정규화 (원본 DB ID로 일치)
   const recordIds = records.map(r => String(r.id || ''));
-
   const title = `${m}/${d} 상계 묶음`;
 
   const group = {
@@ -72,11 +70,7 @@ export function createOffsetGroupFromRecords(records) {
     createdAt: Date.now()
   };
 
-  const groups = loadOffsetGroups();
-  groups[groupId] = group;
-  saveOffsetGroups(groups);
-
-  // Supabase DB에 비동기 영구 저장
+  // Supabase DB에 비동기 영구 저장 (ledger_transactions 테이블 내 직접 UPDATE)
   upsertLedgerOffsetGroup(group).catch(err => {
     console.error('Supabase offset group save error:', err);
   });
@@ -85,19 +79,14 @@ export function createOffsetGroupFromRecords(records) {
 }
 
 export function deleteOffsetGroup(groupId) {
-  const groups = loadOffsetGroups();
-  if (groups[groupId]) {
-    delete groups[groupId];
-    saveOffsetGroups(groups);
+  if (!groupId) return false;
 
-    // Supabase DB에서도 영구 삭제
-    deleteOffsetGroupFromDB(groupId).catch(err => {
-      console.error('Supabase offset group delete error:', err);
-    });
+  // Supabase DB에서 영구 삭제 (ledger_transactions 테이블 내 null 처리)
+  deleteOffsetGroupFromDB(groupId).catch(err => {
+    console.error('Supabase offset group delete error:', err);
+  });
 
-    return true;
-  }
-  return false;
+  return true;
 }
 
 /**

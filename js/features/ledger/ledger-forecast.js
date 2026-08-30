@@ -1,5 +1,4 @@
 import { fetchForecastOrders, saveForecastOrders, insertLedgerRecordsBatch, upsertLedgerOffsetGroup, fetchForecastAggregateOverrides, saveForecastAggregateOverridesToDB } from '../../services/ledger/ledger-api.js';
-import { loadOffsetGroups, saveOffsetGroups } from './ledger-offset-groups.js';
 import { compareLedgerRecords, normalizeLedgerDate, generateLedgerId } from './ledger-utils.js';
 
 const FORECAST_ORDER_STORAGE_KEY = 'LEDGER_FORECAST_ORDER_MAP_V1';
@@ -334,19 +333,13 @@ export async function copyMonthFixedRecordsToNextMonth({
   // 1. 해당 월(sourceMonth)의 고정비 및 상계 거래 추출
   const toCopyBank = [];
   const toCopyCard = [];
-  const sourceOffsetRecordIds = new Set();
-
-  const allOffsetGroups = loadOffsetGroups();
-  Object.values(allOffsetGroups).forEach(g => {
-    (g.recordIds || []).forEach(id => sourceOffsetRecordIds.add(String(id)));
-  });
 
   allRecords.forEach(r => {
     const dStr = normalizeLedgerDate(r.date);
     if (!dStr || !dStr.startsWith(sourceMonthKey)) return;
 
     const isFixed = r.fixed_cost === '고정비' || r.fixedCost === '고정비';
-    const isOffset = sourceOffsetRecordIds.has(String(r.id)) || (r.offset_group_id != null);
+    const isOffset = Boolean(r.offset_group_id);
     const sheet = r.payment_method || r.payment || r.sheetName || '토스은행';
 
     if (sheet === '기업카드') {

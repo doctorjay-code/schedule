@@ -1,4 +1,4 @@
-﻿const assert = require('assert');
+const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
@@ -147,10 +147,25 @@ async function runCoreLedgerInvariants() {
     .join('\n');
   assert.ok(!allJs.includes('replace(/^fc-'), '코드베이스에 구형 ID 파싱 정규식(replace(/^fc-)) 잔재 발견');
 
-  console.log('✔ 가계부 4대 본질 불변식 100% 검증 완료');
+  console.log('--- 6. Core Invariant 5: Pure DB Offset Hydration & Zero localStorage Dependency ---');
+  const offsetGroupsModule = await import('../js/features/ledger/ledger-offset-groups.js');
+  const { buildOffsetGroupsFromRecords } = offsetGroupsModule;
+  const sampleOffsetRecords = [
+    { id: 'tr-1', date: '2026-08-25', amount: 1333366, type: 'income', offset_group_id: 'grp-1', offset_title: '8/25 상계' },
+    { id: 'tr-2', date: '2026-08-25', amount: 1333366, type: 'expense', offset_group_id: 'grp-1', offset_title: '8/25 상계' }
+  ];
+  const builtGroups = buildOffsetGroupsFromRecords(sampleOffsetRecords);
+  assert.ok(builtGroups['grp-1'], 'DB 레코드로부터 상계 그룹 동적 생성 누락');
+  assert.strictEqual(builtGroups['grp-1'].inAmount, 1333366, '상계 그룹 수입 금액 불일치');
+  assert.strictEqual(builtGroups['grp-1'].outAmount, 1333366, '상계 그룹 지출 금액 불일치');
+
+  const offsetJs = fs.readFileSync(path.join(ledgerDir, 'ledger-offset-groups.js'), 'utf8');
+  assert.ok(!offsetJs.includes('localStorage'), 'ledger-offset-groups.js에 localStorage 레거시 잔재 발견');
+
+  console.log('✔ 가계부 5대 본질 불변식 100% 검증 완료');
 }
 
 runCoreLedgerInvariants().catch(err => {
-  console.error('❌ 가계부 본질 불변식 검증 실패:', err.message);
+  console.error('❌ 가계부 본질 불변식 검증 실패:', err.stack || err.message);
   process.exit(1);
 });

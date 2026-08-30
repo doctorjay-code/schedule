@@ -1,6 +1,6 @@
 import { toIso, formatMoney, recalculateRunningBalances, normalizeLedgerDate, compareLedgerRecords } from './ledger-utils.js';
 import { createLedgerTableHead, renderTransactionRow } from './transaction-view.js';
-import { loadOffsetGroups, deleteOffsetGroup, createOffsetGroupRow } from './ledger-offset-groups.js';
+import { buildOffsetGroupsFromRecords, deleteOffsetGroup, createOffsetGroupRow } from './ledger-offset-groups.js';
 import { copyMonthFixedRecordsToNextMonth } from './ledger-forecast.js';
 
 export function getRecordMonthGroup(record, isCompanyCard) {
@@ -204,35 +204,8 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
       const isExpanded = Boolean(monthExpandedState[month]);
       const monthRowElements = [];
 
-      // 🌟 DB 레코드의 offset_group_id와 localStorage의 그룹을 100% 통합 동적 복원 (전체 월 대상!)
-      const offsetGroups = (source === 'forecast') ? { ...loadOffsetGroups() } : {};
-      if (source === 'forecast') {
-        records.forEach(r => {
-          if (r.offset_group_id) {
-            const gId = r.offset_group_id;
-            if (!offsetGroups[gId]) {
-              offsetGroups[gId] = {
-                id: gId,
-                date: r.date,
-                title: r.offset_title || '상계 묶음',
-                inAmount: 0,
-                outAmount: 0,
-                recordIds: []
-              };
-            }
-            const sId = String(r.id);
-            if (!offsetGroups[gId].recordIds.includes(sId)) {
-              offsetGroups[gId].recordIds.push(sId);
-            }
-            if (r.type === 'income') {
-              offsetGroups[gId].inAmount += Number(r.amount || 0);
-            } else {
-              offsetGroups[gId].outAmount += Number(r.amount || 0);
-            }
-          }
-        });
-      }
-
+      // 🌟 DB 레코드의 offset_group_id로부터 100% 순수 동적 복원 (전체 월 대상!)
+      const offsetGroups = (source === 'forecast') ? buildOffsetGroupsFromRecords(records) : {};
       const offsetRecordIds = new Set();
       if (source === 'forecast') {
         Object.values(offsetGroups).forEach(g => {
