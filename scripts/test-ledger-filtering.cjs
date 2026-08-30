@@ -58,7 +58,7 @@ async function runCoreLedgerInvariants() {
   const cardModule = await import('../js/features/ledger/card.js');
   const { filterLedgerRecords } = cardModule;
   const utilsModule = await import('../js/features/ledger/ledger-utils.js');
-  const { recalculateRunningBalances, formatMoney } = utilsModule;
+  const { recalculateRunningBalances, formatMoney, normalizeLedgerDate } = utilsModule;
   const transViewModule = await import('../js/features/ledger/transaction-view.js');
   const { renderTransactionRow } = transViewModule;
   const forecastModule = await import('../js/features/ledger/ledger-forecast.js');
@@ -233,7 +233,43 @@ async function runCoreLedgerInvariants() {
     { item: '보험료', balance: 2340000 }
   ], '모드 2(전체 시계열 일치 및 동일 날짜 생활비 우선순위) 불일치');
 
-  console.log('✔ 가계부 7대 본질 불변식 (생활비/시계열 2대 잔액 모드 및 우선순위 포함) 100% 검증 완료');
+  console.log('--- 9. Core Invariant 8: Real DB Full-Year Pure Cashflow vs Forecast Balance Reconciliation ---');
+  const apiModule = await import('../js/services/ledger/ledger-api.js');
+  const { fetchLedgerData } = apiModule;
+  const { records: realDbRecords } = await fetchLedgerData();
+
+  const { displayRows: allForecastRows } = genFc({
+    allRecords: realDbRecords,
+    monthCursor: new Date('2026-08-01')
+  });
+
+  const checkMonths = ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08'];
+  checkMonths.forEach(m => {
+    // 실제 통장 순수 입출금 합계
+    const actualMonthRecords = realDbRecords.filter(r => {
+      const d = normalizeLedgerDate(r.date);
+      const sheet = r.payment_method || r.payment || r.sheetName;
+      return d.startsWith(m) && ['토스은행', '기업은행'].includes(sheet);
+    });
+    const actualNet = actualMonthRecords.reduce((sum, r) => {
+      const isExp = (r.type || 'expense').toLowerCase() === 'expense';
+      const amt = Number(r.amount || 0);
+      return sum + (isExp ? -amt : amt);
+    }, 0);
+
+    // 잔액전망 행 순수 입출금 합계
+    const forecastMonthRows = allForecastRows.filter(r => normalizeLedgerDate(r.date).startsWith(m));
+    const forecastNet = forecastMonthRows.reduce((sum, r) => {
+      const isExp = (r.type || 'expense').toLowerCase() === 'expense';
+      const amt = Number(r.amount || 0);
+      return sum + (isExp ? -amt : amt);
+    }, 0);
+
+    const diff = forecastNet - actualNet;
+    assert.strictEqual(diff, 0, `💥 [${m}] 회계 불일치: 실제 통장 순액(${actualNet}) !== 잔액전망 행 순액(${forecastNet}) (차이: ${diff}원)`);
+  });
+
+  console.log('✔ 가계부 8대 본질 불변식 (실제 DB 전수 월별 1:1 회계 대사 완벽 일치) 100% 검증 완료');
 }
 
 runCoreLedgerInvariants().catch(err => {
