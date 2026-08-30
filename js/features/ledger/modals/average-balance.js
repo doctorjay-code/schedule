@@ -15,7 +15,6 @@ let selectedStartMonth = '2026-08';
 let selectedEndMonth = '2026-08';
 let availableMonths = [];
 let allBankRecordsCache = [];
-let getLedgerTransactionModalFn = null;
 
 function parseNumber(val) {
   const digits = String(val || '').replace(/[^0-9-]/g, '');
@@ -146,7 +145,7 @@ function recomputeAndRender() {
 }
 
 /**
- * 가계부 테이블과 100% 동일한 행 UI 렌더링
+ * 가계부 스타일 5열 테이블(날짜/요일, 항목, 입금, 출금, 잔액) 렌더링
  */
 function renderSandboxTable() {
   const tbody = document.getElementById('ledgerAverageTableBody');
@@ -156,7 +155,7 @@ function renderSandboxTable() {
 
   if (sandboxRecords.length === 0) {
     const emptyRow = document.createElement('tr');
-    emptyRow.innerHTML = `<td colspan="4" class="ledger-empty-list" style="text-align:center; padding:24px; color:#94A3B8;">선택한 기간에 거래 내역이 없습니다.<br><small style="color:#CBD5E1;">'+ 거래 추가' 버튼으로 가상 거래를 추가해 보세요.</small></td>`;
+    emptyRow.innerHTML = `<td colspan="5" class="ledger-empty-list" style="text-align:center; padding:24px; color:#94A3B8;">선택한 기간에 거래 내역이 없습니다.<br><small style="color:#CBD5E1;">'+ 거래 추가' 버튼으로 가상 거래를 추가해 보세요.</small></td>`;
     tbody.appendChild(emptyRow);
     return;
   }
@@ -181,16 +180,19 @@ function renderSandboxTable() {
     const outText = isExp && amt > 0 ? formatMoney(amt) : '';
     const balText = Number.isFinite(record.balance) ? `${record.balance < 0 ? '-' : ''}${formatMoney(record.balance)}` : '';
 
+    const itemText = record.item || record.memo || '-';
+
     tr.innerHTML = `
       <td class="col-date" style="font-size:12.5px; font-weight:600; text-align:center; padding:9px 4px; white-space:nowrap;">${dateLabel}</td>
-      <td class="col-trans ledger-cell-money" style="font-size:12.5px; color:#15803D; font-weight:700; text-align:right; padding:9px 10px;">${inText}</td>
-      <td class="col-hr ledger-cell-money" style="font-size:12.5px; color:#DC2626; font-weight:700; text-align:right; padding:9px 10px;">${outText}</td>
-      <td class="col-ot ledger-cell-money" style="font-size:12.5px; color:#1E1B4B; font-weight:700; text-align:right; padding:9px 10px;">${balText}</td>
+      <td class="col-clinic" style="font-size:12.5px; text-align:left; font-weight:600; color:#1E293B; padding:9px 10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${itemText}</td>
+      <td class="col-trans ledger-cell-money" style="font-size:12.5px; color:#15803D; font-weight:700; text-align:right; padding:9px 8px;">${inText}</td>
+      <td class="col-hr ledger-cell-money" style="font-size:12.5px; color:#DC2626; font-weight:700; text-align:right; padding:9px 8px;">${outText}</td>
+      <td class="col-ot ledger-cell-money" style="font-size:12.5px; color:#1E1B4B; font-weight:700; text-align:right; padding:9px 8px;">${balText}</td>
     `;
 
-    // 행 클릭 시 상세 모달 오픈 (샌드박스 전용 격리)
+    // 행 클릭 시 초간편 수정 모달 오픈
     tr.addEventListener('click', () => {
-      openSandboxDetailModal(record);
+      openSandboxEditModal(record);
     });
 
     tbody.appendChild(tr);
@@ -198,71 +200,71 @@ function renderSandboxTable() {
 }
 
 /**
- * 샌드박스 전용 거래 수정/삭제 모달 오픈
+ * 샌드박스 초간편 거래 수정 모달 오픈
  */
-function openSandboxDetailModal(record) {
-  if (typeof getLedgerTransactionModalFn !== 'function') return;
-  const modal = getLedgerTransactionModalFn();
-  if (!modal) return;
+function openSandboxEditModal(record) {
+  const overlay = document.getElementById('ledgerAvgEditOverlay');
+  const title = document.getElementById('ledgerAvgEditTitle');
+  const idInput = document.getElementById('ledgerAvgEditRecordId');
+  const dateInput = document.getElementById('ledgerAvgEditDate');
+  const typeInput = document.getElementById('ledgerAvgEditType');
+  const amountInput = document.getElementById('ledgerAvgEditAmount');
+  const itemInput = document.getElementById('ledgerAvgEditItem');
+  const deleteBtn = document.getElementById('ledgerAvgEditDeleteBtn');
+  const typeGroup = document.getElementById('ledgerAvgEditTypeGroup');
 
-  modal.open({
-    isEdit: true,
-    record: { ...record },
-    customSave: (updatedRecord) => {
-      // 🌟 실제 DB 호출 차단! 샌드박스 배열만 수정
-      const idx = sandboxRecords.findIndex(r => r.id === record.id);
-      if (idx !== -1) {
-        sandboxRecords[idx] = {
-          ...sandboxRecords[idx],
-          ...updatedRecord,
-          amount: Number(updatedRecord.amount || 0)
-        };
-      }
-      recomputeAndRender();
-    },
-    customDelete: () => {
-      // 🌟 실제 DB 호출 차단! 샌드박스 배열에서만 제거
-      sandboxRecords = sandboxRecords.filter(r => r.id !== record.id);
-      recomputeAndRender();
-    }
-  });
+  if (!overlay) return;
+
+  title.textContent = '거래 수정';
+  idInput.value = record.id;
+  dateInput.value = normalizeLedgerDate(record.date);
+
+  const kind = (record.type || 'expense').toLowerCase() === 'income' ? 'income' : 'expense';
+  typeInput.value = kind;
+  if (typeGroup) {
+    typeGroup.querySelectorAll('.option-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.val === kind);
+    });
+  }
+
+  amountInput.value = formatMoney(record.amount || 0);
+  itemInput.value = record.item || record.memo || '';
+  deleteBtn?.classList.remove('hidden');
+
+  overlay.classList.add('active');
 }
 
 /**
- * 샌드박스 전용 새 거래 추가 모달 오픈
+ * 샌드박스 초간편 새 거래 추가 모달 오픈
  */
 function openSandboxAddModal() {
-  if (typeof getLedgerTransactionModalFn !== 'function') return;
-  const modal = getLedgerTransactionModalFn();
-  if (!modal) return;
+  const overlay = document.getElementById('ledgerAvgEditOverlay');
+  const title = document.getElementById('ledgerAvgEditTitle');
+  const idInput = document.getElementById('ledgerAvgEditRecordId');
+  const dateInput = document.getElementById('ledgerAvgEditDate');
+  const typeInput = document.getElementById('ledgerAvgEditType');
+  const amountInput = document.getElementById('ledgerAvgEditAmount');
+  const itemInput = document.getElementById('ledgerAvgEditItem');
+  const deleteBtn = document.getElementById('ledgerAvgEditDeleteBtn');
+  const typeGroup = document.getElementById('ledgerAvgEditTypeGroup');
 
-  const defaultDate = `${selectedStartMonth}-01`;
+  if (!overlay) return;
 
-  modal.open({
-    isEdit: false,
-    record: {
-      id: generateLedgerId(),
-      date: defaultDate,
-      payment: '기업은행',
-      payment_method: '기업은행',
-      person: '쥬쥬',
-      type: 'expense',
-      amount: '',
-      item: '',
-      category: '식비'
-    },
-    customSave: (newRecord) => {
-      // 🌟 샌드박스 배열에 가상 거래 추가
-      sandboxRecords.push({
-        ...newRecord,
-        id: generateLedgerId(),
-        amount: Number(newRecord.amount || 0),
-        payment: '기업은행',
-        payment_method: '기업은행'
-      });
-      recomputeAndRender();
-    }
-  });
+  title.textContent = '거래 추가';
+  idInput.value = '';
+  dateInput.value = `${selectedStartMonth}-01`;
+  typeInput.value = 'expense';
+  if (typeGroup) {
+    typeGroup.querySelectorAll('.option-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.val === 'expense');
+    });
+  }
+
+  amountInput.value = '';
+  itemInput.value = '';
+  deleteBtn?.classList.add('hidden');
+
+  overlay.classList.add('active');
 }
 
 /**
@@ -295,7 +297,7 @@ function populateMonthSelects() {
   endSel.innerHTML = buildOptions(selectedEndMonth);
 }
 
-export function initAverageBalanceModal({ getLedgerRecords, getTransactionModal } = {}) {
+export function initAverageBalanceModal({ getLedgerRecords } = {}) {
   const overlay = document.getElementById('ledgerAverageBalanceOverlay');
   const closeBtn = document.getElementById('ledgerAverageBalanceCloseBtn');
   const openBtn = document.getElementById('ledgerAverageBalanceBtn');
@@ -310,13 +312,19 @@ export function initAverageBalanceModal({ getLedgerRecords, getTransactionModal 
   const resetBtn = document.getElementById('ledgerAvgResetBankBtn');
   const addBtn = document.getElementById('ledgerAverageAddTransactionBtn');
 
+  // 초간편 모달 요소들
+  const editOverlay = document.getElementById('ledgerAvgEditOverlay');
+  const editCloseBtn = document.getElementById('ledgerAvgEditCloseBtn');
+  const editForm = document.getElementById('ledgerAvgEditForm');
+  const editDeleteBtn = document.getElementById('ledgerAvgEditDeleteBtn');
+  const editTypeGroup = document.getElementById('ledgerAvgEditTypeGroup');
+  const editTypeInput = document.getElementById('ledgerAvgEditType');
+  const editAmountInput = document.getElementById('ledgerAvgEditAmount');
+
   if (!overlay || !closeBtn) return;
 
-  if (typeof getTransactionModal === 'function') {
-    getLedgerTransactionModalFn = getTransactionModal;
-  }
-
   const close = () => overlay.classList.remove('active');
+  const closeEdit = () => editOverlay?.classList.remove('active');
 
   if (openBtn) {
     openBtn.addEventListener('click', () => {
@@ -412,9 +420,95 @@ export function initAverageBalanceModal({ getLedgerRecords, getTransactionModal 
     openSandboxAddModal();
   });
 
+  // 6. 초간편 모달 금액 입력 콤마 포맷터
+  editAmountInput?.addEventListener('input', e => {
+    const raw = e.target.value.replace(/[^\d]/g, '');
+    e.target.value = raw ? formatMoney(raw) : '';
+  });
+
+  // 7. 초간편 모달 출금/입금 토글
+  editTypeGroup?.addEventListener('click', e => {
+    const btn = e.target.closest('.option-btn');
+    if (!btn) return;
+    editTypeGroup.querySelectorAll('.option-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (editTypeInput) editTypeInput.value = btn.dataset.val;
+  });
+
+  // 8. 초간편 모달 닫기
+  editCloseBtn?.addEventListener('click', closeEdit);
+  editOverlay?.addEventListener('click', e => {
+    if (e.target === editOverlay) closeEdit();
+  });
+
+  // 9. 초간편 모달 저장 (Submit) ➡️ 100% 샌드박스 배열에 반영 & 실시간 평잔 재계산!
+  editForm?.addEventListener('submit', e => {
+    e.preventDefault();
+    const id = document.getElementById('ledgerAvgEditRecordId')?.value || '';
+    const date = document.getElementById('ledgerAvgEditDate')?.value || '';
+    const type = document.getElementById('ledgerAvgEditType')?.value || 'expense';
+    const amount = parseNumber(document.getElementById('ledgerAvgEditAmount')?.value);
+    const item = document.getElementById('ledgerAvgEditItem')?.value?.trim() || '';
+
+    if (!date) {
+      alert('날짜를 입력해 주세요.');
+      return;
+    }
+    if (amount <= 0) {
+      alert('금액을 1원 이상 입력해 주세요.');
+      return;
+    }
+
+    if (id) {
+      // 기존 거래 수정
+      const idx = sandboxRecords.findIndex(r => r.id === id);
+      if (idx !== -1) {
+        sandboxRecords[idx] = {
+          ...sandboxRecords[idx],
+          date,
+          type,
+          amount,
+          item,
+          memo: item
+        };
+      }
+    } else {
+      // 새 거래 추가
+      sandboxRecords.push({
+        id: generateLedgerId(),
+        date,
+        type,
+        amount,
+        item,
+        memo: item,
+        payment: '기업은행',
+        payment_method: '기업은행',
+        person: '쥬쥬'
+      });
+    }
+
+    closeEdit();
+    recomputeAndRender();
+  });
+
+  // 10. 초간편 모달 삭제
+  editDeleteBtn?.addEventListener('click', () => {
+    const id = document.getElementById('ledgerAvgEditRecordId')?.value;
+    if (id) {
+      sandboxRecords = sandboxRecords.filter(r => r.id !== id);
+      closeEdit();
+      recomputeAndRender();
+    }
+  });
+
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && overlay.classList.contains('active')) {
-      close();
+    if (e.key === 'Escape') {
+      if (editOverlay?.classList.contains('active')) {
+        closeEdit();
+      } else if (overlay.classList.contains('active')) {
+        close();
+      }
     }
   });
 }
+

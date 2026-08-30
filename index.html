@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="스마트일정">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
-  <link rel="stylesheet" href="style.css?v=20260830_1747">
+  <link rel="stylesheet" href="style.css?v=20260830_1754">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -767,10 +767,11 @@
           <table class="schedule-table ledger-schedule-table" id="ledgerAverageTable">
             <thead>
               <tr>
-                <th class="col-date" style="width: 28%; min-width: 85px; text-align:center;">날짜/요일</th>
-                <th class="col-trans" style="width: 24%; text-align:right; padding-right:12px;">입금</th>
-                <th class="col-hr" style="width: 24%; text-align:right; padding-right:12px;">출금</th>
-                <th class="col-ot" style="width: 24%; text-align:right; padding-right:12px;">잔액</th>
+                <th class="col-date" style="width: 22%; min-width: 82px; text-align:center;">날짜/요일</th>
+                <th class="col-clinic" style="width: 33%; text-align:left; padding-left:10px;">항목</th>
+                <th class="col-trans" style="width: 15%; text-align:right; padding-right:8px;">입금</th>
+                <th class="col-hr" style="width: 15%; text-align:right; padding-right:8px;">출금</th>
+                <th class="col-ot" style="width: 15%; text-align:right; padding-right:8px;">잔액</th>
               </tr>
             </thead>
             <tbody id="ledgerAverageTableBody"></tbody>
@@ -778,6 +779,51 @@
         </div>
       </div>
     </div>
+  </section>
+</div>
+
+<!-- 평잔 전용 초간편 거래 추가/수정 모달 (사용처, 비고 없이 날짜/금액/항목만 빠르고 직관적으로 입력) -->
+<div class="modal-overlay" id="ledgerAvgEditOverlay" style="z-index: 10001;">
+  <section class="bottom-sheet" style="max-width: 440px; margin: auto; padding: 20px;" role="dialog" aria-modal="true" aria-labelledby="ledgerAvgEditTitle">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h3 id="ledgerAvgEditTitle">거래 추가</h3>
+      <button id="ledgerAvgEditCloseBtn" type="button" class="close-btn" aria-label="닫기">✕</button>
+    </div>
+    <form class="sheet-body" id="ledgerAvgEditForm" style="display:flex; flex-direction:column; gap:14px; margin-top:10px;">
+      <input type="hidden" id="ledgerAvgEditRecordId">
+      
+      <!-- 1. 날짜 & 입/출금 구분 -->
+      <div class="form-group">
+        <label style="font-size:12px; font-weight:700; color:#475569; margin-bottom:4px; display:block;">날짜 · 구분</label>
+        <div style="display:flex; gap:8px;">
+          <input type="date" class="input-text" id="ledgerAvgEditDate" required style="flex:1;">
+          <div class="btn-group" id="ledgerAvgEditTypeGroup" style="display:flex; width:130px;">
+            <button type="button" class="option-btn active" data-val="expense" style="flex:1; font-weight:bold; font-size:12px; color:#DC2626;">출금</button>
+            <button type="button" class="option-btn" data-val="income" style="flex:1; font-weight:bold; font-size:12px; color:#15803D;">입금</button>
+          </div>
+          <input type="hidden" id="ledgerAvgEditType" value="expense">
+        </div>
+      </div>
+
+      <!-- 2. 금액 -->
+      <div class="form-group">
+        <label style="font-size:12px; font-weight:700; color:#475569; margin-bottom:4px; display:block;">금액 (원)</label>
+        <input type="text" class="input-text" id="ledgerAvgEditAmount" inputmode="numeric" placeholder="0" required style="font-size:18px; font-weight:800; text-align:right; color:#1E293B;">
+      </div>
+
+      <!-- 3. 항목 (적요) -->
+      <div class="form-group">
+        <label style="font-size:12px; font-weight:700; color:#475569; margin-bottom:4px; display:block;">항목 (내용)</label>
+        <input type="text" class="input-text" id="ledgerAvgEditItem" placeholder="항목 입력 (예: 급여, 대출이자, 카드대금)" required style="font-size:14px; font-weight:600;">
+      </div>
+
+      <!-- 하단 버튼들 -->
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button type="button" id="ledgerAvgEditDeleteBtn" class="multi-action-btn hidden" style="background:#EF4444; color:#fff; font-weight:bold; border:none; padding:10px 16px; border-radius:8px; cursor:pointer;">🗑️ 삭제</button>
+        <button type="submit" id="ledgerAvgEditSaveBtn" class="save-btn" style="flex:1; background:#2563EB; color:#fff; font-weight:bold; border:none; padding:10px 16px; border-radius:8px; cursor:pointer; font-size:14px;">💾 저장</button>
+      </div>
+    </form>
   </section>
 </div>
 <div class="modal-overlay" id="ledgerTransactionModalOverlay">
