@@ -137,49 +137,47 @@ export function createLedgerMonthSummaryRow({
   source
 }) {
   const [yearStr, monthStr] = monthKey.split('-');
-  const year = parseInt(yearStr, 10);
   const month = parseInt(monthStr, 10);
-
-  const todayIso = new Date().toISOString().slice(0, 7);
-  const isPast = monthKey < todayIso;
 
   const summaryRow = document.createElement('tr');
   summaryRow.className = 'ledger-month-summary-row';
   summaryRow.dataset.monthGroup = monthKey;
+  summaryRow.style.backgroundColor = '#EEF2FF';
+  summaryRow.style.borderTop = '2px solid #6366F1';
+  summaryRow.style.fontWeight = 'bold';
   if (!isExpanded) summaryRow.style.display = 'none';
 
   // 1~4열 통합 라벨 셀
   const titleCell = document.createElement('td');
   titleCell.colSpan = 4;
-  titleCell.className = 'ledger-month-summary-title-cell';
+  titleCell.style.textAlign = 'left';
+  titleCell.style.padding = '10px 16px';
+  titleCell.style.color = '#312E81';
 
-  const titlePrefix = isCompanyCard
-    ? `${year}년 ${month}월 결제 청구액`
-    : (isPast ? `${year}년 ${month}월 마감 잔액` : `${year}년 ${month}월 최종 예상 잔액`);
+  const labelText = isCompanyCard
+    ? `${month}월 최종 결제액`
+    : `${month}월 최종 잔액`;
 
-  titleCell.innerHTML = `<span class="ledger-month-summary-tag">🏁 결산</span> <span class="ledger-month-summary-text">${titlePrefix}</span>`;
+  titleCell.innerHTML = `<strong>${labelText}</strong>`;
   summaryRow.appendChild(titleCell);
 
   // 5열: 수입/입금 (공란)
   const inCell = document.createElement('td');
-  inCell.className = 'ledger-month-summary-empty-cell';
   summaryRow.appendChild(inCell);
 
   // 6열: 지출/출금 (공란)
   const outCell = document.createElement('td');
-  outCell.className = 'ledger-month-summary-empty-cell';
   summaryRow.appendChild(outCell);
 
   // 7열: 최종 잔액 셀
   const balCell = document.createElement('td');
-  balCell.className = 'ledger-month-summary-balance-cell';
+  balCell.className = 'ledger-cell-money';
+  balCell.style.color = '#1E1B4B';
+  balCell.style.fontSize = '1.05em';
+  balCell.style.padding = '10px 8px';
+  balCell.style.fontWeight = 'bold';
   const numVal = Number(finalBalance || 0);
-  balCell.textContent = formatMoney(numVal);
-  if (numVal < 0) {
-    balCell.style.color = '#DC2626';
-  } else {
-    balCell.style.color = '#1D4ED8';
-  }
+  balCell.textContent = `${numVal < 0 ? '-' : ''}${formatMoney(numVal)}`;
   summaryRow.appendChild(balCell);
 
   return summaryRow;
