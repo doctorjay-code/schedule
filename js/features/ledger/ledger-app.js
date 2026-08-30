@@ -987,6 +987,11 @@ export function initLedgerView() {
 
   bindLedgerDomEvents();
 
+  initAverageBalanceModal({
+    getLedgerRecords: () => ledgerState.records,
+    getTransactionModal: () => getLedgerTransactionModal()
+  });
+
   registerColorUpdateCallback(() => {
     if (ledgerState.active) applyLedgerDataSources();
   });

@@ -2,7 +2,6 @@ import { getVersionedUrl } from '../../version.js';
 import { state, getTodayWeekIndex, loadLastScheduleSnapshot, loadColorSettings, updateSummaryCounts } from '../../services/schedule/schedule-store.js';
 import { syncScheduleFromSupabase, syncScheduleToSupabase, syncColorSettingsFromSupabase, setApiLoadWeekDataCallback, registerColorUpdateCallback } from '../../services/schedule/schedule-api.js';
 import { loadWeekData, renderTable, isCellSelected, renderMonthlyCalendar, switchViewModeUI } from './render.js';
-import { initAverageBalanceModal } from '../ledger/modals/average-balance.js';
 import { openModal, closeModal, saveModalToActiveItem, setupBtnGroupEvents, setupToggleEvents, setModalRenderCallback, setModalLoadWeekDataCallback } from './modals/edit.js';
 import { openSummaryModal, closeSummaryModal } from './modals/summary.js';
 import { openWeekSelectModal, closeWeekSelectModal } from './modals/week-picker.js';
