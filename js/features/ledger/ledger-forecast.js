@@ -1,41 +1,23 @@
 import { fetchForecastOrders, saveForecastOrders, insertLedgerRecordsBatch, upsertLedgerOffsetGroup, fetchForecastAggregateOverrides, saveForecastAggregateOverridesToDB } from '../../services/ledger/ledger-api.js';
 import { compareLedgerRecords, normalizeLedgerDate, generateLedgerId } from './ledger-utils.js';
 
-const FORECAST_ORDER_STORAGE_KEY = 'LEDGER_FORECAST_ORDER_MAP_V1';
-const FORECAST_AGGREGATE_OVERRIDES_KEY = 'LEDGER_FORECAST_AGGREGATE_OVERRIDES_V1';
+// 🌟 Zero-localStorage: 순수 메모리 상태 & Supabase DB 영구 저장 직결
+let inMemoryAggregateOverrides = {};
+let inMemoryForecastOrderMap = {};
 
 export function loadForecastAggregateOverrides() {
-  try {
-    const raw = localStorage.getItem(FORECAST_AGGREGATE_OVERRIDES_KEY);
-    if (!raw) return {};
-    const map = JSON.parse(raw) || {};
-    let hasContamination = false;
-    for (const key of Object.keys(map)) {
-      if (/^\d{4}-\d{2}$/.test(key)) {
-        delete map[key];
-        hasContamination = true;
-      }
-    }
-    if (hasContamination) {
-      localStorage.setItem(FORECAST_AGGREGATE_OVERRIDES_KEY, JSON.stringify(map));
-    }
-    return map;
-  } catch (err) {
-    return {};
-  }
+  return inMemoryAggregateOverrides;
 }
 
 export function saveForecastAggregateOverride(aggregateKey, overrideObj) {
   if (!aggregateKey || typeof aggregateKey !== 'string') return;
-  const current = loadForecastAggregateOverrides();
-  current[aggregateKey] = {
-    ...(current[aggregateKey] || {}),
+  inMemoryAggregateOverrides[aggregateKey] = {
+    ...(inMemoryAggregateOverrides[aggregateKey] || {}),
     ...overrideObj,
     updatedAt: Date.now()
   };
   try {
-    localStorage.setItem(FORECAST_AGGREGATE_OVERRIDES_KEY, JSON.stringify(current));
-    saveForecastAggregateOverridesToDB(current);
+    saveForecastAggregateOverridesToDB(inMemoryAggregateOverrides);
   } catch (err) {
     console.warn('Failed to save aggregate override:', err);
   }
@@ -45,9 +27,7 @@ export async function syncForecastAggregateOverridesFromDB() {
   try {
     const remote = await fetchForecastAggregateOverrides();
     if (remote && typeof remote === 'object') {
-      const local = loadForecastAggregateOverrides();
-      const merged = { ...local, ...remote };
-      localStorage.setItem(FORECAST_AGGREGATE_OVERRIDES_KEY, JSON.stringify(merged));
+      inMemoryAggregateOverrides = { ...inMemoryAggregateOverrides, ...remote };
     }
   } catch (err) {
     console.warn('Failed to sync forecast aggregate overrides from DB:', err);
@@ -55,24 +35,18 @@ export async function syncForecastAggregateOverridesFromDB() {
 }
 
 export function loadForecastOrderMap() {
-  try {
-    const raw = localStorage.getItem(FORECAST_ORDER_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch (err) {
-    return {};
-  }
+  return inMemoryForecastOrderMap;
 }
 
 export function saveForecastOrderMap(orderedIds) {
   if (!Array.isArray(orderedIds)) return;
-  const map = loadForecastOrderMap();
   orderedIds.forEach((id, idx) => {
-    map[String(id)] = (idx + 1) * 10;
+    inMemoryForecastOrderMap[String(id)] = (idx + 1) * 10;
   });
   try {
-    localStorage.setItem(FORECAST_ORDER_STORAGE_KEY, JSON.stringify(map));
+    saveForecastOrders(inMemoryForecastOrderMap);
   } catch (err) {
-    console.warn('Failed to save forecast order map to localStorage:', err);
+    console.warn('Failed to save forecast order map to DB:', err);
   }
 }
 
@@ -80,9 +54,7 @@ export async function syncForecastOrdersFromDB() {
   try {
     const remoteOrders = await fetchForecastOrders();
     if (remoteOrders && typeof remoteOrders === 'object') {
-      const local = loadForecastOrderMap();
-      const merged = { ...local, ...remoteOrders };
-      localStorage.setItem(FORECAST_ORDER_STORAGE_KEY, JSON.stringify(merged));
+      inMemoryForecastOrderMap = { ...inMemoryForecastOrderMap, ...remoteOrders };
     }
   } catch (err) {
     console.warn('Failed to sync forecast orders from DB:', err);

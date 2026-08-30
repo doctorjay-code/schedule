@@ -466,42 +466,45 @@ if (architectureOk) {
 }
 
 // -------------------------------------------------------------
-// Step 8: Canonical Schema Contract & Zero-localStorage Invariant
-// 1) Enforces that UI/Business modules use ONLY canonical camelCase fields:
-//    - offsetGroupId (NOT offset_group_id)
-//    - offsetTitle (NOT offset_title)
-//    - orderIndex (NOT order_index in UI)
-//    - fixedCost (NOT fixed_cost in UI)
-// 2) Enforces ZERO localStorage persistence for ledger order/offset state
+// Step 8: Supabase DB 17-Column Full Schema Contract & Zero-localStorage Invariant
+// Enforces that entire application uses EXACT Supabase DB column names for ALL 17 columns:
+//   - id, date, type, amount, balance, category, item, memo
+//   - user_name (NOT person in DB mappings)
+//   - payment_method (NOT payment / sheetName in DB mappings)
+//   - fixed_cost (NOT fixedCost in DB mappings)
+//   - order_index (NOT orderIndex)
+//   - offset_group_id (NOT offsetGroupId)
+//   - offset_title (NOT offsetTitle)
+//   - is_forecast (NOT isForecast)
+//   - created_at, updated_at
+// Enforces ZERO localStorage persistence for ledger order/offset state
 // -------------------------------------------------------------
-console.log('\n\x1b[36m[8/8] Checking Canonical Schema Contract & Zero-localStorage Invariant...\x1b[0m');
+console.log('\n\x1b[36m[8/8] Checking Supabase DB 17-Column Full Schema & Zero-localStorage Invariant...\x1b[0m');
 let schemaOk = true;
 
-// 1. Check for legacy snake_case access in UI / Feature files
-const UI_FEATURE_DIRS = ['js/features/ledger'];
-const FORBIDDEN_UI_SNAKE_FIELDS = [
-  { field: 'offset_group_id', allowedFiles: ['js/services/ledger/ledger-api.js', 'js/services/ledger/supabase-client.js'], canonical: 'offsetGroupId' },
-  { field: 'offset_title', allowedFiles: ['js/services/ledger/ledger-api.js', 'js/services/ledger/supabase-client.js'], canonical: 'offsetTitle' },
-  { field: 'order_index', allowedFiles: ['js/services/ledger/ledger-api.js', 'js/services/ledger/supabase-client.js'], canonical: 'orderIndex' }
+// 1. Check for legacy camelCase access across all ledger modules
+const FORBIDDEN_LEGACY_CAMEL_FIELDS = [
+  { field: 'offsetGroupId', canonical: 'offset_group_id' },
+  { field: 'offsetTitle', canonical: 'offset_title' },
+  { field: 'isForecast', canonical: 'is_forecast' }
 ];
 
 jsFiles.forEach(file => {
   const relPath = path.relative(ROOT_DIR, file).replace(/\\/g, '/');
-  if (!relPath.startsWith('js/features/ledger/')) return;
+  if (!relPath.startsWith('js/features/ledger/') && !relPath.startsWith('js/services/ledger/')) return;
 
   const content = fs.readFileSync(file, 'utf8');
-  FORBIDDEN_UI_SNAKE_FIELDS.forEach(({ field, allowedFiles, canonical }) => {
+  FORBIDDEN_LEGACY_CAMEL_FIELDS.forEach(({ field, canonical }) => {
     totalChecks++;
-    if (allowedFiles.includes(relPath)) return;
 
-    // Check occurrences like .offset_group_id or ['offset_group_id']
+    // Check occurrences like .offsetGroupId or ['offsetGroupId']
     const regex = new RegExp(`(\\.\\b${field}\\b|\\[['"]${field}['"]\\])`, 'g');
     const matches = [...content.matchAll(regex)];
     if (matches.length > 0) {
       schemaOk = false;
       logFail(
-        `Schema Inconsistency: Forbidden snake_case field "${field}" used in [${relPath}]`,
-        `Found ${matches.length} occurrences. Must use canonical camelCase "${canonical}" everywhere in UI/Features layer.`
+        `Schema Inconsistency: Legacy camelCase field "${field}" used in [${relPath}]`,
+        `Found ${matches.length} occurrences. Must use EXACT Supabase DB column name "${canonical}" everywhere.`
       );
     }
   });

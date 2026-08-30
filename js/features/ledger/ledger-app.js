@@ -866,9 +866,18 @@ export function initLedgerView() {
       if (isSavingForecastOrders) return;
       isSavingForecastOrders = true;
       try {
+        // 🌟 1. 로컬 메모리 레코드의 order_index 즉시 갱신
+        orderedIds.forEach((id, idx) => {
+          const rec = (ledgerState.records || []).find(r => String(r.id) === String(id));
+          if (rec) {
+            rec.order_index = (idx + 1) * 10;
+            rec.orderIndex = (idx + 1) * 10;
+          }
+        });
+
+        // 🌟 2. Supabase DB 영구 동기화
         if (ledgerState.source === 'forecast') {
           saveForecastOrderMap(orderedIds);
-          await saveForecastOrders(orderedIds);
         } else {
           const sheetName = ledgerState.source === 'card' ? ledgerState.payment : (ledgerState.source === 'cash' ? '현금' : '기업은행');
           await reorderLedgerRecords(sheetName, orderedIds);

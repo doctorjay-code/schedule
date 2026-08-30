@@ -100,7 +100,7 @@ export function createOffsetGroupRow({
 }) {
   const tr = document.createElement('tr');
   tr.className = 'schedule-row ledger-offset-group-row';
-  tr.dataset.offsetGroupId = group.id;
+  tr.dataset.offset_group_id = group.id;
   tr.style.backgroundColor = '#F8FAFC';
   tr.style.borderBottom = '1px solid #CBD5E1';
   tr.style.cursor = 'pointer';

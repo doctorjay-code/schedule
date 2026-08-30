@@ -26,19 +26,24 @@ export async function fetchLedgerData(fetchImpl = fetch) {
       type: (r.type || 'expense').toLowerCase(),
       amount: Number(r.amount || 0),
       balance: Number(r.balance || 0),
+      payment_method: r.payment_method || '기업카드',
       payment: r.payment_method || '기업카드',
       item: r.item || '',
+      user_name: r.user_name || '기타',
       person: r.user_name || '기타',
       category: r.category || '',
       memo: r.memo || '',
+      fixed_cost: r.fixed_cost || '',
       fixedCost: r.fixed_cost || '',
+      order_index: r.order_index ?? index,
       orderIndex: r.order_index ?? index,
+      created_at: r.created_at || r.updated_at || index,
       createdAt: r.created_at || r.updated_at || index,
       source: 'supabase',
       sheetName: sheet,
-      offsetGroupId: r.offset_group_id || null,
-      offsetTitle: r.offset_title || null,
-      isForecast: Boolean(r.is_forecast)
+      offset_group_id: r.offset_group_id || null,
+      offset_title: r.offset_title || null,
+      is_forecast: Boolean(r.is_forecast)
     };
   });
 
@@ -57,18 +62,18 @@ export async function upsertLedgerRecord(record, fetchImpl = fetch) {
     id: String(record.id || ''),
     payment_method: record.payment || record.sheetName || '기업카드',
     date: record.date,
-    user_name: record.person || '기타',
+    user_name: record.user_name || record.person || '기타',
     category: record.category || '',
     item: record.item || '항목 없음',
     memo: record.memo || '',
-    fixed_cost: record.fixedCost || '',
+    fixed_cost: record.fixed_cost || record.fixedCost || '',
     type: (record.type || 'expense').toLowerCase(),
     amount: Number(record.amount || 0),
     balance: Number(record.balance || 0),
-    order_index: record.orderIndex || 0,
-    offset_group_id: record.offsetGroupId || null,
-    offset_title: record.offsetTitle || null,
-    is_forecast: Boolean(record.isForecast),
+    order_index: record.order_index ?? record.orderIndex ?? 0,
+    offset_group_id: record.offset_group_id || null,
+    offset_title: record.offset_title || null,
+    is_forecast: Boolean(record.is_forecast),
     updated_at: new Date().toISOString()
   };
 
@@ -124,20 +129,20 @@ export async function insertLedgerRecordsBatch(records, fetchImpl = fetch) {
   const now = new Date().toISOString();
   const rows = records.map((record, index) => ({
     id: String(record.id || ''),
-    payment_method: record.payment || record.sheetName || '기업카드',
+    payment_method: record.payment_method || record.payment || record.sheetName || '기업카드',
     date: record.date,
-    user_name: record.person || '기타',
+    user_name: record.user_name || record.person || '기타',
     category: record.category || '',
     item: record.item || '항목 없음',
     memo: record.memo || '',
-    fixed_cost: record.fixedCost || '',
+    fixed_cost: record.fixed_cost || record.fixedCost || '',
     type: (record.type || 'expense').toLowerCase(),
     amount: Number(record.amount || 0),
     balance: Number(record.balance || 0),
-    order_index: record.orderIndex ?? ((index + 1) * 10),
-    offset_group_id: record.offsetGroupId || null,
-    offset_title: record.offsetTitle || null,
-    is_forecast: Boolean(record.isForecast),
+    order_index: record.order_index ?? record.orderIndex ?? ((index + 1) * 10),
+    offset_group_id: record.offset_group_id || null,
+    offset_title: record.offset_title || null,
+    is_forecast: Boolean(record.is_forecast),
     updated_at: now
   }));
 
