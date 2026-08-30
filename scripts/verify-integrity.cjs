@@ -122,6 +122,76 @@ if (importsOk) {
 }
 
 // -------------------------------------------------------------
+// Step 2-B: Check Named Exports Integrity (Undefined Symbol Detection)
+// -------------------------------------------------------------
+console.log('\n\x1b[36m[2-B/4] Checking Named Export & Import Symbol Integrity (Undefined Functions Detection)...\x1b[0m');
+let symbolsOk = true;
+
+function getExportedSymbols(targetFile) {
+  const content = fs.readFileSync(targetFile, 'utf8');
+  const symbols = new Set();
+
+  const fnMatches = [...content.matchAll(/export\s+(?:async\s+)?(?:function\*?|class)\s+([a-zA-Z_$][\w$]*)/g)];
+  fnMatches.forEach(m => symbols.add(m[1]));
+
+  const varMatches = [...content.matchAll(/export\s+(?:const|let|var)\s+([^;=]+)/g)];
+  varMatches.forEach(m => {
+    m[1].split(',').forEach(part => {
+      const sym = part.trim().split(/[\s=:]/)[0];
+      if (sym && /^[a-zA-Z_$][\w$]*$/.test(sym)) symbols.add(sym);
+    });
+  });
+
+  const blockMatches = [...content.matchAll(/export\s+\{([^}]+)\}/g)];
+  blockMatches.forEach(m => {
+    m[1].split(',').forEach(part => {
+      const tokens = part.trim().split(/\s+as\s+/);
+      const exportedName = (tokens[1] || tokens[0]).trim();
+      if (exportedName && /^[a-zA-Z_$][\w$]*$/.test(exportedName)) symbols.add(exportedName);
+    });
+  });
+
+  if (/export\s+default\b/.test(content)) {
+    symbols.add('default');
+  }
+
+  return symbols;
+}
+
+jsFiles.forEach(file => {
+  const content = fs.readFileSync(file, 'utf8');
+  const relFilePath = path.relative(ROOT_DIR, file);
+
+  const namedImportMatches = [...content.matchAll(/import\s+\{([^}]+)\}\s+from\s+['"]([^'"]+)['"]/g)];
+
+  namedImportMatches.forEach(m => {
+    totalChecks++;
+    const rawSymbols = m[1];
+    const impPath = m[2].split('?')[0];
+    if (impPath.startsWith('http://') || impPath.startsWith('https://')) return;
+
+    const resolvedPath = path.resolve(file, '..', impPath);
+    if (!fs.existsSync(resolvedPath)) return;
+
+    const availableExports = getExportedSymbols(resolvedPath);
+
+    rawSymbols.split(',').forEach(part => {
+      const sym = part.trim().split(/\s+as\s+/)[0].trim();
+      if (!sym) return;
+
+      if (!availableExports.has(sym)) {
+        symbolsOk = false;
+        logFail(`Undefined export symbol in [${relFilePath}]: import { ${sym} } from "${impPath}"`, `Target module does not export "${sym}". Available exports: [${Array.from(availableExports).join(', ')}]`);
+      }
+    });
+  });
+});
+
+if (symbolsOk) {
+  logPass(`All imported functions and symbols are 100% verified to exist in their target modules.`);
+}
+
+// -------------------------------------------------------------
 // Step 3: Check DOM ID Consistency (index.html + Dynamic JS Templates vs getElementById)
 // -------------------------------------------------------------
 console.log('\n\x1b[36m[3/4] Checking DOM ID Consistency (HTML/Templates vs getElementById)...\x1b[0m');

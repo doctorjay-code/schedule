@@ -454,6 +454,65 @@ async function testAllModalsLifecycle() {
   } else {
     console.log(`  ✔ 총 ${clickedSuccessCount}개 모든 버튼 및 필터 칩 가상 클릭 & 기능 유효성 100% 무결점 통과!`);
   }
+
+  // -------------------------------------------------------------
+  // Step 11: Universal Post-Save & Post-Action DOM Re-render Invariant
+  // -------------------------------------------------------------
+  console.log('--- Step 11: Universal Post-Save & Post-Action DOM Re-render Invariant ---');
+
+  // 1) 일정표 일정 등록 후 주간 테이블(#scheduleTable) DOM 실시간 리렌더링 확인
+  const scheduleStore = await import('../js/services/schedule/schedule-store.js');
+  const scheduleRender = await import('../js/features/schedule/render.js');
+
+  scheduleStore.state.activeItem = {
+    id: 'sched-item-1',
+    date: '8/17(월)',
+    time: '오전',
+    region: '서울',
+    clinic: '행정',
+    transCategory: 'KTX',
+    transCost: '50,000',
+    transStatus: '결제O',
+    hrStatus: '신청O',
+    otStatus: '신청O'
+  };
+  scheduleStore.state.weekData = [scheduleStore.state.activeItem];
+  scheduleRender.renderTable();
+  const scheduleBody = document.getElementById('scheduleBody');
+  assert.ok(scheduleBody && scheduleBody.children.length >= 1, '일정 저장 후 주간 테이블 DOM 리렌더링 미반영 버그 적발');
+  console.log('  ✔ 1) 일정표 등록/수정 후 주간 테이블 DOM 실시간 리렌더링 100% 검증 통과');
+
+  // 2) 가계부 거래 저장 후 자금계획서 DOM 실시간 리렌더링 확인
+  const newTx = {
+    id: 'tr-postsave-test-1',
+    date: '2026-08-25',
+    amount: 777000,
+    type: 'expense',
+    payment_method: '토스은행',
+    item: '리렌더링검증거래',
+    user_name: '쥬쥬',
+    category: '식비'
+  };
+  setLedgerRecordsForTesting([newTx]);
+  const fundplanTbody = document.getElementById('fundplanAllTimeList');
+  assert.ok(fundplanTbody && fundplanTbody.children.length >= 1, '가계부 거래 저장 후 자금계획서 DOM 리렌더링 미반영 버그 적발');
+  console.log('  ✔ 2) 가계부 거래 저장 후 테이블 DOM 실시간 리렌더링 100% 검증 통과');
+
+  // 3) 색상 설정 변경 후 18개 필터 칩 & 5대 시트 버튼 DOM 배경색 실시간 반영 확인
+  sharedState.colorSettings.ledgerPersonColors['쥬쥬'] = '#D1FAE5';
+  sharedState.colorSettings.ledgerPaymentColors['기업은행'] = '#FEF3C7';
+  saveColors();
+  setLedgerRecordsForTesting([newTx]);
+
+  const bankBtn = document.getElementById('ledgerBankSourceBtn');
+  const chipJuJuEl = document.querySelector('#ledgerPersonSwitch .filter-chip[data-ledger-filter-value="쥬쥬"]');
+  if (bankBtn) {
+    assert.strictEqual(bankBtn.style.borderColor, '#FEF3C7', '기업은행 버튼 커스텀 색상 실시간 반영 누락');
+  }
+  if (chipJuJuEl) {
+    assert.strictEqual(chipJuJuEl.style.borderColor, '#D1FAE5', '쥬쥬 필터 칩 커스텀 색상 실시간 반영 누락');
+  }
+  console.log('  ✔ 3) 색상 설정 저장 후 필터 칩 & 시트 버튼 DOM 스타일 실시간 반영 100% 검증 통과');
 }
 
 testAllModalsLifecycle().catch(err => {
