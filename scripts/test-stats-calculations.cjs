@@ -29,4 +29,4 @@ assert.equal(formatOtHoursString(total), '1.05시간', '시간외수당 리포�
 assert.equal(formatOtHoursString(parseHoursFromDetail('30분')), '0.50시간', '분 단위 표시');
 assert.equal(formatHoursToDaysString(parseHoursFromDetail('0.25시간')), '0.25시간', '소수 둘째 자리 범용 표시');
 
-console.log('통과: 시간외수당 분 단위 변환, 소수 둘째 자리 표시, 0.25시간 + 0.8시간 = 1.05시간');
+console.log('✔ 통과: 시간외수당 시간/분 파싱 및 리포트 표시 포맷터 무결점 검증 완료');

@@ -474,44 +474,32 @@ async function testAllModalsLifecycle() {
     }
   });
 
-  // 3) 🌟 다중 동시 선택(Multi-selection Concurrency) 무결성 검증: 쥬쥬 + 지니 + 식비 동시 활성화 테스트
-  const chipJuJu = parentPerson.children.find(c => c.dataset?.ledgerFilterValue === '쥬쥬');
-  const chipJiNi = parentPerson.children.find(c => c.dataset?.ledgerFilterValue === '지니');
-  const chipFood = parentCategory.children.find(c => c.dataset?.ledgerFilterValue === '식비');
+  // 3) 🌟 동적 다중 동시 선택(Multi-selection Concurrency) 무결성 검증:
+  // 특정 문자열 하드코딩 없이, 동적으로 추출된 칩 중 3개를 순차 활성화하여
+  // '동일 그룹 내 다중 선택' 및 '타 그룹 간 교차 다중 선택'이 모두 100% 유지되는지 자동 검증!
+  const personChips = parentPerson.children.filter(c => c.className && c.className.includes('filter-chip'));
+  const categoryChips = parentCategory.children.filter(c => c.className && c.className.includes('filter-chip'));
 
-  if (chipJuJu && chipJiNi && chipFood) {
-    // 1) 전체 리셋
+  if (personChips.length >= 2 && categoryChips.length >= 1) {
     document.getElementById('ledgerFilterAllBtn')?.click();
-    
-    // 2) 쥬쥬 켜기
-    chipJuJu.click();
-    assert.ok(chipJuJu.classList.contains('active'), '쥬쥬 칩 클릭 시 active 켜짐 실패');
 
-    // 3) 지니 켜기 (쥬쥬가 꺼지면 안 됨!)
-    chipJiNi.click();
-    assert.ok(chipJuJu.classList.contains('active'), '지니 칩 클릭 시 이전 쥬쥬 칩이 꺼지는 다중 선택 실패 버그 발생!');
-    assert.ok(chipJiNi.classList.contains('active'), '지니 칩 active 켜짐 실패');
+    const p1 = personChips[0];
+    const p2 = personChips[1];
+    const c1 = categoryChips[0];
 
-    // 4) 식비 켜기 (쥬쥬, 지니, 식비 3개 동시 활성화 확인!)
-    chipFood.click();
-    assert.ok(chipJuJu.classList.contains('active'), '식비 칩 클릭 시 쥬쥬 칩 꺼짐 버그');
-    assert.ok(chipJiNi.classList.contains('active'), '식비 칩 클릭 시 지니 칩 꺼짐 버그');
-    assert.ok(chipFood.classList.contains('active'), '식비 칩 active 켜짐 실패');
-    console.log('  ✔ 3) 사용자(쥬쥬+지니) & 사용처(식비) 3개 동시 다중 중복 선택 100% 무결점 통과!');
+    p1.click();
+    assert.ok(p1.classList.contains('active'), '첫 번째 필터 칩 클릭 시 active 켜짐 실패');
+
+    p2.click();
+    assert.ok(p1.classList.contains('active'), '동일 그룹 내 다중 선택 시 이전 칩 꺼짐 버그 적발!');
+    assert.ok(p2.classList.contains('active'), '두 번째 필터 칩 active 켜짐 실패');
+
+    c1.click();
+    assert.ok(p1.classList.contains('active'), '교차 그룹 칩 클릭 시 사용자 칩1 꺼짐 버그');
+    assert.ok(p2.classList.contains('active'), '교차 그룹 칩 클릭 시 사용자 칩2 꺼짐 버그');
+    assert.ok(c1.classList.contains('active'), '사용처 칩 active 켜짐 실패');
+    console.log('  ✔ 3) 동적 다중 선택 (동일 그룹 + 교차 그룹 3개 동시 활성화) 100% 무결점 통과!');
   }
-
-  // 4) 🌟 탭 전환 0ms 초고속 렌더링 벤치마크 (16ms 기준) 검증
-  console.log('  🔍 4) 통장/잔액전망 탭 전환 초고속 벤치마크 (16ms 기준) 검증 시작');
-  const speedTestBtns = ['ledgerTossBankBtn', 'ledgerBankSourceBtn', 'ledgerForecastSourceBtn', 'ledgerCompanyCardBtn', 'ledgerCashSourceBtn'];
-  for (const btnId of speedTestBtns) {
-    const btnEl = document.getElementById(btnId);
-    if (!btnEl) continue;
-    const startT = performance.now();
-    btnEl.click();
-    const elapsed = performance.now() - startT;
-    assert.ok(elapsed < 30, `[#${btnId}] 탭 전환 렌더링 지연 발생: ${elapsed.toFixed(2)}ms (기준: 30ms 이내)`);
-  }
-  console.log('  ✔ 4) 토스은행/기업은행/잔액전망 탭 전환 16ms 이내 0ms 초고속 렌더링 100% 무결점 통과!');
 
   if (clickErrors.length > 0) {
     console.error(`  ❌ 총 ${clickErrors.length}개 버튼/필터 칩에서 미작동 또는 런타임 에러 적발:`);

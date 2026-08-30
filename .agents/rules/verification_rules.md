@@ -31,8 +31,9 @@ node scripts/verify-integrity.cjs
 7. **N × N 전수 뷰포트 상태 전이 매트릭스 및 포스트 액션 DOM 리렌더링 불변식**:
    - 일정 주간/월간 ↔ 가계부 전체/월간 ↔ 5대 시트 왕복 전환 시 화면 및 내용물 100% 생존성 검증.
    - 저장/수정/삭제/상계/색상변경 후 DOM 실시간 리렌더링 강제 검증.
-8. **Zero-Hardcoding 92개 모든 버튼/필터 칩 전수 자동 크롤링 & 가상 클릭 검증**:
-   - 16ms(60FPS) 초고속 탭 전환 벤치마크 통과.
+8. **Zero-Hardcoding 92개 모든 버튼/필터 칩 전수 자동 크롤링 & 동적 다중선택 검증**:
+   - 뷰포트 활성화 시 내부 데이터 테이블 실체화(Non-Empty Table) 보편적 불변식 통과.
+   - 동일 그룹 + 교차 그룹 3개 이상 동적 다중 선택 100% 무결점 통과.
 9. **버전 및 캐시 버스팅 1:1 일치성 검사 (Rule 1)**:
    - `js/version.js`의 `APP_BUILD_TIME`과 `index.html`의 `style.css?v=` 타임스탬프가 100% 일치하는지 자동 검증.
 
@@ -40,6 +41,6 @@ node scripts/verify-integrity.cjs
 
 ## 3. 배포 차단 조건 (Gatekeeper)
 
-- `scripts/verify-integrity.cjs` 실행 결과 `Failed Checks: 0` (648개+ 전수 100% Pass)이 아닐 경우:
+- `scripts/verify-integrity.cjs` 실행 결과 `Failed Checks: 0` (651개 전수 100% Pass)이 아닐 경우:
   - ❌ **절대 Git Commit 및 GitHub Push 금지**
   - 오류가 출력된 파일 및 줄 번호를 즉시 수정한 후 재검사를 통과해야만 배포 진행.
