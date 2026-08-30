@@ -95,13 +95,26 @@ export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, 
     setModalOpen(document.getElementById('ledgerTransactionModalOverlay'), false);
   }
 
-  function open(id) {
-    const record = id ? findRecord(id) : null;
-    if (id && !record) return;
+  function open(arg = {}) {
+    bind();
+    let record = null;
+    let id = null;
+
+    if (typeof arg === 'string') {
+      id = arg;
+      record = typeof findRecord === 'function' ? findRecord(id) : null;
+    } else if (arg && typeof arg === 'object') {
+      record = arg.record || (arg.id && typeof findRecord === 'function' ? findRecord(arg.id) : null);
+      id = arg.id || record?.id || null;
+    }
+
     const form = document.getElementById('ledgerTransactionForm');
     const overlay = document.getElementById('ledgerTransactionModalOverlay');
     if (!form || !overlay) return;
-    const defaultPayment = (ledgerState.payment === '잔액전망' || ledgerState.source === 'forecast') ? '토스은행' : (ledgerState.payment || '토스은행');
+
+    const currentPayment = (typeof ledgerState !== 'undefined' && ledgerState?.payment) ? ledgerState.payment : '토스은행';
+    const currentSource = (typeof ledgerState !== 'undefined' && ledgerState?.source) ? ledgerState.source : 'card';
+    const defaultPayment = (currentPayment === '잔액전망' || currentSource === 'forecast') ? '토스은행' : (currentPayment || '토스은행');
     const defaults = {
       id: '',
       date: toIso(new Date()),

@@ -130,7 +130,7 @@ export function createLedgerMonthDividerRow({
 }
 
 // Bank, cash, and card all-time ledger rendering responsibility.
-export function createFundplanView({ ledgerState, getColorSettings, colorSettings, getActiveSourceRecords, clampLedgerDate, minDate, setText, ledgerDataSources, getLedgerDataSources, refreshLedgerSheetData, renderActiveLedgerPeriod, showLedgerToast }) {
+export function createFundplanView({ ledgerState, getColorSettings, colorSettings, getActiveSourceRecords, clampLedgerDate, minDate, setText, ledgerDataSources, getLedgerDataSources, refreshLedgerSheetData, renderActiveLedgerPeriod, showLedgerToast, onRowClick }) {
   const monthExpandedState = {};
 
   function render() {
@@ -353,7 +353,8 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
           source,
           colorSettings: activeColorSettings,
           isSelected: ledgerState.selectedLedgerIds ? ledgerState.selectedLedgerIds.has(String(record.id)) : false,
-          multiEditMode: Boolean(ledgerState.multiEditMode)
+          multiEditMode: Boolean(ledgerState.multiEditMode),
+          onRowClick: onRowClick ? () => onRowClick(record) : null
         });
         const newCount = list.children.length;
         const mainRows = [];
@@ -373,7 +374,11 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
             const isFirstSub = sIdx === 0;
             const isLastSub = sIdx === record.subRecords.length - 1;
             const subPrev = list.children.length;
-            renderTransactionRow({ ...sub, isSubDetail: true }, 'fundplanAllTimeList', { source, colorSettings: activeColorSettings });
+            renderTransactionRow({ ...sub, isSubDetail: true }, 'fundplanAllTimeList', {
+              source,
+              colorSettings: activeColorSettings,
+              onRowClick: onRowClick ? () => onRowClick(sub) : null
+            });
             const subNew = list.children.length;
             for (let j = subPrev; j < subNew; j++) {
               const subEl = list.children[j];

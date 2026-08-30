@@ -57,6 +57,7 @@ function getLedgerTransactionModal() {
     ledgerTransactionModal = createLedgerTransactionModal({
       state,
       pastelPalette,
+      findRecord: (id) => findLedgerTransaction(id),
       saveRecord: saveLedgerRecord,
       deleteRecord: deleteRecord,
       getCategorySuggestions: () => getLedgerCategoryNames()
@@ -397,7 +398,14 @@ function getFundplanView() {
         const el = document.getElementById(id);
         if (el) el.textContent = val;
       },
-      showLedgerToast
+      showLedgerToast,
+      onRowClick: (record) => {
+        if (ledgerState.multiEditMode) {
+          toggleMultiSelectRow(record.id);
+        } else {
+          getLedgerTransactionModal().open({ isEdit: true, record });
+        }
+      }
     });
   }
   return fundplanViewInstance;

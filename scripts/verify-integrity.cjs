@@ -192,6 +192,15 @@ try {
   logFail('Ledger filtering & balance calculation unit tests failed', err.stdout || err.message);
 }
 
+try {
+  totalChecks++;
+  const testOutput = execSync('node scripts/test-all-modals.cjs', { cwd: ROOT_DIR, encoding: 'utf8' });
+  logPass(testOutput.trim());
+} catch (err) {
+  unitTestOk = false;
+  logFail('All modals lifecycle & dynamic row click verification failed', err.stdout || err.message);
+}
+
 // -------------------------------------------------------------
 // Step 5: Callback Contract Verification
 // Checks that when fn({ onX: cb }) is called, the function fn
