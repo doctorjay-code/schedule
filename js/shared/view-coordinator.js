@@ -34,6 +34,9 @@ export function showScheduleView(options = {}) {
   document.getElementById('ledgerPersonSwitch')?.classList.add('hidden');
   document.getElementById('ledgerViewWrapper')?.classList.add('hidden');
 
+  // Hide ledger elements
+  document.querySelectorAll('.ledger-only').forEach(el => el.classList.add('hidden'));
+
   // Show schedule elements
   document.querySelectorAll('.schedule-only').forEach(el => el.classList.remove('hidden'));
 
@@ -64,7 +67,9 @@ export function showLedgerView(options = {}) {
   document.getElementById('ledgerRefreshBtn')?.classList.remove('hidden');
   document.getElementById('ledgerSyncBtn')?.classList.remove('hidden');
   document.getElementById('ledgerSourceSwitch')?.classList.remove('hidden');
+  document.getElementById('ledgerPersonSwitch')?.classList.remove('hidden');
   document.getElementById('ledgerCardNavigator')?.classList.remove('hidden');
+  document.querySelectorAll('.ledger-only').forEach(el => el.classList.remove('hidden'));
 
   if (typeof onMainTabChangeCallback === 'function') {
     onMainTabChangeCallback('ledger', options);

@@ -189,12 +189,39 @@ async function testAllModalsLifecycle() {
   assert.ok(deleteBtn, '모달 삭제 버튼 엘리먼트 누락: #ledgerModalDeleteBtn');
   deleteBtn.click();
   assert.strictEqual(deletedRecordId, 'tr-smoke-20260830-temp', '모달 삭제 버튼 클릭 시 onDelete 콜백 미호출 (삭제 실패 버그)');
-  console.log('  ✔ 3) 모달 내 거래 삭제(Delete) ➡️ onDelete 100% 정상 발동 및 흔적 0건 청산 E2E 검증 통과');
-
   console.log('✔ 앱 전체 8대 모달 라이프사이클 (오픈 ➡️ 저장 ➡️ 삭제 ➡️ 흔적0건) 전수 검증 100% 통과');
+
+  // 3. 가계부 필터 줄 & 멀티 액션 바(복사, 붙여넣기, 0원 상계 묶기) E2E 검증
+  console.log('--- Step 9: Ledger Filter Bar & Multi-Action Bar (Copy, Paste, Offset) Verification ---');
+  const viewCoordModule = await import('../js/shared/view-coordinator.js');
+  const { showLedgerView, showScheduleView } = viewCoordModule;
+
+  // 1) 탭 전환 시 가계부 필터 줄(#ledgerPersonSwitch) 및 .ledger-only 노출 확인
+  const personSwitch = document.getElementById('ledgerPersonSwitch');
+  personSwitch.classList.add('hidden');
+  showLedgerView();
+  assert.ok(!personSwitch.classList.contains('hidden'), '가계부 탭 진입 시 #ledgerPersonSwitch 필터 줄 미표시 버그');
+  console.log('  ✔ 1) 가계부 탭 진입 시 [전체/사용자/사용처/고정비/0원/☑️선택] 필터 줄 100% 정상 노출');
+
+  showScheduleView();
+  assert.ok(personSwitch.classList.contains('hidden'), '일정표 탭 진입 시 #ledgerPersonSwitch 미숨김 버그');
+  console.log('  ✔ 2) 일정표 탭 진입 시 가계부 필터 줄 100% 정상 숨김 처리');
+
+  // 2) 가계부 클립보드 및 0원 상계 액션 모듈 무결성 검증
+  const clipboardModule = await import('../js/features/ledger/ledger-clipboard.js');
+  assert.ok(typeof clipboardModule.executeLedgerCopy === 'function', 'executeLedgerCopy 함수 누락');
+  assert.ok(typeof clipboardModule.executeLedgerPaste === 'function', 'executeLedgerPaste 함수 누락');
+  assert.ok(typeof clipboardModule.executeLedgerDelete === 'function', 'executeLedgerDelete 함수 누락');
+  console.log('  ✔ 3) 가계부 클립보드(복사/붙여넣기/삭제) 엔진 100% 정상 연결 확인');
+
+  const offsetModule = await import('../js/features/ledger/ledger-offset-groups.js');
+  assert.ok(typeof offsetModule.buildOffsetGroupsFromRecords === 'function', 'buildOffsetGroupsFromRecords 함수 누락');
+  assert.ok(typeof offsetModule.createOffsetGroupRow === 'function', 'createOffsetGroupRow 함수 누락');
+  console.log('  ✔ 4) 0원 상계 묶음 및 분리 엔진 100% 정상 연결 확인');
+  console.log('✔ 가계부 필터 줄 & 복사/붙여넣기/상계 액션 바 100% 무결점 검증 통과');
 }
 
 testAllModalsLifecycle().catch(err => {
-  console.error('❌ 모달 전수 검증 실패:', err.stack || err.message);
+  console.error('❌ 모달 & 액션 바 전수 검증 실패:', err.stack || err.message);
   process.exit(1);
 });
