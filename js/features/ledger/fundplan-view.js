@@ -560,9 +560,9 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
       const [y, m] = month.split('-').map(Number);
       const nextMonthNum = m === 12 ? 1 : m + 1;
 
-      // 🌟 [월말 최종 마감/예상 잔액 요약행] 렌더링
-      const lastMonthRecord = calculatedMonthRecords.length > 0
-        ? calculatedMonthRecords[calculatedMonthRecords.length - 1]
+      // 🌟 [월말 최종 마감/예상 잔액 요약행] 렌더링 (잔액 모드와 무관하게 그 달의 진짜 최종 결산 잔액 고정)
+      const lastMonthRecord = monthRecords.length > 0
+        ? monthRecords[monthRecords.length - 1]
         : null;
       const finalMonthBal = lastMonthRecord ? Number(lastMonthRecord.balance || 0) : 0;
 
