@@ -125,7 +125,10 @@ const allKnownIds = new Set(htmlIdMatches.map(m => m[1]));
 
 jsFiles.forEach(file => {
   const content = fs.readFileSync(file, 'utf8');
-  const jsIdMatches = [...content.matchAll(/id=["']([^"']+)["']/g)];
+  const jsIdMatches = [
+    ...content.matchAll(/id=["']([^"']+)["']/g),
+    ...content.matchAll(/\.id\s*=\s*['"]([^"']+)['"]/g)
+  ];
   jsIdMatches.forEach(m => allKnownIds.add(m[1]));
 });
 
@@ -133,13 +136,7 @@ jsFiles.forEach(file => {
 const dynamicRuntimePrefixes = [
   'statsRowClinic_', 'statsRow', 'statsClinic', 'cell-', 'elem_', 'toast-', 'ledger-row-'
 ];
-const dynamicRuntimeIds = new Set([
-  'appLoadErrorNotice',
-  'averageBalanceModalRoot',
-  'ledgerTransactionModal',
-  'ledgerColorSettingsModal',
-  'ledgerAverageBalanceBtn'
-]);
+const dynamicRuntimeIds = new Set();
 
 let domOk = true;
 const referencedIds = new Map();
@@ -377,15 +374,7 @@ interactiveElements.forEach(({ tag, eventType, isSubmit }, id) => {
     const arrayPattern = new RegExp(`['"]${id}['"][\\s\\S]{0,350}(?:addEventListener|sourceButtons|\\.classList)`, 'i');
     if (arrayPattern.test(code)) { isBound = true; break; }
 
-    // 5. Common modal close button
-    if (id.endsWith('CloseBtn') || id.startsWith('close') || id.includes('Close')) {
-      if (/closeModal|close_btn|hideModal|classList\.add\(['"]hidden['"]\)/i.test(code)) {
-        isBound = true;
-        break;
-      }
-    }
-
-    // 6. Submit button in handled form
+    // 5. Submit button in handled form
     if (isSubmit && /addEventListener\(['"]submit['"]|\.onsubmit\s*=/i.test(code)) {
       isBound = true;
       break;

@@ -18,6 +18,7 @@ import { registerRealtimeCallbacks } from '../../services/shared/supabase-realti
 import { showLedgerToast, findLedgerRecordById, executeLedgerCopy, executeLedgerDelete, executeLedgerPaste } from './ledger-clipboard.js';
 import { generateForecastRecords, isManualCardPayment, saveForecastAggregateOverride, loadForecastAggregateOverrides, syncForecastAggregateOverridesFromDB } from './ledger-forecast.js';
 import { createOffsetGroupFromRecords, createOffsetGroupRow, deleteOffsetGroup } from './ledger-offset-groups.js';
+import { initAverageBalanceModal } from './modals/average-balance.js';
 
 let ledgerState = {
   active: false,
@@ -582,6 +583,7 @@ function applyLedgerDataSources() {
 
 function initLedgerApp() {
   bindLedgerDomEvents();
+  initAverageBalanceModal();
   bindLedgerListActions({
     onRowClick: (id) => {
       const rec = findLedgerTransaction(id);
