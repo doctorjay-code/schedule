@@ -132,6 +132,7 @@ export function createLedgerMonthDividerRow({
 // Bank, cash, and card all-time ledger rendering responsibility.
 export function createFundplanView({ ledgerState, getColorSettings, colorSettings, getActiveSourceRecords, clampLedgerDate, minDate, setText, ledgerDataSources, getLedgerDataSources, refreshLedgerSheetData, renderActiveLedgerPeriod, showLedgerToast, onRowClick }) {
   const monthExpandedState = {};
+  const subAccordionExpandedState = {};
 
   function render() {
     const activeColorSettings = (typeof getColorSettings === 'function' ? getColorSettings() : colorSettings) || {};
@@ -270,6 +271,66 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
       const calculatedMonthRecords = (source === 'forecast' || !isCompanyCard)
         ? monthRecords
         : recalculateRunningBalances(monthRecords, true);
+
+      const isGlobalBalance = (ledgerState.balanceMode === 'global');
+
+      // 🌟 [잔액 모드 1 & 2 정밀 연산 엔진]
+      if (isForecast && isGlobalBalance) {
+        // 🌟 모드 2: 전체 시계열 일치 (바깥 거래 + 생활비 세부거래 날짜순 인터리빙)
+        const tossAgg = calculatedMonthRecords.find(r => r.isAggregate && String(r.item || '').includes('토스 생활비'));
+        const tossSubs = (tossAgg && Array.isArray(tossAgg.subRecords)) ? tossAgg.subRecords : [];
+        if (tossSubs.length > 0) {
+          const allEvents = [];
+          calculatedMonthRecords.forEach(r => {
+            if (r.id !== tossAgg.id) {
+              allEvents.push({ ...r, isSub: false, originalRef: r });
+            }
+          });
+          tossSubs.forEach(sub => {
+            allEvents.push({ ...sub, isSub: true, originalRef: sub });
+          });
+
+          // 🌟 핵심 정렬 규칙:
+          // 1) date 오름차순 (날짜순)
+          // 2) 같은 날짜일 때: 토스 생활비 세부 거래(isSub: true)가 먼저 (1순위), 바깥 고정비/기업은행(isSub: false)이 나중 (2순위)!
+          allEvents.sort((a, b) => {
+            const dateA = normalizeLedgerDate(a.date);
+            const dateB = normalizeLedgerDate(b.date);
+            if (dateA !== dateB) return dateA.localeCompare(dateB);
+
+            if (a.isSub && !b.isSub) return -1;
+            if (!a.isSub && b.isSub) return 1;
+
+            return compareLedgerRecords(a, b, true);
+          });
+
+          // 시작 잔액: 1일 토스 생활비 통합행 직전 잔액
+          let running = Number(tossAgg.balance || 0) + (tossAgg.type === 'expense' ? Number(tossAgg.amount || 0) : -Number(tossAgg.amount || 0));
+          allEvents.forEach(ev => {
+            const amt = Number(ev.amount || 0);
+            const isExp = (ev.type || 'expense').toLowerCase() === 'expense';
+            running += (isExp ? -amt : amt);
+            if (ev.originalRef) {
+              ev.originalRef.balance = running;
+            }
+          });
+        }
+      } else if (isForecast && !isGlobalBalance) {
+        // 🌟 모드 1: 생활비 전용 (세부 거래들은 생활비 안에서만 순수 차감)
+        const tossAgg = calculatedMonthRecords.find(r => r.isAggregate && String(r.item || '').includes('토스 생활비'));
+        const tossSubs = (tossAgg && Array.isArray(tossAgg.subRecords)) ? tossAgg.subRecords : [];
+        if (tossSubs.length > 0) {
+          let localRunning = Number(tossAgg.balance || 0) + (tossAgg.type === 'expense' ? Number(tossAgg.amount || 0) : -Number(tossAgg.amount || 0));
+          const sortedSubs = [...tossSubs].sort((a, b) => compareLedgerRecords(a, b, true));
+          sortedSubs.forEach(sub => {
+            const amt = Number(sub.amount || 0);
+            const isExp = (sub.type || 'expense').toLowerCase() === 'expense';
+            localRunning += (isExp ? -amt : amt);
+            sub.balance = localRunning;
+          });
+        }
+      }
+
       calculatedMonthRecords.forEach(record => {
         // 기업은행 탭에서 기업카드 결제대금 행인 경우 카드 세부내역 subRecords 연결 (오직 출금 거래만!)
         if (source === 'bank' && !record.hasCardAccordion) {
@@ -391,60 +452,12 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
         // 만약 통합 가변/고정 아코디언 행(isAggregate) 또는 실제 카드 출금 행(hasCardAccordion)인 경우:
         // 바로 밑에 세부 거래들(subRecords)을 인라인으로 렌더링 (기본 닫힘)
         if ((record.isAggregate || record.hasCardAccordion) && Array.isArray(record.subRecords) && record.subRecords.length > 0) {
-          const isGlobalBalance = (ledgerState.balanceMode === 'global');
-          
-          let subListWithBalance = [...record.subRecords];
-          if (record.isAggregate && String(record.item || '').includes('토스 생활비')) {
-            if (isGlobalBalance) {
-              // 🌟 모드 2: 전체 시계열 일치 (바깥 거래 + 세부 거래들을 날짜순 정렬하여 잔액 계산)
-              const allEvents = [];
-              calculatedMonthRecords.forEach(r => {
-                if (r.id === record.id) {
-                  record.subRecords.forEach(sub => {
-                    allEvents.push({ ...sub, isSub: true });
-                  });
-                } else {
-                  allEvents.push({ ...r, isSub: false });
-                }
-              });
-              allEvents.sort((a, b) => compareLedgerRecords(a, b, isForecast));
-              
-              let globalRunning = Number(record.balance || 0) + (record.type === 'expense' ? Number(record.amount || 0) : -Number(record.amount || 0));
-              const subBalanceMap = new Map();
-              allEvents.forEach(ev => {
-                const amt = Number(ev.amount || 0);
-                const isExp = (ev.type || 'expense').toLowerCase() === 'expense';
-                globalRunning += (isExp ? -amt : amt);
-                if (ev.isSub) {
-                  subBalanceMap.set(String(ev.id), globalRunning);
-                }
-              });
-              subListWithBalance = record.subRecords.map(sub => ({
-                ...sub,
-                balance: subBalanceMap.get(String(sub.id)) ?? sub.balance
-              }));
-            } else {
-              // 🌟 모드 1: 생활비 안에서만 (토스 생활비 통합행 시작 잔액에서 생활비만 순수 차감)
-              let localRunning = Number(record.balance || 0) + (record.type === 'expense' ? Number(record.amount || 0) : -Number(record.amount || 0));
-              const sortedSubs = [...record.subRecords].sort((a, b) => compareLedgerRecords(a, b, isForecast));
-              const localBalanceMap = new Map();
-              sortedSubs.forEach(sub => {
-                const amt = Number(sub.amount || 0);
-                const isExp = (sub.type || 'expense').toLowerCase() === 'expense';
-                localRunning += (isExp ? -amt : amt);
-                localBalanceMap.set(String(sub.id), localRunning);
-              });
-              subListWithBalance = record.subRecords.map(sub => ({
-                ...sub,
-                balance: localBalanceMap.get(String(sub.id)) ?? sub.balance
-              }));
-            }
-          }
-
           const subRows = [];
-          subListWithBalance.forEach((sub, sIdx) => {
+          const isSubExpanded = Boolean(subAccordionExpandedState[record.id]);
+
+          record.subRecords.forEach((sub, sIdx) => {
             const isFirstSub = sIdx === 0;
-            const isLastSub = sIdx === subListWithBalance.length - 1;
+            const isLastSub = sIdx === record.subRecords.length - 1;
             const subCreated = renderTransactionRow({ ...sub, isSubDetail: true }, fragment, {
               source,
               colorSettings: activeColorSettings,
@@ -455,26 +468,32 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
               subEl.dataset.parentAggregateId = record.id;
               if (isFirstSub) subEl.dataset.subdetailFirst = 'true';
               if (isLastSub) subEl.dataset.subdetailLast = 'true';
-              subEl.style.display = 'none'; // 기본 닫힘
+              subEl.style.display = isSubExpanded ? '' : 'none'; // 🌟 상태 보존!
               monthRowElements.push(subEl);
               subRows.push(subEl);
             });
           });
 
-          let isSubExpanded = false;
+          // 메인 행의 화살표 아이콘 상태 복원
+          mainRows.forEach(mr => {
+            const iconEl = mr.querySelector('.ledger-accordion-icon');
+            if (iconEl) iconEl.textContent = isSubExpanded ? '▼' : '▶';
+          });
+
           const toggleSubAccordion = (e) => {
             if (e) e.stopPropagation();
-            isSubExpanded = !isSubExpanded;
+            const nextState = !Boolean(subAccordionExpandedState[record.id]);
+            subAccordionExpandedState[record.id] = nextState;
             mainRows.forEach(mr => {
               const iconEl = mr.querySelector('.ledger-accordion-icon');
-              if (iconEl) iconEl.textContent = isSubExpanded ? '▼' : '▶';
+              if (iconEl) iconEl.textContent = nextState ? '▼' : '▶';
             });
             subRows.forEach(subEl => {
-              subEl.style.display = isSubExpanded ? '' : 'none';
+              subEl.style.display = nextState ? '' : 'none';
             });
           };
 
-          // 항목 및 비고 칸(.ledger-accordion-toggle-cell) 클릭 시 세부내역 아코디언 토글! (나머지 칸은 상세 모달 오픈)
+          // 항목 및 비고 칸(.ledger-accordion-toggle-cell) 클릭 시 세부내역 아코디언 토글!
           mainRows.forEach(rowEl => {
             const toggleCells = rowEl.querySelectorAll('.ledger-accordion-toggle-cell, .ledger-accordion-icon');
             toggleCells.forEach(cell => {
