@@ -129,6 +129,10 @@ export function initializeScheduleApp() {
       syncColorSettingsFromSupabase().then(() => {
         applyScheduleAlertChipColors();
       });
+      // 🌟 외부(단축어 등) 거래 변경 시 가계부 화면 0.05초 실시간 자동 갱신!
+      import(getVersionedUrl('../ledger/ledger-app.js')).then(mod => {
+        mod.refreshLedgerData?.();
+      }).catch(e => console.warn('Realtime ledger refresh notice:', e));
     }
   });
   preloadLedgerFeature();

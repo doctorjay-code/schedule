@@ -1041,6 +1041,14 @@ export function initLedgerView() {
   };
 }
 
+export function refreshLedgerData() {
+  fetchLedgerData().then(res => {
+    ledgerState.records = res.records || [];
+    ledgerState.recordsLoaded = true;
+    applyLedgerDataSources();
+  }).catch(e => console.warn('Auto refreshLedgerData error:', e));
+}
+
 export function setLedgerRecordsForTesting(records) {
   ledgerState.records = records || [];
   applyLedgerDataSources();

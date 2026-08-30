@@ -258,10 +258,12 @@ export function generateForecastRecords({
 
       if (isCardBill) {
         hasRealCardBill = true;
+        const dynamicCardBillAmount = cardRecordsForBilling.length > 0 ? cardBillingTotal : Number(r.amount || 0);
         displayRows.push({
           ...r,
           id: r.id,
           originalId: r.id,
+          amount: dynamicCardBillAmount,
           isForecastItem: true,
           hasCardAccordion: true,
           subRecords: cardRecordsForBilling,
