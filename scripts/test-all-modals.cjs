@@ -21,10 +21,14 @@ function createMockDOM() {
       children: [],
       classList: {
         _set: new Set(),
-        add(c) { this._set.add(c); el.className = Array.from(this._set).join(' '); },
-        remove(c) { this._set.delete(c); el.className = Array.from(this._set).join(' '); },
-        contains(c) { return this._set.has(c); },
+        _sync() {
+          if (el.className) el.className.split(/\s+/).filter(Boolean).forEach(c => this._set.add(c));
+        },
+        add(c) { this._sync(); this._set.add(c); el.className = Array.from(this._set).join(' '); },
+        remove(c) { this._sync(); this._set.delete(c); el.className = Array.from(this._set).join(' '); },
+        contains(c) { this._sync(); return this._set.has(c); },
         toggle(c, force) {
+          this._sync();
           if (force === undefined) {
             if (this.contains(c)) this.remove(c); else this.add(c);
           } else if (force) this.add(c); else this.remove(c);
@@ -63,8 +67,24 @@ function createMockDOM() {
         }
         return null;
       },
-      querySelector(sel) { return null; },
-      querySelectorAll(sel) { return []; },
+      querySelector(sel) {
+        const cls = sel.startsWith('.') ? sel.slice(1) : null;
+        for (const ch of this.children) {
+          if (cls && ch.className && ch.className.includes(cls)) return ch;
+          const found = ch.querySelector ? ch.querySelector(sel) : null;
+          if (found) return found;
+        }
+        return null;
+      },
+      querySelectorAll(sel) {
+        const res = [];
+        const selectors = sel.split(',').map(s => s.trim().startsWith('.') ? s.trim().slice(1) : s.trim());
+        for (const ch of this.children) {
+          if (selectors.some(cls => ch.className && ch.className.includes(cls))) res.push(ch);
+          if (ch.querySelectorAll) res.push(...ch.querySelectorAll(sel));
+        }
+        return res;
+      },
       addEventListener(type, cb) {
         if (!this._listeners) this._listeners = {};
         if (!this._listeners[type]) this._listeners[type] = [];
@@ -588,22 +608,35 @@ async function testAllModalsLifecycle() {
   const ledgerTxModalOverlay = document.getElementById('ledgerTransactionModalOverlay');
   if (ledgerTxModalOverlay) ledgerTxModalOverlay.classList.remove('active');
 
-  aggMainTr.click();
+  // 1) [항목 / 비고] 칸 가상 클릭 ➡️ 모달 안 뜨고 세부 목록 촥 펼쳐짐 검증!
+  const toggleCell = aggMainTr.children.find(c => c.className && c.className.includes('ledger-accordion-toggle-cell'));
+  assert.ok(toggleCell, '토스 생활비 항목/비고 셀(.ledger-accordion-toggle-cell) 미생성');
 
-  // 1) 상세 모달이 열리면 안 됨!
+  toggleCell.click();
+
   assert.ok(
     !ledgerTxModalOverlay.classList.contains('active'),
-    '통합/합산행 클릭 시 상세 모달 오픈 차단 실패 (모달이 열리는 버그 적발!)'
+    '통합행의 [항목/비고] 칸 클릭 시 상세 모달 오픈 차단 실패 (모달이 열리는 버그 적발!)'
   );
 
-  // 2) 하위 세부 목록이 펼쳐졌는지 검증!
   const subRowEl = fundContainer.children.find(r => r.dataset && r.dataset.ledgerId === 'toss-sub-1');
   assert.ok(subRowEl, '토스 세부 거래 tr[data-ledger-id="toss-sub-1"] 미생성');
   assert.ok(
     subRowEl.style.display !== 'none',
-    '통합행 클릭 후 하위 세부 목록 아코디언 펼침 실패 (세부 목록 미노출 버그 적발!)'
+    '통합행의 [항목/비고] 클릭 후 하위 세부 목록 아코디언 펼침 실패 (세부 목록 미노출 버그 적발!)'
   );
-  console.log('  ✔ 1) 통합행 클릭 시 모달 차단 및 세부 목록 100% 아코디언 펼침 E2E 검증 통과');
+  console.log('  ✔ 1) 통합행 [항목/비고] 클릭 시 모달 차단 및 세부 목록 100% 아코디언 펼침 검증 통과');
+
+  // 2) [날짜/수단/금액/잔액] 칸 가상 클릭 ➡️ 통합행 상세 모달 정상 오픈 검증!
+  const dateCell = aggMainTr.querySelector('.cell-date');
+  assert.ok(dateCell, '통합행 날짜 셀(.cell-date) 미생성');
+
+  dateCell.click();
+  assert.ok(
+    ledgerTxModalOverlay.classList.contains('active'),
+    '통합행의 [날짜/금액] 칸 클릭 시 상세 모달 미오픈 버그 적발!'
+  );
+  console.log('  ✔ 2) 통합행 [날짜/수단/금액] 클릭 시 상세 모달 100% 정상 오픈 검증 통과');
 }
 
 testAllModalsLifecycle().catch(err => {
