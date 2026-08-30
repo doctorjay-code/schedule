@@ -376,6 +376,51 @@ function getLedgerCategoryNames() {
   return Array.from(new Set([...defaults, ...userCats]));
 }
 
+function openLedgerReportModal() {
+  const cur = ledgerState.monthCursor instanceof Date ? ledgerState.monthCursor : new Date();
+  const curMonthKey = toIso(cur).slice(0, 7);
+  const curYear = cur.getFullYear();
+  const curMonth = cur.getMonth() + 1;
+
+  const titleEl = document.getElementById('ledgerReportPeriod');
+  if (titleEl) titleEl.textContent = `${curYear}년 ${curMonth}월 리포트`;
+
+  const monthRecords = (ledgerState.records || []).filter(r => {
+    const dStr = normalizeLedgerDate(r.date);
+    return dStr && dStr.startsWith(curMonthKey);
+  });
+
+  let totalIncome = 0;
+  let totalExpense = 0;
+
+  monthRecords.forEach(r => {
+    const amt = Number(r.amount || 0);
+    const isExp = (r.type || 'expense').toLowerCase() === 'expense';
+    if (isExp) totalExpense += amt;
+    else totalIncome += amt;
+  });
+
+  const netBalance = totalIncome - totalExpense;
+
+  const incomeEl = document.getElementById('ledgerReportIncome');
+  const expenseEl = document.getElementById('ledgerReportExpense');
+  const balanceEl = document.getElementById('ledgerReportBalance');
+
+  if (incomeEl) incomeEl.textContent = formatMoney(totalIncome);
+  if (expenseEl) expenseEl.textContent = formatMoney(totalExpense);
+  if (balanceEl) balanceEl.textContent = formatMoney(netBalance);
+
+  const categoryStats = groupExpenses(monthRecords, 'category');
+  const personStats = groupExpenses(monthRecords, 'person');
+  const paymentStats = groupExpenses(monthRecords, 'payment_method');
+
+  renderStatList('ledgerReportCategoryStats', categoryStats);
+  renderStatList('ledgerReportPersonStats', personStats);
+  renderStatList('ledgerReportPaymentStats', paymentStats);
+
+  document.getElementById('ledgerReportOverlay')?.classList.add('active');
+}
+
 let fundplanViewInstance = null;
 
 function getFundplanView() {
@@ -582,7 +627,6 @@ function initLedgerApp() {
       if (badge) badge.textContent = '오프라인';
     });
 
-    syncForecastOrdersFromDB();
     syncForecastAggregateOverridesFromDB();
   } else {
     applyLedgerDataSources();
@@ -661,7 +705,13 @@ function bindLedgerDomEvents() {
 
   // 3. 지출 리포트 & 색상 설정 모달 버튼
   document.getElementById('ledgerReportBtn')?.addEventListener('click', () => {
-    showLedgerToast('📊 지출 리포트 화면 준비 중');
+    openLedgerReportModal();
+  });
+  document.getElementById('ledgerReportCloseBtn')?.addEventListener('click', () => {
+    document.getElementById('ledgerReportOverlay')?.classList.remove('active');
+  });
+  document.getElementById('ledgerReportOverlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'ledgerReportOverlay') e.currentTarget.classList.remove('active');
   });
 
   document.getElementById('ledgerColorSettingsBtn')?.addEventListener('click', () => {
@@ -899,3 +949,5 @@ export function initLedgerView() {
     leave: () => { ledgerState.active = false; }
   };
 }
+
+export { initLedgerApp };

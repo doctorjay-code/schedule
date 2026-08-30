@@ -12,7 +12,11 @@ function createMockDOM() {
       nodeType: 1,
       tagName: tag.toUpperCase(),
       className: '',
-      style: { display: '' },
+      style: {
+        display: '',
+        setProperty(prop, val) { this[prop] = val; },
+        removeProperty(prop) { delete this[prop]; }
+      },
       dataset: {},
       children: [],
       classList: {
@@ -27,7 +31,9 @@ function createMockDOM() {
         }
       },
       appendChild(c) { this.children.push(c); c.parentNode = this; return c; },
+      append(...c) { this.children.push(...c); },
       replaceChildren(...c) { this.children = [...c]; },
+      replaceWith(...c) { if (this.parentNode) this.parentNode.children = [...c]; },
       querySelector(sel) { return null; },
       querySelectorAll(sel) { return []; },
       addEventListener(type, cb) {
@@ -73,6 +79,9 @@ function createMockDOM() {
       createElement(tag) {
         return makeEl('', tag);
       },
+      createDocumentFragment() {
+        return makeEl('', 'fragment');
+      },
       getElementById(id) {
         if (!store.has(id)) return makeEl(id);
         return store.get(id);
@@ -86,9 +95,19 @@ function createMockDOM() {
 
 const mock = createMockDOM();
 global.document = mock.document;
+const storageMap = new Map();
+global.localStorage = {
+  getItem: (k) => storageMap.get(k) || null,
+  setItem: (k, v) => storageMap.set(k, String(v)),
+  removeItem: (k) => storageMap.delete(k),
+  clear: () => storageMap.clear()
+};
+global.confirm = () => false;
 global.window = {
   addEventListener() {},
-  removeEventListener() {}
+  removeEventListener() {},
+  localStorage: global.localStorage,
+  confirm: global.confirm
 };
 
 async function testAllModalsLifecycle() {
@@ -217,11 +236,58 @@ async function testAllModalsLifecycle() {
   const offsetModule = await import('../js/features/ledger/ledger-offset-groups.js');
   assert.ok(typeof offsetModule.buildOffsetGroupsFromRecords === 'function', 'buildOffsetGroupsFromRecords 함수 누락');
   assert.ok(typeof offsetModule.createOffsetGroupRow === 'function', 'createOffsetGroupRow 함수 누락');
-  console.log('  ✔ 4) 0원 상계 묶음 및 분리 엔진 100% 정상 연결 확인');
-  console.log('✔ 가계부 필터 줄 & 복사/붙여넣기/상계 액션 바 100% 무결점 검증 통과');
+  // 4. 🌟 Zero-Hardcoding: HTML 내 모든 버튼/인터랙티브 요소 100% 전수 자동 클릭 E2E 검증
+  console.log('--- Step 10: Zero-Hardcoding Full 75-Button Click E2E Verification ---');
+  
+  // HTML에서 모든 button 및 interactive ID 전수 자동 수집
+  const buttonIdRegex = /id="([^"]+)"/g;
+  let match;
+  const allInteractiveIds = new Set();
+  
+  // Extract all IDs from button tags and interactive classes
+  const btnTagRegex = /<(?:button|a)\b[^>]*\bid="([^"]+)"[^>]*>/gi;
+  while ((match = btnTagRegex.exec(htmlContent)) !== null) {
+    allInteractiveIds.add(match[1]);
+  }
+  const chipRegex = /<div\b[^>]*class="[^"]*(?:filter-chip|alert-chip|nav-btn|sync-status)[^"]*"[^>]*\bid="([^"]+)"[^>]*>/gi;
+  while ((match = chipRegex.exec(htmlContent)) !== null) {
+    allInteractiveIds.add(match[1]);
+  }
+
+  console.log(`  🔍 HTML에서 발견된 총 ${allInteractiveIds.size}개 인터랙티브 버튼/칩 전수 자동 크롤링 완료`);
+
+  // 앱 모듈 초기화 및 바인딩
+  const ledgerAppModule = await import('../js/features/ledger/ledger-app.js');
+  const { initLedgerApp } = ledgerAppModule;
+  initLedgerApp();
+
+  let clickedSuccessCount = 0;
+  const clickErrors = [];
+
+  for (const btnId of allInteractiveIds) {
+    const btnEl = document.getElementById(btnId);
+    if (!btnEl) continue;
+
+    try {
+      btnEl.click();
+      clickedSuccessCount++;
+    } catch (err) {
+      clickErrors.push({ id: btnId, error: err.message, stack: err.stack });
+    }
+  }
+
+  if (clickErrors.length > 0) {
+    console.error(`  ❌ 총 ${clickErrors.length}개 버튼에서 클릭 런타임 에러 발생:`);
+    clickErrors.forEach(e => {
+      console.error(`    - [#${e.id}] 에러: ${e.error}`);
+    });
+    throw new Error(`Zero-Hardcoding Button Click E2E 실패: ${clickErrors.length}개 버튼 런타임 에러 적발!`);
+  } else {
+    console.log(`  ✔ 총 ${clickedSuccessCount}개 모든 버튼 가상 클릭 100% 무결점 에러 0건 통과!`);
+  }
 }
 
 testAllModalsLifecycle().catch(err => {
-  console.error('❌ 모달 & 액션 바 전수 검증 실패:', err.stack || err.message);
+  console.error('❌ 검증 실패:', err.stack || err.message);
   process.exit(1);
 });

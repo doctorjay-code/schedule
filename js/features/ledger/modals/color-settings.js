@@ -172,7 +172,7 @@ export function createLedgerColorSettings({ state, pastelPalette, defaultColorSe
     });
     document.getElementById('ledgerAddWordRuleBtn')?.addEventListener('click', () => {
       const input = document.getElementById('ledgerNewRuleWordInput');
-      const word = input?.value.trim() || '';
+      const word = String(input?.value || '').trim();
       if (!word) return;
       getWordRules().push({ id: Date.now(), word, color: ruleColor });
       input.value = '';
@@ -192,5 +192,15 @@ export function createLedgerColorSettings({ state, pastelPalette, defaultColorSe
     });
   }
 
-  return { bind, renderModalContent };
+  function open() {
+    bind();
+    renderModalContent();
+    document.getElementById('ledgerColorOverlay')?.classList.add('active');
+  }
+
+  function close() {
+    document.getElementById('ledgerColorOverlay')?.classList.remove('active');
+  }
+
+  return { open, close, bind, renderModalContent };
 }
