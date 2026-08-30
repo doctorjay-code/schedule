@@ -1,4 +1,5 @@
 import { SECURITY_PASSWORD_HASH } from './auth-config.js';
+import { APP_BUILD_TIME } from '../version.js';
 
 let authSuccessCallbackFn = null;
 const authState = {
@@ -7,11 +8,33 @@ const authState = {
   lockoutInterval: null
 };
 
+export function formatBuildTime(buildTimeStr) {
+  if (!buildTimeStr || typeof buildTimeStr !== 'string') return '';
+  const clean = buildTimeStr.replace(/[^0-9_]/g, '');
+  if (clean.length >= 13) {
+    const y = clean.slice(0, 4);
+    const m = clean.slice(4, 6);
+    const d = clean.slice(6, 8);
+    const hh = clean.slice(9, 11);
+    const mm = clean.slice(11, 13);
+    return `${y}-${m}-${d} ${hh}:${mm}`;
+  }
+  return buildTimeStr;
+}
+
+export function renderAuthBuildTime() {
+  const el = document.getElementById('authBuildTime') || document.querySelector('.auth-build-time');
+  if (el && APP_BUILD_TIME) {
+    el.textContent = `최종 수정: ${formatBuildTime(APP_BUILD_TIME)}`;
+  }
+}
+
 export function setAuthSuccessCallback(fn) {
   authSuccessCallbackFn = typeof fn === 'function' ? fn : null;
 }
 
 export function initSecurityAuth() {
+  renderAuthBuildTime();
   const overlay = document.getElementById('authModalOverlay');
   const input = document.getElementById('authPasswordInput');
   const submit = document.getElementById('authSubmitBtn');
