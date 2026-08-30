@@ -24,7 +24,7 @@ let ledgerState = {
   active: false,
   source: 'card', // 'card' | 'bank' | 'cash' | 'forecast'
   payment: '토스은행',
-  monthCursor: new Date(),
+  monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   records: [],
   recordsLoaded: false,
   multiEditMode: false,
@@ -718,23 +718,20 @@ function bindLedgerDomEvents() {
     });
   }
 
-  // 1-1. 이전 / 다음 / 오늘 버튼 바인딩
+  // 1-1. 이전 / 다음 / 오늘 버튼 바인딩 (Day 1 고정으로 날짜 오버플로우 100% 방지)
   document.getElementById('ledgerPrevPeriodBtn')?.addEventListener('click', () => {
     const cur = ledgerState.monthCursor instanceof Date ? ledgerState.monthCursor : new Date();
-    const next = new Date(cur);
-    next.setMonth(next.getMonth() - 1);
-    ledgerState.monthCursor = next;
+    ledgerState.monthCursor = new Date(cur.getFullYear(), cur.getMonth() - 1, 1);
     applyLedgerDataSources();
   });
   document.getElementById('ledgerNextPeriodBtn')?.addEventListener('click', () => {
     const cur = ledgerState.monthCursor instanceof Date ? ledgerState.monthCursor : new Date();
-    const next = new Date(cur);
-    next.setMonth(next.getMonth() + 1);
-    ledgerState.monthCursor = next;
+    ledgerState.monthCursor = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
     applyLedgerDataSources();
   });
   document.getElementById('ledgerLatestBtn')?.addEventListener('click', () => {
-    ledgerState.monthCursor = new Date();
+    const now = new Date();
+    ledgerState.monthCursor = new Date(now.getFullYear(), now.getMonth(), 1);
     applyLedgerDataSources();
   });
 
@@ -777,10 +774,7 @@ function bindLedgerDomEvents() {
         selectedYear: cur.getFullYear(),
         selectedMonth: cur.getMonth() + 1,
         onSelect: (year, month) => {
-          const next = new Date(cur);
-          next.setFullYear(year);
-          next.setMonth(month - 1);
-          ledgerState.monthCursor = next;
+          ledgerState.monthCursor = new Date(year, month - 1, 1);
           applyLedgerDataSources();
         }
       });
