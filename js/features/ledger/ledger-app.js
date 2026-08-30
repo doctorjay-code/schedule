@@ -530,15 +530,10 @@ function renderMonthlyLedgerTable(container) {
 
 function renderLedgerTable() {
   const allContainer = document.getElementById('fundplanAllTimeList');
-  const monthlyContainer = document.getElementById('ledgerMonthlyTransactionList');
-  if (!allContainer && !monthlyContainer) return;
+  if (!allContainer) return;
 
   const view = getFundplanView();
   view.render();
-
-  if (monthlyContainer) {
-    renderMonthlyLedgerTable(monthlyContainer);
-  }
 }
 
 function updateLedgerPeriodTitle() {

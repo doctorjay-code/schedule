@@ -206,21 +206,21 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
       });
     }
 
+    // 🌟 DB 레코드의 offset_group_id로부터 100% 순수 동적 복원 (루프 밖에서 1번만 계산!)
+    const offsetGroups = (source === 'forecast') ? buildOffsetGroupsFromRecords(records) : {};
+    const offsetRecordIds = new Set();
+    if (source === 'forecast') {
+      Object.values(offsetGroups).forEach(g => {
+        if (Array.isArray(g.recordIds)) {
+          g.recordIds.forEach(id => offsetRecordIds.add(String(id)));
+        }
+      });
+    }
+
     months.forEach(month => {
       const monthRecords = (grouped[month] || []).sort((a, b) => compareLedgerRecords(a, b, isForecast));
       const isExpanded = Boolean(monthExpandedState[month]);
       const monthRowElements = [];
-
-      // 🌟 DB 레코드의 offset_group_id로부터 100% 순수 동적 복원 (전체 월 대상!)
-      const offsetGroups = (source === 'forecast') ? buildOffsetGroupsFromRecords(records) : {};
-      const offsetRecordIds = new Set();
-      if (source === 'forecast') {
-        Object.values(offsetGroups).forEach(g => {
-          if (Array.isArray(g.recordIds)) {
-            g.recordIds.forEach(id => offsetRecordIds.add(String(id)));
-          }
-        });
-      }
 
       const dividerRow = createLedgerMonthDividerRow({
         monthKey: month,
@@ -255,12 +255,13 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
         ? monthRecords
         : recalculateRunningBalances(monthRecords, true);
       calculatedMonthRecords.forEach(record => {
-        // 기업은행 탭에서 기업카드 결제대금 행인 경우 카드 세부내역 subRecords 연결
+        // 기업은행 탭에서 기업카드 결제대금 행인 경우 카드 세부내역 subRecords 연결 (오직 출금 거래만!)
         if (source === 'bank' && !record.hasCardAccordion) {
+          const isExpense = (record.type || 'expense').toLowerCase() === 'expense';
           const itemText = String(record.item || '');
           const memoText = String(record.memo || '');
           const catText = String(record.category || '');
-          if (itemText.includes('기업카드') || itemText.includes('카드대금') || memoText.includes('기업카드') || catText.includes('카드대금')) {
+          if (isExpense && (itemText.includes('기업카드') || itemText.includes('카드대금') || memoText.includes('기업카드') || catText.includes('카드대금'))) {
             const [yStr, mStr] = month.split('-');
             const y = parseInt(yStr, 10);
             const m = parseInt(mStr, 10) - 1;

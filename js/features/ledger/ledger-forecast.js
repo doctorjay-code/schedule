@@ -69,15 +69,43 @@ export function generateForecastRecords({
   const sortedMonths = Array.from(monthKeysSet).sort();
   const displayRows = [];
 
+  // 1. 전체 실거래 단 1회 사전 인덱싱 (O(N) 단일 순회)
+  const monthMap = new Map();
+  const allCardRecords = [];
+
+  allRecords.forEach(r => {
+    const sheet = r.payment_method || r.payment || r.sheetName || '';
+    const dateStr = normalizeLedgerDate(r.date);
+    if (!dateStr) return;
+
+    if (sheet === '기업카드') {
+      allCardRecords.push({ ...r, normalizedDate: dateStr });
+    }
+
+    const mKey = dateStr.slice(0, 7);
+    if (!monthMap.has(mKey)) {
+      monthMap.set(mKey, { toss: [], bank: [], manualCard: [] });
+    }
+    const bucket = monthMap.get(mKey);
+
+    if (isManualCardPayment(r)) {
+      bucket.manualCard.push(r);
+    } else if (sheet === '토스은행') {
+      bucket.toss.push(r);
+    } else if (sheet === '기업은행') {
+      bucket.bank.push(r);
+    }
+  });
+
   sortedMonths.forEach(targetMonthKey => {
     const [tYStr, tMStr] = targetMonthKey.split('-');
     const targetYear = parseInt(tYStr, 10);
     const targetMonth = parseInt(tMStr, 10) - 1; // 0-indexed
 
-    const tossRecords = [];
-    const bankRecords = [];
-    const cardRecordsForBilling = [];
-    const manualCardPayments = [];
+    const bucket = monthMap.get(targetMonthKey) || { toss: [], bank: [], manualCard: [] };
+    const tossRecords = bucket.toss;
+    const bankRecords = bucket.bank;
+    const manualCardPayments = bucket.manualCard;
 
     // 카드 결제주기: 전월 13일 ~ 당월 12일
     let cardStartYear = targetYear;
@@ -89,33 +117,7 @@ export function generateForecastRecords({
     const cardStartDate = `${cardStartYear}-${String(cardStartMonth + 1).padStart(2, '0')}-13`;
     const cardEndDate = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-12`;
 
-    // 1. 전체 실거래 순회 및 분류
-    allRecords.forEach(r => {
-      const sheet = r.payment_method || r.payment || r.sheetName || '';
-      const dateStr = normalizeLedgerDate(r.date);
-      if (!dateStr) return;
-
-      if (isManualCardPayment(r)) {
-        if (dateStr.startsWith(targetMonthKey)) {
-          manualCardPayments.push(r);
-        }
-        return;
-      }
-
-      if (sheet === '기업카드') {
-        if (dateStr >= cardStartDate && dateStr <= cardEndDate) {
-          cardRecordsForBilling.push(r);
-        }
-      } else if (sheet === '토스은행') {
-        if (dateStr.startsWith(targetMonthKey)) {
-          tossRecords.push(r);
-        }
-      } else if (sheet === '기업은행') {
-        if (dateStr.startsWith(targetMonthKey)) {
-          bankRecords.push(r);
-        }
-      }
-    });
+    const cardRecordsForBilling = allCardRecords.filter(r => r.normalizedDate >= cardStartDate && r.normalizedDate <= cardEndDate);
 
     // 2. 가상 행(토스 생활비 지출 & 기업카드 결제대금) 산출
     // [분류 규칙]: 토스은행 중 '월급', '고정비', '이체' 3종 세트만 개별 독립 행으로 분리, 나머지는 모두 토스 생활비로 집계
