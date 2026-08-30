@@ -54,6 +54,7 @@ global.localStorage = {
 };
 
 async function runCoreLedgerInvariants() {
+  const appModule = await import('../js/features/ledger/ledger-app.js');
   const cardModule = await import('../js/features/ledger/card.js');
   const { filterLedgerRecords } = cardModule;
   const utilsModule = await import('../js/features/ledger/ledger-utils.js');
