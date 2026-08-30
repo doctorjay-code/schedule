@@ -2551,10 +2551,10 @@ body {
 
 /* Average Balance Calculator Modal Specific Components */
 .ledger-average-sheet {
-  max-height: 90vh;
+  max-height: 82vh;
 }
 .ledger-avg-table-wrap {
-  max-height: 38vh;
+  max-height: 28vh;
   overflow-y: auto;
 }
 

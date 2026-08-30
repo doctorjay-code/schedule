@@ -183,11 +183,11 @@ function renderSandboxTable() {
     const itemText = record.item || record.memo || '-';
 
     tr.innerHTML = `
-      <td class="col-date" style="font-size:12.5px; font-weight:600; text-align:center; padding:9px 4px; white-space:nowrap;">${dateLabel}</td>
-      <td class="col-clinic" style="font-size:12.5px; text-align:left; font-weight:600; color:#1E293B; padding:9px 10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${itemText}</td>
-      <td class="col-trans ledger-cell-money" style="font-size:12.5px; color:#15803D; font-weight:700; text-align:right; padding:9px 8px;">${inText}</td>
-      <td class="col-hr ledger-cell-money" style="font-size:12.5px; color:#DC2626; font-weight:700; text-align:right; padding:9px 8px;">${outText}</td>
-      <td class="col-ot ledger-cell-money" style="font-size:12.5px; color:#1E1B4B; font-weight:700; text-align:right; padding:9px 8px;">${balText}</td>
+      <td class="col-date" style="font-size:11.5px; font-weight:600; text-align:center; padding:5px 2px; white-space:nowrap;">${dateLabel}</td>
+      <td class="col-clinic" style="font-size:11.5px; text-align:left; font-weight:600; color:#1E293B; padding:5px 8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${itemText}</td>
+      <td class="col-trans ledger-cell-money" style="font-size:11.5px; color:#15803D; font-weight:700; text-align:right; padding:5px 6px;">${inText}</td>
+      <td class="col-hr ledger-cell-money" style="font-size:11.5px; color:#DC2626; font-weight:700; text-align:right; padding:5px 6px;">${outText}</td>
+      <td class="col-ot ledger-cell-money" style="font-size:11.5px; color:#1E1B4B; font-weight:700; text-align:right; padding:5px 6px;">${balText}</td>
     `;
 
     // 행 클릭 시 초간편 수정 모달 오픈
