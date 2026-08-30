@@ -225,14 +225,10 @@ export function renderTransactionRow(item, listTarget = 'fundplanAllTimeList', o
   balanceCell.style.color = '#1E1B4B';
   balanceCell.style.fontWeight = '600';
   balanceCell.style.textAlign = 'right';
-  if (item.isSubDetail) {
-    balanceCell.textContent = '';
-  } else {
-    const usageAmount = Number(item.balance);
-    balanceCell.textContent = Number.isFinite(usageAmount)
-      ? `${usageAmount < 0 ? '-' : ''}${formatMoney(usageAmount)}`
-      : '';
-  }
+  const usageAmount = Number(item.balance);
+  balanceCell.textContent = Number.isFinite(usageAmount)
+    ? `${usageAmount < 0 ? '-' : ''}${formatMoney(usageAmount)}`
+    : '';
   tagRow.appendChild(balanceCell);
 
   if (targetContainer) {

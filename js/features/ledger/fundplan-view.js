@@ -391,10 +391,60 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
         // 만약 통합 가변/고정 아코디언 행(isAggregate) 또는 실제 카드 출금 행(hasCardAccordion)인 경우:
         // 바로 밑에 세부 거래들(subRecords)을 인라인으로 렌더링 (기본 닫힘)
         if ((record.isAggregate || record.hasCardAccordion) && Array.isArray(record.subRecords) && record.subRecords.length > 0) {
+          const isGlobalBalance = (ledgerState.balanceMode === 'global');
+          
+          let subListWithBalance = [...record.subRecords];
+          if (record.isAggregate && String(record.item || '').includes('토스 생활비')) {
+            if (isGlobalBalance) {
+              // 🌟 모드 2: 전체 시계열 일치 (바깥 거래 + 세부 거래들을 날짜순 정렬하여 잔액 계산)
+              const allEvents = [];
+              calculatedMonthRecords.forEach(r => {
+                if (r.id === record.id) {
+                  record.subRecords.forEach(sub => {
+                    allEvents.push({ ...sub, isSub: true });
+                  });
+                } else {
+                  allEvents.push({ ...r, isSub: false });
+                }
+              });
+              allEvents.sort((a, b) => compareLedgerRecords(a, b, isForecast));
+              
+              let globalRunning = Number(record.balance || 0) + (record.type === 'expense' ? Number(record.amount || 0) : -Number(record.amount || 0));
+              const subBalanceMap = new Map();
+              allEvents.forEach(ev => {
+                const amt = Number(ev.amount || 0);
+                const isExp = (ev.type || 'expense').toLowerCase() === 'expense';
+                globalRunning += (isExp ? -amt : amt);
+                if (ev.isSub) {
+                  subBalanceMap.set(String(ev.id), globalRunning);
+                }
+              });
+              subListWithBalance = record.subRecords.map(sub => ({
+                ...sub,
+                balance: subBalanceMap.get(String(sub.id)) ?? sub.balance
+              }));
+            } else {
+              // 🌟 모드 1: 생활비 안에서만 (토스 생활비 통합행 시작 잔액에서 생활비만 순수 차감)
+              let localRunning = Number(record.balance || 0) + (record.type === 'expense' ? Number(record.amount || 0) : -Number(record.amount || 0));
+              const sortedSubs = [...record.subRecords].sort((a, b) => compareLedgerRecords(a, b, isForecast));
+              const localBalanceMap = new Map();
+              sortedSubs.forEach(sub => {
+                const amt = Number(sub.amount || 0);
+                const isExp = (sub.type || 'expense').toLowerCase() === 'expense';
+                localRunning += (isExp ? -amt : amt);
+                localBalanceMap.set(String(sub.id), localRunning);
+              });
+              subListWithBalance = record.subRecords.map(sub => ({
+                ...sub,
+                balance: localBalanceMap.get(String(sub.id)) ?? sub.balance
+              }));
+            }
+          }
+
           const subRows = [];
-          record.subRecords.forEach((sub, sIdx) => {
+          subListWithBalance.forEach((sub, sIdx) => {
             const isFirstSub = sIdx === 0;
-            const isLastSub = sIdx === record.subRecords.length - 1;
+            const isLastSub = sIdx === subListWithBalance.length - 1;
             const subCreated = renderTransactionRow({ ...sub, isSubDetail: true }, fragment, {
               source,
               colorSettings: activeColorSettings,

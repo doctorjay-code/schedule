@@ -25,6 +25,7 @@ let ledgerState = {
   source: 'card', // 'card' | 'bank' | 'cash' | 'forecast'
   payment: '토스은행',
   monthCursor: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+  balanceMode: 'local', // 'local' (기본: 생활비 전용) | 'global' (전체 시계열 일치)
   records: [],
   recordsLoaded: false,
   multiEditMode: false,
@@ -769,6 +770,16 @@ function bindLedgerDomEvents() {
   document.getElementById('ledgerAverageAddTransactionBtn')?.addEventListener('click', () => {
     showLedgerToast('거래 추가');
   });
+
+  // 1-6. 잔액 계산 모드 토글 버튼 바인딩 (기본: 생활비 전용 / 클릭: 전체 시계열 일치)
+  const balanceModeBtn = document.getElementById('ledgerBalanceModeToggleBtn');
+  if (balanceModeBtn) {
+    balanceModeBtn.addEventListener('click', () => {
+      balanceModeBtn.classList.toggle('active');
+      ledgerState.balanceMode = balanceModeBtn.classList.contains('active') ? 'global' : 'local';
+      applyLedgerDataSources();
+    });
+  }
 
   // 2. 월/기간 선택 타이틀 클릭 시 월 선택 모달 열기
   const periodTitle = document.getElementById('ledgerPeriodTitle');
