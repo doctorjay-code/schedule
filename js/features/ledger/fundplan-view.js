@@ -351,8 +351,6 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
             if (cardSubs.length > 0) {
               record.hasCardAccordion = true;
               record.subRecords = cardSubs;
-              const dynamicCardTotal = cardSubs.reduce((sum, r) => sum + ((r.type || 'expense').toLowerCase() === 'income' ? -Number(r.amount || 0) : Number(r.amount || 0)), 0);
-              record.amount = dynamicCardTotal;
             }
           }
         }
