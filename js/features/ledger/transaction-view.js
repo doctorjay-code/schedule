@@ -59,14 +59,20 @@ export function renderTransactionRow(item, listTarget = 'fundplanAllTimeList', o
   detailRow.dataset.ledgerId = item.id;
   if (isSelected) detailRow.classList.add('selected-row');
   if (typeof onRowClick === 'function') {
-    detailRow.addEventListener('click', () => onRowClick(item));
+    detailRow.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onRowClick(item);
+    });
   }
   const tagRow = document.createElement('tr');
   tagRow.className = 'schedule-row schedule-row-tag cell-day-end-border';
   tagRow.dataset.ledgerId = item.id;
   if (isSelected) tagRow.classList.add('selected-row');
   if (typeof onRowClick === 'function') {
-    tagRow.addEventListener('click', () => onRowClick(item));
+    tagRow.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onRowClick(item);
+    });
   }
 
   const isFixed = item.fixedCost === '고정비' || item.fixedCost === '고정' || (item.fixedCost && item.fixedCost !== 'false');

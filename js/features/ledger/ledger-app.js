@@ -95,13 +95,18 @@ function toggleMultiSelectRow(recordId) {
   const sId = String(recordId || '');
   if (!sId) return;
 
-  if (ledgerState.selectedLedgerIds.has(sId)) {
-    ledgerState.selectedLedgerIds.delete(sId);
-  } else {
+  const isNowSelected = !ledgerState.selectedLedgerIds.has(sId);
+  if (isNowSelected) {
     ledgerState.selectedLedgerIds.add(sId);
+  } else {
+    ledgerState.selectedLedgerIds.delete(sId);
   }
+
+  // 🌟 전체 재렌더링 없이 해당 행 엘리먼트들만 0ms 즉시 토글
+  const rows = document.querySelectorAll(`tr[data-ledger-id="${sId}"]`);
+  rows.forEach(r => r.classList.toggle('selected-row', isNowSelected));
+
   updateMultiActionBar();
-  applyLedgerDataSources();
 }
 
 function updateMultiActionBar() {
