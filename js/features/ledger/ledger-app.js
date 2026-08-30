@@ -13,7 +13,7 @@ import { createLedgerTransactionModal } from './modals/transaction-modal.js';
 import { createLedgerColorSettings } from './modals/color-settings.js';
 import { bindLedgerListActions } from './ledger-events.js';
 import { createFundplanView, createLedgerMonthDividerRow, getRecordMonthGroup } from './fundplan-view.js';
-import { fetchLedgerData, upsertLedgerRecord, deleteLedgerRecord, reorderLedgerRecords, deleteLedgerRecordsBatch, insertLedgerRecordsBatch, saveForecastOrders } from '../../services/ledger/ledger-api.js';
+import { fetchLedgerData, upsertLedgerRecord, deleteLedgerRecord, reorderLedgerRecords, reorderForecastRecords, deleteLedgerRecordsBatch, insertLedgerRecordsBatch } from '../../services/ledger/ledger-api.js';
 import { registerRealtimeCallbacks } from '../../services/shared/supabase-realtime.js';
 import { showLedgerToast, findLedgerRecordById, executeLedgerCopy, executeLedgerDelete, executeLedgerPaste } from './ledger-clipboard.js';
 import { generateForecastRecords, loadForecastOrderMap, saveForecastOrderMap, syncForecastOrdersFromDB, isManualCardPayment, saveForecastAggregateOverride, loadForecastAggregateOverrides, syncForecastAggregateOverridesFromDB } from './ledger-forecast.js';
@@ -866,19 +866,22 @@ export function initLedgerView() {
       if (isSavingForecastOrders) return;
       isSavingForecastOrders = true;
       try {
-        // 🌟 1. 로컬 메모리 레코드의 order_index 즉시 갱신
-        orderedIds.forEach((id, idx) => {
-          const rec = (ledgerState.records || []).find(r => String(r.id) === String(id));
-          if (rec) {
-            rec.order_index = (idx + 1) * 10;
-            rec.orderIndex = (idx + 1) * 10;
-          }
-        });
-
-        // 🌟 2. Supabase DB 영구 동기화
         if (ledgerState.source === 'forecast') {
-          saveForecastOrderMap(orderedIds);
+          // 🔮 1. 잔액전망 전용: 통장 order_index는 1도 안 건드리고 forecast_order_index만 갱신!
+          orderedIds.forEach((id, idx) => {
+            const rec = (ledgerState.records || []).find(r => String(r.id) === String(id));
+            if (rec) rec.forecast_order_index = (idx + 1) * 10;
+          });
+          await reorderForecastRecords(orderedIds);
         } else {
+          // 🏦 2. 개별 은행 통장 전용: 해당 통장의 order_index만 갱신!
+          orderedIds.forEach((id, idx) => {
+            const rec = (ledgerState.records || []).find(r => String(r.id) === String(id));
+            if (rec) {
+              rec.order_index = (idx + 1) * 10;
+              rec.orderIndex = (idx + 1) * 10;
+            }
+          });
           const sheetName = ledgerState.source === 'card' ? ledgerState.payment : (ledgerState.source === 'cash' ? '현금' : '기업은행');
           await reorderLedgerRecords(sheetName, orderedIds);
         }

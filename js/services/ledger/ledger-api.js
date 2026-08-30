@@ -37,6 +37,7 @@ export async function fetchLedgerData(fetchImpl = fetch) {
       fixedCost: r.fixed_cost || '',
       order_index: r.order_index ?? index,
       orderIndex: r.order_index ?? index,
+      forecast_order_index: r.forecast_order_index ?? null,
       created_at: r.created_at || r.updated_at || index,
       createdAt: r.created_at || r.updated_at || index,
       source: 'supabase',
@@ -157,12 +158,27 @@ export async function insertLedgerRecordsBatch(records, fetchImpl = fetch) {
 }
 
 /**
- * Supabase DB 거래 순서 원자적 일괄 갱신
+ * Supabase DB 통장별 거래 순서 원자적 일괄 갱신 (개별 은행 탭 전용)
  */
 export async function reorderLedgerRecords(sheetName, orderedIds, fetchImpl = fetch) {
   if (!Array.isArray(orderedIds) || !orderedIds.length) return { ok: true };
 
   await supabaseRest('rpc/reorder_transactions', {
+    method: 'POST',
+    fetchImpl,
+    body: { ordered_ids: orderedIds.map(String) }
+  });
+
+  return { ok: true };
+}
+
+/**
+ * Supabase DB 잔액전망 전용 순서 원자적 일괄 갱신 (잔액전망 탭 전용, 통장 순서 1도 안 건드림!)
+ */
+export async function reorderForecastRecords(orderedIds, fetchImpl = fetch) {
+  if (!Array.isArray(orderedIds) || !orderedIds.length) return { ok: true };
+
+  await supabaseRest('rpc/reorder_forecast_transactions', {
     method: 'POST',
     fetchImpl,
     body: { ordered_ids: orderedIds.map(String) }

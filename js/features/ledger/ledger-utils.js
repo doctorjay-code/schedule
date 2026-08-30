@@ -76,14 +76,23 @@ export function getLedgerTagColor(colorSettings, field, value) {
 }
 
 /**
- * Supabase DB orderIndex를 100% 신뢰하는 표준 정렬 헬퍼
+ * Supabase DB 순서 정렬 헬퍼 (isForecast: 잔액전망 전용 forecast_order_index 우선 적용)
  */
-export function compareLedgerRecords(a, b) {
+export function compareLedgerRecords(a, b, isForecast = false) {
   const dateDiff = (a.date || '').localeCompare(b.date || '');
   if (dateDiff !== 0) return dateDiff;
-  const orderDiff = (Number(a.orderIndex ?? 0)) - (Number(b.orderIndex ?? 0));
+
+  const aOrder = isForecast
+    ? Number(a.forecast_order_index ?? a.order_index ?? a.orderIndex ?? 0)
+    : Number(a.order_index ?? a.orderIndex ?? 0);
+  const bOrder = isForecast
+    ? Number(b.forecast_order_index ?? b.order_index ?? b.orderIndex ?? 0)
+    : Number(b.order_index ?? b.orderIndex ?? 0);
+
+  const orderDiff = aOrder - bOrder;
   if (orderDiff !== 0) return orderDiff;
-  const createdDiff = (Number(a.createdAt ?? 0)) - (Number(b.createdAt ?? 0));
+
+  const createdDiff = (Number(a.created_at ?? a.createdAt ?? 0)) - (Number(b.created_at ?? b.createdAt ?? 0));
   if (createdDiff !== 0) return createdDiff;
   return (a.id || '').localeCompare(b.id || '');
 }
