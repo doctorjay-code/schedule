@@ -50,18 +50,16 @@ export function createLedgerMonthDividerRow({
   onToggle = null
 }) {
   const monthIncome = monthRecords.reduce((sum, x) => {
-    const rawId = String(x.id || '').replace(/^fc-(toss|bank)-/, '');
-    const origId = String(x.originalId || '');
-    if (offsetRecordIds.has(rawId) || offsetRecordIds.has(origId) || offsetRecordIds.has(String(x.id))) {
+    const xId = String(x.id || '');
+    if (offsetRecordIds.has(xId)) {
       return sum; // 상계 처리된 거래는 수입 합계에서 제외!
     }
     return sum + (x.incomeAmount !== undefined ? Number(x.incomeAmount || 0) : (x.type === 'income' ? Number(x.amount || 0) : 0));
   }, 0);
 
   const monthExpense = monthRecords.reduce((sum, x) => {
-    const rawId = String(x.id || '').replace(/^fc-(toss|bank)-/, '');
-    const origId = String(x.originalId || '');
-    if (offsetRecordIds.has(rawId) || offsetRecordIds.has(origId) || offsetRecordIds.has(String(x.id))) {
+    const xId = String(x.id || '');
+    if (offsetRecordIds.has(xId)) {
       return sum; // 상계 처리된 거래는 지출 합계에서 제외!
     }
     return sum + (x.expenseAmount !== undefined ? Number(x.expenseAmount || 0) : (x.type === 'expense' ? Number(x.amount || 0) : 0));
@@ -276,15 +274,14 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
             }
           }
         }
-        const rawId = String(record.id || '').replace(/^fc-(toss|bank)-/, '');
-        const origId = String(record.originalId || '');
+        const recId = String(record.id || '');
 
         // 상계 묶음에 속한 거래인지 확인
         let matchedGroup = null;
         if (source === 'forecast') {
           for (const gId of Object.keys(offsetGroups)) {
             const g = offsetGroups[gId];
-            if (Array.isArray(g.recordIds) && (g.recordIds.includes(rawId) || g.recordIds.includes(origId) || g.recordIds.includes(record.id))) {
+            if (Array.isArray(g.recordIds) && (g.recordIds.includes(recId) || g.recordIds.includes(record.id))) {
               matchedGroup = g;
               break;
             }
@@ -305,9 +302,8 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
 
           // 이 그룹에 속한 이번 달 거래들 모으기
           const groupRecords = calculatedMonthRecords.filter(r => {
-            const rId = String(r.id || '').replace(/^fc-(toss|bank)-/, '');
-            const oId = String(r.originalId || '');
-            return matchedGroup.recordIds.includes(rId) || matchedGroup.recordIds.includes(oId) || matchedGroup.recordIds.includes(r.id);
+            const rId = String(r.id || '');
+            return matchedGroup.recordIds.includes(rId);
           });
 
           // 0원 버튼이 켜져 있을 때: 월별행 스타일의 얇은 1줄 슬림 상계 바 렌더링

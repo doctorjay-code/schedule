@@ -50,7 +50,7 @@ export function recalculateRunningBalances(items, isCompanyCard = false) {
   }
 
   // 🏦 일반 계좌 (토스은행 / 현금 / 기업은행 / 잔액전망):
-  // 1. 목록에서 가장 빠른 시점의 '실제 유효 기초 잔액(Opening Balance)'을 탐색
+  // 1. 목록 및 subRecords에서 가장 빠른 시점의 '실제 유효 기초 잔액(Opening Balance)'을 탐색
   let openingBalance = 0;
   for (const it of items) {
     const b = Number(it.balance);
@@ -58,13 +58,24 @@ export function recalculateRunningBalances(items, isCompanyCard = false) {
       openingBalance = b;
       break;
     }
+    if (Array.isArray(it.subRecords)) {
+      for (const sub of it.subRecords) {
+        const sb = Number(sub.balance);
+        if (Number.isFinite(sb) && sub.balance !== '' && sub.balance !== null && sb > 0) {
+          openingBalance = sb;
+          break;
+        }
+      }
+      if (openingBalance > 0) break;
+    }
   }
 
   let currentBalance = null;
 
   return items.map((item, idx) => {
-    const amt = Number(item.amount) || 0;
-    const delta = (item.type === 'income' ? amt : -amt);
+    const incAmt = Number(item.incomeAmount !== undefined ? item.incomeAmount : (item.type === 'income' ? item.amount : 0));
+    const expAmt = Number(item.expenseAmount !== undefined ? item.expenseAmount : (item.type === 'expense' ? item.amount : 0));
+    const delta = incAmt - expAmt;
 
     if (idx === 0) {
       const rawBal = Number(item.balance);

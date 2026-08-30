@@ -451,6 +451,38 @@ function applyLedgerDataSources() {
 }
 
 function initLedgerApp() {
+  bindLedgerDomEvents();
+  bindLedgerListActions({
+    onRowClick: (id) => {
+      const rec = findLedgerTransaction(id);
+      if (rec) {
+        if (ledgerState.multiEditMode) {
+          toggleMultiSelectRow(rec.id);
+        } else {
+          getLedgerTransactionModal().open({ isEdit: true, record: rec });
+        }
+      }
+    },
+    onReorder: async (orderedIds) => {
+      if (isSavingForecastOrders) return;
+      isSavingForecastOrders = true;
+      try {
+        if (ledgerState.source === 'forecast') {
+          saveForecastOrderMap(orderedIds);
+          await saveForecastOrders(orderedIds);
+        } else {
+          const sheetName = ledgerState.source === 'card' ? ledgerState.payment : (ledgerState.source === 'cash' ? '현금' : '기업은행');
+          await reorderLedgerRecords(sheetName, orderedIds);
+        }
+        showLedgerToast('순서가 저장되었습니다.');
+      } catch (e) {
+        console.error('Error saving orders:', e);
+      } finally {
+        isSavingForecastOrders = false;
+      }
+    }
+  });
+
   if (!ledgerState.recordsLoaded) {
     const badge = document.getElementById('ledgerDataBadge');
     if (badge) badge.textContent = 'DB 로딩 중...';

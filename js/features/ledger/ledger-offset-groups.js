@@ -57,11 +57,8 @@ export function createOffsetGroupFromRecords(records) {
   const [y, m, d] = firstDate.split('-').map(Number);
   const groupId = `offset-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-  // ID 정규화 (originalId 우선 참조 및 fc- 접두어 제거하여 원본 DB ID로 일치)
-  const recordIds = records.map(r => {
-    const sId = String(r.originalId || r.id || '');
-    return sId.replace(/^fc-(toss|bank)-/, '');
-  });
+  // ID 정규화 (원본 DB ID로 일치)
+  const recordIds = records.map(r => String(r.id || ''));
 
   const title = `${m}/${d} 상계 묶음`;
 

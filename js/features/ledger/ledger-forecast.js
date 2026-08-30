@@ -178,6 +178,7 @@ export function generateForecastRecords({
     // 2. 가상 행(토스 생활비 지출 & 기업카드 결제대금) 산출
     // [분류 규칙]: 토스은행 중 '월급', '고정비', '이체' 3종 세트만 개별 독립 행으로 분리, 나머지는 모두 토스 생활비로 집계
     let tossLivingExpenses = 0;
+    let tossLivingIncome = 0;
     const tossLivingRecords = [];
 
     tossRecords.forEach(r => {
@@ -197,7 +198,11 @@ export function generateForecastRecords({
       } else {
         const amt = Number(r.amount || 0);
         const isExp = (r.type || 'expense').toLowerCase() === 'expense';
-        tossLivingExpenses += (isExp ? amt : -amt);
+        if (isExp) {
+          tossLivingExpenses += amt;
+        } else {
+          tossLivingIncome += amt;
+        }
         tossLivingRecords.push(r);
       }
     });
@@ -238,29 +243,36 @@ export function generateForecastRecords({
       }
     });
 
-    // 3-2. 가상 토스 생활비 합산행 (세부 거래 subRecords 연결 및 1일 배치)
-    const tossVarKey = `fc-var-toss-${targetMonthKey}`;
-    const tossVarOverride = aggregateOverrides[tossVarKey] || {};
-    displayRows.push({
-      id: tossVarKey,
-      date: tossVarOverride.date || `${targetMonthKey}-01`,
-      type: 'expense',
-      amount: tossVarOverride.amount !== undefined ? Number(tossVarOverride.amount) : Math.max(0, tossLivingExpenses),
-      balance: 0,
-      payment: '토스은행',
-      item: tossVarOverride.item || '토스 생활비 (변동비 합계)',
-      person: tossVarOverride.person || '',
-      category: tossVarOverride.category || '생활',
-      memo: tossVarOverride.memo || '토스 계좌 실시간 변동지출 자동 합산',
-      fixedCost: tossVarOverride.fixedCost || '',
-      isAggregate: true,
-      isVirtualAggregate: true,
-      subRecords: tossLivingRecords,
-      sourceSheet: '토스은행'
-    });
+    // 3-2. 가상 토스 생활비 합산행 (토스 실제 데이터가 존재하는 월부터만 생성)
+    const tossMonths = allRecords.filter(r => (r.payment_method || r.payment || r.sheetName) === '토스은행').map(r => normalizeLedgerDate(r.date).slice(0, 7)).filter(Boolean).sort();
+    const minTossMonth = tossMonths[0] || '2026-02';
 
-    // 3-3. 기업카드 결제대금 행: 실제 출금 거래가 없는 미래 월에만 가상행 생성!
-    if (!hasRealCardBill) {
+    if (targetMonthKey >= minTossMonth) {
+      const tossVarKey = `fc-var-toss-${targetMonthKey}`;
+      const tossVarOverride = aggregateOverrides[tossVarKey] || {};
+      displayRows.push({
+        id: tossVarKey,
+        date: tossVarOverride.date || `${targetMonthKey}-01`,
+        type: 'expense',
+        amount: tossVarOverride.amount !== undefined ? Number(tossVarOverride.amount) : Math.max(0, tossLivingExpenses - tossLivingIncome),
+        incomeAmount: tossLivingIncome,
+        expenseAmount: tossLivingExpenses,
+        balance: 0,
+        payment: '토스은행',
+        item: tossVarOverride.item || '토스 생활비 (변동비 합계)',
+        person: tossVarOverride.person || '',
+        category: tossVarOverride.category || '생활',
+        memo: tossVarOverride.memo || '토스 계좌 실시간 변동지출 자동 합산',
+        fixedCost: tossVarOverride.fixedCost || '',
+        isAggregate: true,
+        isVirtualAggregate: true,
+        subRecords: tossLivingRecords,
+        sourceSheet: '토스은행'
+      });
+    }
+
+    // 3-3. 기업카드 결제대금 행: 실제 출금 거래가 없는 현재/미래 월에만 가상 예상행 생성!
+    if (!hasRealCardBill && targetMonthKey >= currentCursorKey) {
       const cardEstKey = `fc-est-card-${targetMonthKey}`;
       const cardEstOverride = aggregateOverrides[cardEstKey] || {};
       displayRows.push({

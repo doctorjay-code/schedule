@@ -1,5 +1,6 @@
-﻿const assert = require('assert');
+const assert = require('assert');
 const path = require('path');
+const fs = require('fs');
 
 // JSDOM mock helper for DOM node testing in node environment
 function createMockDocument() {
@@ -64,7 +65,7 @@ async function runCoreLedgerInvariants() {
 
   console.log('--- 1. Testing 5-way Payment Method Filtering Integrity ---');
   const mockDataset = [
-    // 1월 (기업카드 실사용액 80,000원 -> 2월에 청구됨)
+    // 1월 (기업카드 실사용액 80,000원 -> 2월에 청구됨, 1월 토스 실거래는 없음!)
     { id: 'tr-20260112-10-c2e560', date: '2026-01-12', payment: '기업카드', amount: 80000, type: 'expense', category: '식비' },
     // 2월 (토스 최초 기초잔액 21,314원)
     { id: 'tr-20260201-10-559a9a', date: '2026-02-01', payment: '토스은행', amount: 98, type: 'income', category: '이자', balance: 21314 },
@@ -82,25 +83,29 @@ async function runCoreLedgerInvariants() {
   const tossRecs = filterLedgerRecords(mockDataset, { payment: '토스은행', source: 'card' });
   assert.strictEqual(tossRecs.length, 5, '토스은행 필터링 누락');
 
-  console.log('--- 2. Core Invariant 1: Aggregate Conservation (생활비 집계 보존성) ---');
+  console.log('--- 2. Core Invariant 1: Aggregate Conservation & Dual Income/Expense Matching ---');
   const forecastRes = generateForecastRecords({
     allRecords: mockDataset,
     monthCursor: new Date('2026-08-15')
   });
   const forecastRows = forecastRes.displayRows || [];
 
+  // 1월에는 토스 실거래가 없으므로 1월 토스 생활비 가상행이 없어야 함
+  const janTossLiving = forecastRows.find(r => r.id === 'fc-var-toss-2026-01');
+  assert.strictEqual(janTossLiving, undefined, '1월에 토스 실거래가 없는데 1월 토스 가상행이 생성되어 잔액이 꼬이는 버그 발견');
+
   // 2월의 토스 생활비 합산행 검증
   const febTossLiving = forecastRows.find(r => r.id === 'fc-var-toss-2026-02' || (r.item && r.item.includes('토스 생활비') && r.date.startsWith('2026-02')));
   assert.ok(febTossLiving, '2월 토스 생활비 통합 행 누락');
   assert.strictEqual(febTossLiving.date, '2026-02-01', '토스 생활비 통합행은 매월 1일에 배치되어야 함');
   
-  // 생활비 행 금액 === subRecords(변동지출 - 변동수입) 합계 보존성 검증
-  // 2월 변동: 식비 15,000 지출 (월급 3,000,000과 고정비 20,000은 분리됨, 이자 98원은 변동수입)
+  // 생활비 행 금액 === subRecords(변동지출 합계 및 변동수입 합계) 이원 일치 검증
   assert.ok(Array.isArray(febTossLiving.subRecords), '토스 생활비 행에 subRecords 누락');
   const sumSubExpenses = febTossLiving.subRecords.filter(r => (r.type || 'expense').toLowerCase() === 'expense').reduce((acc, r) => acc + Number(r.amount || 0), 0);
   const sumSubIncome = febTossLiving.subRecords.filter(r => (r.type || 'expense').toLowerCase() === 'income').reduce((acc, r) => acc + Number(r.amount || 0), 0);
-  const expectedLivingAmount = sumSubExpenses - sumSubIncome;
-  assert.strictEqual(febTossLiving.amount, expectedLivingAmount, `집계 보존성 위반: 생활비 금액(${febTossLiving.amount}) !== 하위 거래 합계(${expectedLivingAmount})`);
+  
+  assert.strictEqual(febTossLiving.expenseAmount, sumSubExpenses, `통합행 지출(${febTossLiving.expenseAmount}) !== 세부 지출 합계(${sumSubExpenses})`);
+  assert.strictEqual(febTossLiving.incomeAmount, sumSubIncome, `통합행 수입(${febTossLiving.incomeAmount}) !== 세부 수입 합계(${sumSubIncome})`);
 
   console.log('--- 3. Core Invariant 2: Referential Transparency (참조 투명성 & 원본 ID 보존) ---');
   // 잔액전망에 나온 실거래 행들이 원본 DB ID(tr-2026...)를 그대로 유지하는가? (fc-toss- 왜곡 금지)
@@ -113,21 +118,29 @@ async function runCoreLedgerInvariants() {
   const calculatedForecast = recalculateRunningBalances(forecastRows, false);
   assert.ok(calculatedForecast.length > 0, '잔액전망 계산 결과가 비어있음');
   
-  // 첫 번째 계산 잔액이 음수로 왜곡되지 않고 유효한 기초 잔액(21,314원)으로부터 출발하는지 검증
   const firstBal = Number(calculatedForecast[0].balance);
-  assert.ok(Number.isFinite(firstBal), '첫 행 잔액이 유효하지 않음');
+  assert.ok(Number.isFinite(firstBal) && firstBal > 0, `첫 행 잔액이 유효하지 않거나 0 이하임: ${firstBal}`);
 
   // 모든 연속 행 i, i-1에 대해: curBalance === prevBalance + (income ? amt : -amt)
   for (let i = 1; i < calculatedForecast.length; i++) {
     const prev = calculatedForecast[i - 1];
     const cur = calculatedForecast[i];
-    const amt = Number(cur.amount) || 0;
-    const delta = (cur.type === 'income' ? amt : -amt);
+    const incAmt = Number(cur.incomeAmount !== undefined ? cur.incomeAmount : (cur.type === 'income' ? cur.amount : 0));
+    const expAmt = Number(cur.expenseAmount !== undefined ? cur.expenseAmount : (cur.type === 'expense' ? cur.amount : 0));
+    const delta = incAmt - expAmt;
     const expected = Number(prev.balance) + delta;
     assert.strictEqual(Number(cur.balance), expected, `연속 회계 등식 위반 at row ${i} (${cur.item}): ${cur.balance} !== ${expected}`);
   }
 
-  console.log('✔ 가계부 3대 본질 불변식(집계 보존성, 참조 투명성, 연속 회계 등식) 100% 검증 완료');
+  console.log('--- 5. Core Invariant 4: No Legacy ID Regex in Codebase ---');
+  const ledgerDir = path.join(__dirname, '../js/features/ledger');
+  const allJs = fs.readdirSync(ledgerDir, { withFileTypes: true })
+    .filter(dirent => dirent.isFile() && dirent.name.endsWith('.js'))
+    .map(dirent => fs.readFileSync(path.join(ledgerDir, dirent.name), 'utf8'))
+    .join('\n');
+  assert.ok(!allJs.includes('replace(/^fc-'), '코드베이스에 구형 ID 파싱 정규식(replace(/^fc-)) 잔재 발견');
+
+  console.log('✔ 가계부 4대 본질 불변식 100% 검증 완료');
 }
 
 runCoreLedgerInvariants().catch(err => {
