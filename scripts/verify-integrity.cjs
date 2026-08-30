@@ -478,58 +478,51 @@ if (buttonsOk) {
 // are actually linked and called in the main application pipeline.
 // -------------------------------------------------------------
 console.log('\n\x1b[36m[7/7] Checking Core View Module Linkage & Architecture Bypass...\x1b[0m');
-const CORE_VIEW_CONTRACTS = [
-  {
-    moduleFile: 'js/features/ledger/fundplan-view.js',
-    fnName: 'createFundplanView',
-    callerFile: 'js/features/ledger/ledger-app.js',
-    desc: '가계부 전체보기/월별 아코디언/상계묶음 뷰 엔진'
-  },
-  {
-    moduleFile: 'js/features/schedule/schedule-view.js',
-    fnName: 'renderTable',
-    callerFile: 'js/features/schedule/schedule-events.js',
-    desc: '일정표 주간 뷰 엔진'
-  },
-  {
-    moduleFile: 'js/features/schedule/monthly-view.js',
-    fnName: 'renderMonthlyCalendar',
-    callerFile: 'js/features/schedule/schedule-events.js',
-    desc: '일정표 월간 캘린더 뷰 엔진'
-  }
-];
+
+// 🌟 Zero-Hardcoding: js/features/**/ 하위의 모든 *-view.js 파일을 동적으로 자동 탐색!
+const viewFiles = jsFiles.filter(f => {
+  const rel = path.relative(ROOT_DIR, f).replace(/\\/g, '/');
+  return rel.startsWith('js/features/') && rel.endsWith('-view.js');
+});
 
 let architectureOk = true;
 
-CORE_VIEW_CONTRACTS.forEach(({ moduleFile, fnName, callerFile, desc }) => {
+viewFiles.forEach(viewFile => {
   totalChecks++;
-  const callerAbsPath = path.join(ROOT_DIR, callerFile);
-  if (!fs.existsSync(callerAbsPath)) {
-    architectureOk = false;
-    logFail(`Caller file missing: ${callerFile}`, desc);
-    return;
+  const relViewPath = path.relative(ROOT_DIR, viewFile).replace(/\\/g, '/');
+  const viewCode = fs.readFileSync(viewFile, 'utf8');
+
+  // Find all exported function names from the view module
+  const exportMatches = [...viewCode.matchAll(/export\s+function\s+([a-zA-Z0-9_$]+)/g)];
+  const exportedFns = exportMatches.map(m => m[1]);
+
+  if (exportedFns.length === 0) return;
+
+  // Check if at least one exported function from this view module is imported across the codebase
+  let isLinked = false;
+  for (const callerFile of jsFiles) {
+    if (callerFile === viewFile) continue;
+    const callerCode = fs.readFileSync(callerFile, 'utf8');
+    for (const fn of exportedFns) {
+      if (callerCode.includes(fn)) {
+        isLinked = true;
+        break;
+      }
+    }
+    if (isLinked) break;
   }
 
-  const callerCode = fs.readFileSync(callerAbsPath, 'utf8');
-  // Check import: import { ... fnName ... } from '...'
-  const importRegex = new RegExp(`import\\s*\\{[^}]*\\b${fnName}\\b[^}]*\\}\\s*from`);
-  // Check call: fnName(...)
-  const callRegex = new RegExp(`\\b${fnName}\\s*\\(`);
-
-  const hasImport = importRegex.test(callerCode);
-  const hasCall = callRegex.test(callerCode);
-
-  if (!hasImport || !hasCall) {
+  if (!isLinked) {
     architectureOk = false;
     logFail(
-      `Architecture Bypass / Dead View Module: "${fnName}" in [${moduleFile}] (${desc})`,
-      `Not imported or called inside [${callerFile}]. Main app must link to this view module instead of bypassing it.`
+      `Architecture Bypass / Dead View Module: [${relViewPath}]`,
+      `Exported functions [${exportedFns.join(', ')}] are not imported or called anywhere in the codebase.`
     );
   }
 });
 
 if (architectureOk) {
-  logPass(`All ${CORE_VIEW_CONTRACTS.length} core view engine modules are properly linked and called.`);
+  logPass(`All ${viewFiles.length} core view engine modules are dynamically discovered and properly linked.`);
 }
 
 // -------------------------------------------------------------

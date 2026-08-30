@@ -61,16 +61,14 @@ function createMockDOM() {
       closest(sel) {
         let cur = this;
         while (cur) {
-          if (cur.dataset && cur.dataset.ledgerFilterType) return cur;
-          if (cur.className && cur.className.includes('filter-chip')) return cur;
+          if (matchesSelector(cur, sel)) return cur;
           cur = cur.parentNode;
         }
         return null;
       },
       querySelector(sel) {
-        const cls = sel.startsWith('.') ? sel.slice(1) : null;
         for (const ch of this.children) {
-          if (cls && ch.className && ch.className.includes(cls)) return ch;
+          if (matchesSelector(ch, sel)) return ch;
           const found = ch.querySelector ? ch.querySelector(sel) : null;
           if (found) return found;
         }
@@ -80,9 +78,7 @@ function createMockDOM() {
         const res = [];
         const selectors = sel.split(',').map(s => s.trim());
         for (const ch of this.children) {
-          const matchTag = selectors.some(s => !s.startsWith('.') && ch.tagName && ch.tagName.toLowerCase() === s.toLowerCase());
-          const matchClass = selectors.some(s => s.startsWith('.') && ch.className && ch.className.includes(s.slice(1)));
-          if (matchTag || matchClass) res.push(ch);
+          if (selectors.some(s => matchesSelector(ch, s))) res.push(ch);
           if (ch.querySelectorAll) res.push(...ch.querySelectorAll(sel));
         }
         return res;
@@ -115,17 +111,80 @@ function createMockDOM() {
     return el;
   }
 
-  // Pre-populate all 8 modal overlays & critical buttons
-  const modalOverlays = [
-    'modalOverlay',                     // 1. 근무 일정 등록/수정
-    'unifiedSummaryModalOverlay',       // 2. 3대 종합 요약 통계
-    'monthSelectModalOverlay',          // 3. 월간 날짜 선택
-    'weekSelectModalOverlay',           // 4. 주간 날짜 선택
-    'colorSettingsModalOverlay',        // 5. 일정표 색상 설정
-    'ledgerTransactionModalOverlay',    // 6. 가계부 거래 상세/수정
-    'ledgerColorSettingsModalOverlay',  // 7. 가계부 색상 설정
-    'statsModalOverlay'                 // 8. 통계 및 지출 분석
+  // 🌟 표준 범용 CSS 셀렉터 매처 (태그, 클래스, 속성, 가상클래스 완전 지원)
+  function matchesSelector(el, sel) {
+    if (!el || !sel) return false;
+    const s = sel.trim();
+    if (s === '*' || s === '') return true;
+
+    // 1) :not(...) 가상 클래스 처리
+    const notMatch = s.match(/^(.*?):not\((.*?)\)$/);
+    if (notMatch) {
+      const baseSel = notMatch[1].trim();
+      const notSel = notMatch[2].trim();
+      if (baseSel && !matchesSelector(el, baseSel)) return false;
+      return !matchesSelector(el, notSel);
+    }
+
+    // 2) 복합 선택자 분해 (e.g. '.filter-chip[data-ledger-filter-type]', 'section.wrapper[id="foo"]')
+    const attrIdx = s.indexOf('[');
+    if (attrIdx > 0 && s.endsWith(']')) {
+      const basePart = s.slice(0, attrIdx);
+      const attrPart = s.slice(attrIdx);
+      return matchesSelector(el, basePart) && matchesSelector(el, attrPart);
+    }
+
+    // 3) ID 매칭 (e.g. '#myId')
+    if (s.startsWith('#')) {
+      return el.id === s.slice(1);
+    }
+
+    // 4) 복합 태그.클래스 매칭 (e.g. 'section.ledger-period-wrapper', '.filter-chip')
+    if (s.includes('.')) {
+      const parts = s.split('.');
+      const tag = parts[0];
+      const cls = parts.slice(1);
+      const tagOk = !tag || (el.tagName && el.tagName.toLowerCase() === tag.toLowerCase());
+      const clsOk = cls.every(c => el.classList && el.classList.contains(c));
+      return tagOk && clsOk;
+    }
+
+    // 5) 태그명 매칭 (e.g. 'section', 'tbody', 'button')
+    if (/^[a-zA-Z0-9_-]+$/.test(s)) {
+      return el.tagName && el.tagName.toLowerCase() === s.toLowerCase();
+    }
+
+    // 6) 단독 속성 매칭 (e.g. '[data-ledger-filter-type]', '[data-foo="bar"]')
+    if (s.startsWith('[') && s.endsWith(']')) {
+      const inner = s.slice(1, -1);
+      if (inner.includes('=')) {
+        const [attrKey, attrVal] = inner.split('=').map(str => str.replace(/['"]/g, '').trim());
+        if (attrKey.startsWith('data-')) {
+          const datasetKey = attrKey.slice(5).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+          return el.dataset && String(el.dataset[datasetKey]) === attrVal;
+        }
+        return el.getAttribute && el.getAttribute(attrKey) === attrVal;
+      } else {
+        const attrKey = inner.trim();
+        if (attrKey.startsWith('data-')) {
+          const datasetKey = attrKey.slice(5).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+          return el.dataset && el.dataset[datasetKey] !== undefined;
+        }
+        return el.hasAttribute ? el.hasAttribute(attrKey) : Boolean(el[attrKey]);
+      }
+    }
+
+    return false;
+  }
+
+  // 🌟 Zero-Hardcoding: index.html에서 modal-overlay 클래스를 가진 모든 모달 ID 100% 자동 크롤링!
+  const htmlPath = path.join(__dirname, '..', 'index.html');
+  const htmlContent = fs.readFileSync(htmlPath, 'utf8');
+  const modalMatches = [
+    ...htmlContent.matchAll(/<div\b[^>]*\bclass=["'][^"']*\bmodal-overlay\b[^"']*["'][^>]*\bid=["']([^"']+)["']/gi),
+    ...htmlContent.matchAll(/<div\b[^>]*\bid=["']([^"']+)["'][^>]*\bclass=["'][^"']*\bmodal-overlay\b[^"']*["']/gi)
   ];
+  const modalOverlays = Array.from(new Set(modalMatches.map(m => m[1])));
 
   modalOverlays.forEach(id => {
     const el = makeEl(id);
@@ -173,16 +232,34 @@ function createMockDOM() {
         if (!store.has(id)) return makeEl(id);
         return store.get(id);
       },
-      querySelector(sel) { return null; },
+      querySelector(sel) {
+        for (const el of store.values()) {
+          if (matchesSelector(el, sel)) return el;
+        }
+        return null;
+      },
       querySelectorAll(sel) {
         const results = [];
-        for (const el of store.values()) {
-          if (sel.includes('ledger-period-wrapper') && el.className && el.className.includes('ledger-period-wrapper')) {
-            if (sel.includes(':not(.hidden)') && el.classList.contains('hidden')) continue;
-            results.push(el);
+        const selectors = sel.split(',').map(s => s.trim());
+        for (const s of selectors) {
+          if (s.includes(' ')) {
+            const parts = s.split(/\s+/);
+            const parentSel = parts[0];
+            const childSel = parts.slice(1).join(' ');
+            for (const el of store.values()) {
+              if (matchesSelector(el, parentSel)) {
+                results.push(...el.querySelectorAll(childSel));
+              }
+            }
+          } else {
+            for (const el of store.values()) {
+              if (matchesSelector(el, s)) {
+                results.push(el);
+              }
+            }
           }
         }
-        return results;
+        return Array.from(new Set(results));
       },
       addEventListener() {}
     }
