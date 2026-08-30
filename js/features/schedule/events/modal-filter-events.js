@@ -28,7 +28,7 @@ export function bindScheduleModalCloseEvents({ closeModal, closeSummaryModal, cl
 }
 
 export function bindScheduleFilterEvents({ state, renderTable }) {
-  const filterChips = document.querySelectorAll('.filter-chip:not(#toggleMultiEditBtn)');
+  const filterChips = document.querySelectorAll('.filter-bar.schedule-only .filter-chip:not(#toggleMultiEditBtn)');
   filterChips.forEach(chip => {
     chip.addEventListener('click', () => {
       filterChips.forEach(item => item.classList.remove('active'));
