@@ -119,14 +119,78 @@ function updateMultiActionBar() {
 
   if (!multiActionBar) return;
 
+  const offsetBtn = document.getElementById('ledgerBulkOffsetBtn');
+  const selectedDiffLabel = document.getElementById('ledgerSelectedDiffLabel');
+
   if (isMulti) {
     multiActionBar.classList.remove('hidden');
+    const selCount = ledgerState.selectedLedgerIds.size;
     if (selectedCountLabel) {
-      selectedCountLabel.textContent = `${ledgerState.selectedLedgerIds.size}건 선택됨`;
+      selectedCountLabel.textContent = `${selCount}건 선택됨`;
+    }
+
+    // 선택된 거래들의 수입/지출 합계 및 상계 가능 여부 계산
+    if (selCount >= 2) {
+      const selRecs = Array.from(ledgerState.selectedLedgerIds).map(id => findLedgerRecordById(id, { ledgerState })).filter(Boolean);
+      const inSum = selRecs.filter(r => r.type === 'income').reduce((s, r) => s + (Number(r.amount) || 0), 0);
+      const outSum = selRecs.filter(r => r.type === 'expense').reduce((s, r) => s + (Number(r.amount) || 0), 0);
+      const diff = inSum - outSum;
+
+      if (selectedDiffLabel) {
+        selectedDiffLabel.textContent = `수입 ${formatMoney(inSum)}원 / 지출 ${formatMoney(outSum)}원 (차액: ${formatMoney(diff)}원)`;
+      }
+
+      if (offsetBtn) {
+        offsetBtn.classList.remove('hidden');
+        if (diff === 0 && inSum > 0) {
+          offsetBtn.style.opacity = '1';
+          offsetBtn.style.pointerEvents = 'auto';
+          offsetBtn.title = '수입/지출이 일치하여 0원 상계 가능';
+        } else {
+          offsetBtn.style.opacity = '0.6';
+          offsetBtn.style.pointerEvents = 'auto';
+          offsetBtn.title = `차액(${formatMoney(Math.abs(diff))}원) 발생 중`;
+        }
+      }
+    } else {
+      if (selectedDiffLabel) selectedDiffLabel.textContent = '';
+      if (offsetBtn) offsetBtn.classList.add('hidden');
     }
   } else {
     multiActionBar.classList.add('hidden');
+    if (selectedDiffLabel) selectedDiffLabel.textContent = '';
+    if (offsetBtn) offsetBtn.classList.add('hidden');
   }
+}
+
+function createOffsetGroupFromSelection() {
+  if (ledgerState.selectedLedgerIds.size < 2) {
+    showLedgerToast('⚠️ 상계 묶음을 만들려면 2개 이상의 거래를 선택해야 합니다.');
+    return;
+  }
+  const selectedRecords = Array.from(ledgerState.selectedLedgerIds)
+    .map(id => findLedgerRecordById(id, { ledgerState }))
+    .filter(Boolean);
+
+  const res = createOffsetGroupFromRecords(selectedRecords);
+  if (!res.ok) {
+    showLedgerToast(`⚠️ ${res.message}`);
+    return;
+  }
+
+  // 선택된 레코드들의 로컬 상태에도 offset_group_id 반영
+  selectedRecords.forEach(r => {
+    r.offset_group_id = res.group.id;
+    r.offset_title = res.group.title;
+  });
+
+  setMultiEditMode(false);
+  ledgerState.showOffsetGroups = true;
+  const offsetFilterBtn = document.getElementById('ledgerOffsetFilterBtn');
+  if (offsetFilterBtn) offsetFilterBtn.classList.add('active');
+
+  applyLedgerDataSources();
+  showLedgerToast(`🎉 0원 상계 묶음이 생성되었습니다! (${res.group.title})`);
 }
 
 function updateCopyBufferBar() {
