@@ -158,10 +158,11 @@ export function generateForecastRecords({
     // 3-1. 기업은행 레코드 (실제 카드 결제 출금 거래 포함)
     let hasRealCardBill = false;
     bankRecords.forEach(r => {
+      const isExpense = (r.type || 'expense').toLowerCase() === 'expense';
       const itemText = String(r.item || '');
       const memoText = String(r.memo || '');
       const catText = String(r.category || '');
-      const isCardBill = itemText.includes('기업카드') || itemText.includes('카드대금') || itemText.includes('비씨카드') || itemText.includes('BC카드') || memoText.includes('기업카드') || catText.includes('카드대금');
+      const isCardBill = isExpense && (itemText.includes('기업카드') || itemText.includes('카드대금') || itemText.includes('비씨카드') || itemText.includes('BC카드') || memoText.includes('기업카드') || catText.includes('카드대금'));
 
       if (isCardBill) {
         hasRealCardBill = true;
