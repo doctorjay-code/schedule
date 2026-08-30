@@ -156,7 +156,7 @@ function renderSandboxTable() {
 
   if (sandboxRecords.length === 0) {
     const emptyRow = document.createElement('tr');
-    emptyRow.innerHTML = `<td colspan="7" class="ledger-empty-list" style="text-align:center; padding:24px; color:#94A3B8;">선택한 기간에 거래 내역이 없습니다.<br><small style="color:#CBD5E1;">'+ 거래 추가' 버튼으로 가상 거래를 추가해 보세요.</small></td>`;
+    emptyRow.innerHTML = `<td colspan="4" class="ledger-empty-list" style="text-align:center; padding:24px; color:#94A3B8;">선택한 기간에 거래 내역이 없습니다.<br><small style="color:#CBD5E1;">'+ 거래 추가' 버튼으로 가상 거래를 추가해 보세요.</small></td>`;
     tbody.appendChild(emptyRow);
     return;
   }
@@ -181,17 +181,11 @@ function renderSandboxTable() {
     const outText = isExp && amt > 0 ? formatMoney(amt) : '';
     const balText = Number.isFinite(record.balance) ? `${record.balance < 0 ? '-' : ''}${formatMoney(record.balance)}` : '';
 
-    const userText = record.person || record.user || '쥬쥬';
-    const itemText = record.item || record.memo || '-';
-
     tr.innerHTML = `
-      <td class="col-date" style="font-size:12px; font-weight:600;">${dateLabel}</td>
-      <td class="col-time" style="font-size:12px; color:#475569;">기업</td>
-      <td class="col-region" style="font-size:12px; color:#334155;">${userText}</td>
-      <td class="col-clinic" style="font-size:12px; text-align:left; font-weight:600; color:#1E293B;">${itemText}</td>
-      <td class="col-trans ledger-cell-money" style="font-size:12px; color:#15803D; font-weight:700;">${inText}</td>
-      <td class="col-hr ledger-cell-money" style="font-size:12px; color:#DC2626; font-weight:700;">${outText}</td>
-      <td class="col-ot ledger-cell-money" style="font-size:12px; color:#1E1B4B; font-weight:700;">${balText}</td>
+      <td class="col-date" style="font-size:12.5px; font-weight:600; text-align:center; padding:9px 4px; white-space:nowrap;">${dateLabel}</td>
+      <td class="col-trans ledger-cell-money" style="font-size:12.5px; color:#15803D; font-weight:700; text-align:right; padding:9px 10px;">${inText}</td>
+      <td class="col-hr ledger-cell-money" style="font-size:12.5px; color:#DC2626; font-weight:700; text-align:right; padding:9px 10px;">${outText}</td>
+      <td class="col-ot ledger-cell-money" style="font-size:12.5px; color:#1E1B4B; font-weight:700; text-align:right; padding:9px 10px;">${balText}</td>
     `;
 
     // 행 클릭 시 상세 모달 오픈 (샌드박스 전용 격리)
