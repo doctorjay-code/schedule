@@ -164,8 +164,8 @@ function renderSandboxTable() {
 
   sandboxRecords.forEach(record => {
     const tr = document.createElement('tr');
-    tr.className = 'schedule-row ledger-row-interactive';
-    tr.dataset.ledgerId = record.id;
+    tr.className = 'schedule-row ledger-avg-row-interactive';
+    tr.dataset.sandboxId = record.id;
     tr.style.cursor = 'pointer';
 
     const dStr = normalizeLedgerDate(record.date);
@@ -190,8 +190,9 @@ function renderSandboxTable() {
       <td class="col-ot ledger-cell-money" style="font-size:11.5px; color:#1E1B4B; font-weight:700; text-align:right; padding:5px 6px;">${balText}</td>
     `;
 
-    // 행 클릭 시 초간편 수정 모달 오픈
-    tr.addEventListener('click', () => {
+    // 행 클릭 시 초간편 수정 모달만 단독 오픈 (이벤트 전파 차단)
+    tr.addEventListener('click', (e) => {
+      e.stopPropagation();
       openSandboxEditModal(record);
     });
 

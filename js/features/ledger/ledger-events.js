@@ -22,7 +22,7 @@ export function bindLedgerListActions({ onRowClick, onOpen, onReorder }) {
 
   function isLedgerRow(el) {
     if (!el) return null;
-    if (el.closest('button, input, select, textarea, a, .color-indicator, .ledger-month-divider-row')) return null;
+    if (el.closest('button, input, select, textarea, a, .color-indicator, .ledger-month-divider-row, #ledgerAverageBalanceOverlay')) return null;
     const row = el.closest('tr[data-ledger-id]');
     if (!row) return null;
     return row;
