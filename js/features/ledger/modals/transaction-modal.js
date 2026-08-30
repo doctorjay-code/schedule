@@ -63,16 +63,16 @@ export function createLedgerTransactionModal(options = {}) {
 
     if (isAggregate) {
       // 🌟 가상 집계행(기업카드 결제행, 생활비 등):
-      // 폼 전체는 수정 가능하게 열어두되, 유형은 '지출' 고정 & 금액만 수정 불가(readOnly) 처리!
+      // 폼 전체는 수정 가능하게 열어두고 금액만 수정 불가(readOnly) 처리!
       setFormReadOnly(document.getElementById('ledgerTransactionForm'), false);
       if (amountInput) {
         amountInput.readOnly = true;
         amountInput.style.backgroundColor = '#F1F5F9';
         amountInput.style.cursor = 'not-allowed';
-        amountInput.title = '금액은 카드 세부내역 합계로 자동 계산됩니다.';
+        amountInput.title = '금액은 세부내역 합계로 자동 계산됩니다.';
       }
       if (typeSelect) {
-        typeSelect.disabled = true;
+        typeSelect.disabled = false;
       }
       setElementVisible(document.getElementById('ledgerModalSaveBtn'), true);
       setElementVisible(document.getElementById('ledgerModalDeleteBtn'), false);
@@ -157,7 +157,7 @@ export function createLedgerTransactionModal(options = {}) {
       }
     }
 
-    document.getElementById('ledgerModalType').value = value.type || 'expense';
+    document.getElementById('ledgerModalType').value = (isAggregate && !value.type) ? '' : (value.type || 'expense');
     let selectedPayment = String(value.payment || defaults.payment || '').trim();
     if (selectedPayment === '토스' || selectedPayment === '토스카드' || selectedPayment === '토스뱅크') selectedPayment = '토스은행';
     if (selectedPayment === '기업' || selectedPayment === '신용카드' || selectedPayment === '카드') selectedPayment = '기업카드';

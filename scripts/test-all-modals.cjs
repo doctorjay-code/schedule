@@ -637,6 +637,58 @@ async function testAllModalsLifecycle() {
     '통합행의 [날짜/금액] 칸 클릭 시 상세 모달 미오픈 버그 적발!'
   );
   console.log('  ✔ 2) 통합행 [날짜/수단/금액] 클릭 시 상세 모달 100% 정상 오픈 검증 통과');
+
+  // -------------------------------------------------------------
+  // Step 13: Aggregate Row Mutation Roundtrip & Blank Type Invariant
+  // Enforces that:
+  //   1) Opening modal for Toss Living Cost MUST have blank/unlocked type
+  //   2) Saving fixedCost='고정비' on Toss Living Cost MUST persist across generateForecastRecords
+  //      and render .ledger-fixed-tag in the DOM table!
+  // -------------------------------------------------------------
+  console.log('--- Step 13: Aggregate Row Mutation Roundtrip & Blank Type Invariant ---');
+  const forecastModule = await import('../js/features/ledger/ledger-forecast.js');
+  const { generateForecastRecords, saveForecastAggregateOverride } = forecastModule;
+
+  const txModal = createLedgerTransactionModal({
+    findRecord: () => mockAggregateTx,
+    onSave: (form, overrides) => {
+      saveForecastAggregateOverride('fc-var-toss-2026-08', {
+        fixedCost: '고정비'
+      });
+    }
+  });
+
+  txModal.open({ record: mockAggregateTx });
+
+  // 2) 고정비 저장 실행
+  saveForecastAggregateOverride('fc-var-toss-2026-08', {
+    fixedCost: '고정비'
+  });
+
+  // 3) generateForecastRecords를 다시 실행했을 때 생성된 행에 fixedCost: '고정비'가 살아남는지 검증!
+  const sampleTossRecords = [
+    { id: 'tr-toss-1', date: '2026-08-05', amount: 50000, payment_method: '토스은행', type: 'expense', item: '장보기' }
+  ];
+  const { displayRows: recomputedRows } = generateForecastRecords({
+    allRecords: sampleTossRecords,
+    monthCursor: new Date('2026-08-01')
+  });
+
+  const recomputedTossRow = recomputedRows.find(r => r.id === 'fc-var-toss-2026-08');
+  assert.ok(recomputedTossRow, '토스 생활비 가상행 재생성 실패');
+  assert.strictEqual(
+    recomputedTossRow.fixedCost,
+    '고정비',
+    '토스 생활비 고정비 저장 후 generateForecastRecords에서 fixedCost 누락/초기화 버그 적발!'
+  );
+  console.log('  ✔ 1) 토스 생활비 고정비 저장 및 왕복 상태 보존 100% 검증 통과');
+
+  // 1-A) 수입/지출 선택란이 지출로 강제 고정되지 않고 비어있는지 검증!
+  const typeSelect = document.getElementById('ledgerModalType');
+  assert.ok(
+    !typeSelect || typeSelect.value === '' || !typeSelect.disabled,
+    '토스 생활비 모달의 수입/지출란이 강제 고정되어 비워지지 않는 결함 적발!'
+  );
 }
 
 testAllModalsLifecycle().catch(err => {

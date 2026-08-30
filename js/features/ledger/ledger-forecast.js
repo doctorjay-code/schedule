@@ -289,7 +289,7 @@ export function generateForecastRecords({
         id: tossVarKey,
         date: tossVarOverride.date || `${targetMonthKey}-01`,
         orderIndex: -999999, // 🌟 해당 월 1일 거래들 중 최상단(1위) 고정
-        type: 'expense',
+        type: tossVarOverride.type || '',
         amount: tossVarOverride.amount !== undefined ? Number(tossVarOverride.amount) : Math.max(0, tossLivingExpenses - tossLivingIncome),
         incomeAmount: tossLivingIncome,
         expenseAmount: tossLivingExpenses,
@@ -299,7 +299,7 @@ export function generateForecastRecords({
         person: '',
         category: '',
         memo: '토스 생활비',
-        fixedCost: '',
+        fixedCost: tossVarOverride.fixedCost || '',
         isAggregate: true,
         isVirtualAggregate: true,
         subRecords: tossLivingRecords,
