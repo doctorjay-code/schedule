@@ -475,7 +475,8 @@ function getFundplanView() {
 }
 
 function renderMonthlyLedgerTable(container) {
-  if (!container) return;
+  const targetContainer = container || document.getElementById('ledgerMonthlyTransactionList');
+  if (!targetContainer) return;
   const isCompanyCard = ledgerState.source === 'card' && ledgerState.payment === '기업카드';
   const filterPayment = ledgerState.source === 'card' ? ledgerState.payment : (ledgerState.source === 'cash' ? '현금' : '기업은행');
   const curMonthKey = toIso(ledgerState.monthCursor || new Date()).slice(0, 7);
@@ -503,15 +504,15 @@ function renderMonthlyLedgerTable(container) {
     recordsToRender = calculated.filter(r => String(r.date).startsWith(curMonthKey));
   }
 
-  container.innerHTML = '';
+  targetContainer.replaceChildren();
   if (recordsToRender.length === 0) {
-    appendLedgerEmptyRow(container, `${curMonthKey}월의 거래 내역이 없습니다.`);
+    appendLedgerEmptyRow(targetContainer, `${curMonthKey}월의 거래 내역이 없습니다.`);
     return;
   }
 
   recordsToRender.forEach(record => {
     const isSelected = ledgerState.selectedLedgerIds.has(String(record.id));
-    renderTransactionRow(record, container, {
+    const mainRows = renderTransactionRow(record, targetContainer, {
       source: ledgerState.source,
       isCompanyCard,
       colorSettings: state.colorSettings,
@@ -525,13 +526,61 @@ function renderMonthlyLedgerTable(container) {
         }
       }
     });
+
+    // 🌟 월간 뷰에서도 통합행 아코디언 세부목록 지원
+    if (record.isAggregate && Array.isArray(record.subRecords) && record.subRecords.length > 0) {
+      const subRows = [];
+      record.subRecords.forEach(subItem => {
+        const subRecordData = {
+          ...subItem,
+          isSubDetail: true
+        };
+        const subEls = renderTransactionRow(subRecordData, targetContainer, {
+          source: ledgerState.source,
+          isCompanyCard,
+          colorSettings: state.colorSettings,
+          multiEditMode: false,
+          isSelected: false,
+          onRowClick: (subRec) => {
+            getLedgerTransactionModal().open({ isEdit: true, record: subRec });
+          }
+        });
+        (subEls || []).forEach(subEl => {
+          subEl.style.display = 'none';
+          subEl.classList.add('ledger-accordion-sub-row');
+          subRows.push(subEl);
+        });
+      });
+
+      let isSubExpanded = false;
+      const toggleSubAccordion = (e) => {
+        if (e) e.stopPropagation();
+        isSubExpanded = !isSubExpanded;
+        (mainRows || []).forEach(mr => {
+          const iconEl = mr.querySelector('.ledger-accordion-icon');
+          if (iconEl) iconEl.textContent = isSubExpanded ? '▼' : '▶';
+        });
+        subRows.forEach(subEl => {
+          subEl.style.display = isSubExpanded ? '' : 'none';
+        });
+      };
+
+      (mainRows || []).forEach(rowEl => {
+        const toggleCells = rowEl.querySelectorAll('.ledger-accordion-toggle-cell, .ledger-accordion-icon');
+        toggleCells.forEach(cell => {
+          cell.style.cursor = 'pointer';
+          cell.title = '클릭하여 세부 거래 내역 펼치기/접기';
+          cell.addEventListener('click', toggleSubAccordion);
+        });
+      });
+    }
   });
 }
 
 function renderLedgerTable() {
   const isMonthlyMode = document.getElementById('ledgerMonthlyViewBtn')?.classList.contains('active');
   if (isMonthlyMode) {
-    renderMonthlyLedgerTable();
+    renderMonthlyLedgerTable(document.getElementById('ledgerMonthlyTransactionList'));
   } else {
     const allContainer = document.getElementById('fundplanAllTimeList');
     if (!allContainer) return;

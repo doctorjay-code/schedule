@@ -78,9 +78,11 @@ function createMockDOM() {
       },
       querySelectorAll(sel) {
         const res = [];
-        const selectors = sel.split(',').map(s => s.trim().startsWith('.') ? s.trim().slice(1) : s.trim());
+        const selectors = sel.split(',').map(s => s.trim());
         for (const ch of this.children) {
-          if (selectors.some(cls => ch.className && ch.className.includes(cls))) res.push(ch);
+          const matchTag = selectors.some(s => !s.startsWith('.') && ch.tagName && ch.tagName.toLowerCase() === s.toLowerCase());
+          const matchClass = selectors.some(s => s.startsWith('.') && ch.className && ch.className.includes(s.slice(1)));
+          if (matchTag || matchClass) res.push(ch);
           if (ch.querySelectorAll) res.push(...ch.querySelectorAll(sel));
         }
         return res;
@@ -142,6 +144,21 @@ function createMockDOM() {
   personSwitch.appendChild(pOpt);
   personSwitch.appendChild(cOpt);
 
+  const allTimeWrapper = makeEl('fundplanAllTimeWrapper', 'section');
+  allTimeWrapper.className = 'ledger-period-wrapper';
+  const monthlyWrapper = makeEl('ledgerMonthlyWrapper', 'section');
+  monthlyWrapper.className = 'ledger-period-wrapper hidden';
+
+  const allTimeTable = makeEl('ledgerAllTable', 'table');
+  const allTimeTbody = makeEl('fundplanAllTimeList', 'tbody');
+  allTimeTable.appendChild(allTimeTbody);
+  allTimeWrapper.appendChild(allTimeTable);
+
+  const monthlyTable = makeEl('ledgerMonthlyTable', 'table');
+  const monthlyTbody = makeEl('ledgerMonthlyTransactionList', 'tbody');
+  monthlyTable.appendChild(monthlyTbody);
+  monthlyWrapper.appendChild(monthlyTable);
+
   return {
     document: {
       createElement(tag) {
@@ -157,7 +174,16 @@ function createMockDOM() {
         return store.get(id);
       },
       querySelector(sel) { return null; },
-      querySelectorAll(sel) { return []; },
+      querySelectorAll(sel) {
+        const results = [];
+        for (const el of store.values()) {
+          if (sel.includes('ledger-period-wrapper') && el.className && el.className.includes('ledger-period-wrapper')) {
+            if (sel.includes(':not(.hidden)') && el.classList.contains('hidden')) continue;
+            results.push(el);
+          }
+        }
+        return results;
+      },
       addEventListener() {}
     }
   };
