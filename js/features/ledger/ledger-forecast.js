@@ -278,13 +278,12 @@ export function generateForecastRecords({
       }
     });
 
-    // 3-2. 가상 토스 생활비 합산행 (토스 실제 데이터가 존재하는 월부터만 생성)
-    const tossMonths = allRecords.filter(r => (r.payment_method || r.payment || r.sheetName) === '토스은행').map(r => normalizeLedgerDate(r.date).slice(0, 7)).filter(Boolean).sort();
-    const minTossMonth = tossMonths[0] || '2026-02';
+    // 3-2. 가상 토스 생활비 합산행 (해당 월에 실제 생활비 대상 거래가 1건이라도 있거나 오버라이드한 경우에만 생성!)
+    const tossVarKey = `fc-var-toss-${targetMonthKey}`;
+    const tossVarOverride = aggregateOverrides[tossVarKey] || {};
+    const shouldCreateTossLiving = tossLivingRecords.length > 0 || tossVarOverride.amount !== undefined;
 
-    if (targetMonthKey >= minTossMonth) {
-      const tossVarKey = `fc-var-toss-${targetMonthKey}`;
-      const tossVarOverride = aggregateOverrides[tossVarKey] || {};
+    if (shouldCreateTossLiving) {
       displayRows.push({
         id: tossVarKey,
         date: tossVarOverride.date || `${targetMonthKey}-01`,
@@ -307,10 +306,12 @@ export function generateForecastRecords({
       });
     }
 
-    // 3-3. 기업카드 결제대금 행: 실제 출금 거래가 없는 현재/미래 월에만 가상 예상행 생성!
-    if (!hasRealCardBill && targetMonthKey >= currentCursorKey) {
-      const cardEstKey = `fc-est-card-${targetMonthKey}`;
-      const cardEstOverride = aggregateOverrides[cardEstKey] || {};
+    // 3-3. 기업카드 결제대금 행: 실제 출금 거래가 없고, 해당 주기에 실제 카드 사용 내역이 있거나 오버라이드한 경우에만 생성!
+    const cardEstKey = `fc-est-card-${targetMonthKey}`;
+    const cardEstOverride = aggregateOverrides[cardEstKey] || {};
+    const shouldCreateCardEst = !hasRealCardBill && (cardRecordsForBilling.length > 0 || cardEstOverride.amount !== undefined);
+
+    if (shouldCreateCardEst && targetMonthKey >= currentCursorKey) {
       displayRows.push({
         id: cardEstKey,
         date: cardEstOverride.date || `${targetMonthKey}-23`,
