@@ -340,7 +340,9 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
             let prevY = y;
             let prevM = m - 1;
             if (prevM < 0) { prevM = 11; prevY -= 1; }
-            const cardStart = `${prevY}-${String(prevM + 1).padStart(2, '0')}-13`;
+            const cardStart = (m === 1)
+              ? `${y}-01-01`
+              : `${prevY}-${String(prevM + 1).padStart(2, '0')}-13`;
             const cardEnd = `${y}-${String(m + 1).padStart(2, '0')}-12`;
 
             const cardSubs = (ledgerState.records || []).filter(r => {
@@ -351,6 +353,8 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
             if (cardSubs.length > 0) {
               record.hasCardAccordion = true;
               record.subRecords = cardSubs;
+              const dynamicCardTotal = cardSubs.reduce((sum, r) => sum + ((r.type || 'expense').toLowerCase() === 'income' ? -Number(r.amount || 0) : Number(r.amount || 0)), 0);
+              record.amount = dynamicCardTotal;
             }
           }
         }

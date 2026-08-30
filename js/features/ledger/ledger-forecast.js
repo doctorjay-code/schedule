@@ -197,14 +197,16 @@ export function generateForecastRecords({
     const bankRecords = bucket.bank;
     const manualCardPayments = bucket.manualCard;
 
-    // 카드 결제주기: 전월 13일 ~ 당월 12일
+    // 카드 결제주기: 전월 13일 ~ 당월 12일 (단, 2월은 1월 1일 ~ 2월 12일 전체 합산)
     let cardStartYear = targetYear;
     let cardStartMonth = targetMonth - 1;
     if (cardStartMonth < 0) {
       cardStartMonth = 11;
       cardStartYear -= 1;
     }
-    const cardStartDate = `${cardStartYear}-${String(cardStartMonth + 1).padStart(2, '0')}-13`;
+    const cardStartDate = (targetMonth + 1 === 2)
+      ? `${targetYear}-01-01`
+      : `${cardStartYear}-${String(cardStartMonth + 1).padStart(2, '0')}-13`;
     const cardEndDate = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-12`;
 
     const cardRecordsForBilling = allCardRecords.filter(r => r.normalizedDate >= cardStartDate && r.normalizedDate <= cardEndDate);
@@ -258,11 +260,12 @@ export function generateForecastRecords({
 
       if (isCardBill) {
         hasRealCardBill = true;
+        const dynamicCardBillAmount = cardRecordsForBilling.length > 0 ? cardBillingTotal : Number(r.amount || 0);
         displayRows.push({
           ...r,
           id: r.id,
           originalId: r.id,
-          amount: Number(r.amount || 0),
+          amount: dynamicCardBillAmount,
           isForecastItem: true,
           hasCardAccordion: true,
           subRecords: cardRecordsForBilling,
