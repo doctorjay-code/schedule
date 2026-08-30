@@ -326,6 +326,10 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
         ? monthRecords
         : recalculateRunningBalances(monthRecords, true);
 
+      // 🌟 원본 해당 월 최종 결산 잔액 미리 백업 (시계열 덮어쓰기로 인한 오염 방지)
+      const lastOrigRecord = (monthRecords.length > 0) ? monthRecords[monthRecords.length - 1] : null;
+      const originalMonthFinalBalance = lastOrigRecord ? Number(lastOrigRecord.balance || 0) : 0;
+
       const isGlobalBalance = (ledgerState.balanceMode === 'global');
 
       // 🌟 [잔액 모드 1 & 2 정밀 연산 엔진]
@@ -561,10 +565,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
       const nextMonthNum = m === 12 ? 1 : m + 1;
 
       // 🌟 [월말 최종 마감/예상 잔액 요약행] 렌더링 (잔액 모드와 무관하게 그 달의 진짜 최종 결산 잔액 고정)
-      const lastMonthRecord = monthRecords.length > 0
-        ? monthRecords[monthRecords.length - 1]
-        : null;
-      const finalMonthBal = lastMonthRecord ? Number(lastMonthRecord.balance || 0) : 0;
+      const finalMonthBal = originalMonthFinalBalance;
 
       const summaryRow = createLedgerMonthSummaryRow({
         monthKey: month,
