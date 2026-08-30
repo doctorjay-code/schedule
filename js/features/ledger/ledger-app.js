@@ -126,10 +126,10 @@ function updateMultiActionBar() {
   if (toggleBtn) {
     if (isMulti) {
       toggleBtn.classList.add('active');
-      toggleBtn.textContent = '✕ 선택취소';
+      toggleBtn.textContent = '✕';
     } else {
       toggleBtn.classList.remove('active');
-      toggleBtn.textContent = '☑️ 선택';
+      toggleBtn.textContent = '✏️';
     }
   }
 
