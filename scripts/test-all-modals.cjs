@@ -287,8 +287,13 @@ async function testAllModalsLifecycle() {
 
   // 앱 모듈 초기화 및 바인딩
   const ledgerAppModule = await import('../js/features/ledger/ledger-app.js');
-  const { initLedgerApp } = ledgerAppModule;
+  const { initLedgerApp, setLedgerRecordsForTesting } = ledgerAppModule;
   initLedgerApp();
+
+  setLedgerRecordsForTesting([
+    { id: 'tr-sample-1', date: '2026-08-15', amount: 50000, type: 'expense', payment_method: '토스은행', item: '점심식사', user_name: '쥬쥬', category: '식비' },
+    { id: 'tr-sample-2', date: '2026-08-20', amount: 30000, type: 'income', payment_method: '토스은행', item: '환급금', user_name: '지니', category: '기타' }
+  ]);
 
   // 1) id 있는 모든 인터랙티브 엘리먼트 수집 및 클릭
   const allInteractiveIds = new Set();
@@ -312,6 +317,18 @@ async function testAllModalsLifecycle() {
     try {
       btnEl.click();
       clickedSuccessCount++;
+
+      // 🌟 보편적 뷰포트 내용물 렌더링 불변식 (Universal Non-Empty Render Invariant)
+      // 클릭 후 화면에 활성화(노출)된 모든 뷰 래퍼 내부의 <tbody>에 자식 행(Row)이 1개 이상 살아있는지 자동 전수 검증!
+      const visibleWrappers = Array.from(document.querySelectorAll('section.ledger-period-wrapper:not(.hidden), .view-wrapper:not(.hidden)'));
+      for (const wrapper of visibleWrappers) {
+        const tbodies = wrapper.querySelectorAll('tbody');
+        tbodies.forEach(tb => {
+          if (tb.children.length === 0) {
+            throw new Error(`[#${btnId}] 클릭 후 활성화된 뷰 컨테이너 <#${wrapper.id}> 내부의 <tbody>(#${tb.id || 'anonymous'})에 렌더링된 거래/일정 행이 0개(빈 화면)입니다!`);
+          }
+        });
+      }
     } catch (err) {
       clickErrors.push({ id: btnId, error: err.message, stack: err.stack });
     }

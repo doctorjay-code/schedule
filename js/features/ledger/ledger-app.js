@@ -529,11 +529,15 @@ function renderMonthlyLedgerTable(container) {
 }
 
 function renderLedgerTable() {
-  const allContainer = document.getElementById('fundplanAllTimeList');
-  if (!allContainer) return;
-
-  const view = getFundplanView();
-  view.render();
+  const isMonthlyMode = document.getElementById('ledgerMonthlyViewBtn')?.classList.contains('active');
+  if (isMonthlyMode) {
+    renderMonthlyLedgerTable();
+  } else {
+    const allContainer = document.getElementById('fundplanAllTimeList');
+    if (!allContainer) return;
+    const view = getFundplanView();
+    view.render();
+  }
 }
 
 function updateLedgerPeriodTitle() {
@@ -985,6 +989,11 @@ export function initLedgerView() {
     enter: showLedgerViewTab,
     leave: () => { ledgerState.active = false; }
   };
+}
+
+export function setLedgerRecordsForTesting(records) {
+  ledgerState.records = records || [];
+  applyLedgerDataSources();
 }
 
 export { initLedgerApp };
