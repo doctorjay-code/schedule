@@ -10,7 +10,10 @@ import { toIso, formatMoney } from '../ledger-utils.js';
 import { formatLedgerScheduleDate } from '../transaction-view.js';
 
 // Transaction input, edit, delete, and modal event responsibility.
-export function createLedgerTransactionModal({ ledgerState, findRecord, onSave, onDelete }) {
+export function createLedgerTransactionModal(options = {}) {
+  const { ledgerState, findRecord } = options;
+  const onSave = options.onSave || options.saveRecord;
+  const onDelete = options.onDelete || options.deleteRecord;
   let bound = false;
 
   function modalText(...codes) {

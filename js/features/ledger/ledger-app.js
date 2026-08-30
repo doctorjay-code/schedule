@@ -58,7 +58,9 @@ function getLedgerTransactionModal() {
       state,
       pastelPalette,
       findRecord: (id) => findLedgerTransaction(id),
+      onSave: saveLedgerRecord,
       saveRecord: saveLedgerRecord,
+      onDelete: deleteRecord,
       deleteRecord: deleteRecord,
       getCategorySuggestions: () => getLedgerCategoryNames()
     });

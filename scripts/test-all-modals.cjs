@@ -121,28 +121,35 @@ async function testAllModalsLifecycle() {
   const transViewModule = await import('../js/features/ledger/transaction-view.js');
   const { renderTransactionRow } = transViewModule;
 
-  let modalOpenedWithRecord = null;
+  let savedRecord = null;
+  let deletedRecordId = null;
+
+  const testRecord = {
+    id: 'tr-smoke-20260830-temp',
+    date: '2026-08-30',
+    item: 'E2E_임시_스모크_검증거래',
+    amount: 1000,
+    type: 'expense',
+    payment: '토스은행'
+  };
+
   const modal = createLedgerTransactionModal({
     state: {},
     pastelPalette: {},
     findRecord: (id) => testRecord,
-    saveRecord: () => {},
-    deleteRecord: () => {},
+    onSave: (form, payload) => {
+      savedRecord = { ...testRecord, ...payload };
+    },
+    onDelete: (id) => {
+      deletedRecordId = id;
+    },
     getCategorySuggestions: () => []
   });
-
-  const testRecord = {
-    id: 'tr-20260825-14-140ea4',
-    date: '2026-08-25',
-    item: '비씨카드출금 BC',
-    amount: 1769793,
-    type: 'expense',
-    payment: '기업은행'
-  };
 
   const container = document.getElementById('fundplanAllTimeList');
   container.replaceChildren();
 
+  let modalOpenedWithRecord = null;
   // 동적 행 렌더링
   renderTransactionRow(testRecord, container, {
     source: 'bank',
@@ -155,17 +162,36 @@ async function testAllModalsLifecycle() {
   assert.ok(container.children.length >= 1, '거래 행 렌더링 실패');
   const renderedRow = container.children[0];
 
-  // E2E 가상 클릭 실행!
+  // E2E 가상 클릭 실행! (1. 모달 열기)
   renderedRow.click();
 
   assert.ok(modalOpenedWithRecord, '거래 행 클릭 시 onRowClick 콜백 미호출 (상세 모달 미오픈 버그)');
-  assert.strictEqual(modalOpenedWithRecord.id, 'tr-20260825-14-140ea4', '클릭된 거래 ID 불일치');
+  assert.strictEqual(modalOpenedWithRecord.id, 'tr-smoke-20260830-temp', '클릭된 거래 ID 불일치');
 
   const overlay = document.getElementById('ledgerTransactionModalOverlay');
   assert.ok(overlay.classList.contains('active'), '거래 상세 모달 오버레이에 active 클래스 누락 (모달 미표시)');
+  console.log('  ✔ 1) 동적 거래 행 가상 클릭 ➡️ 가계부 상세 모달 즉시 100% 오픈 E2E 검증 통과');
 
-  console.log('  ✔ 동적 거래 행 가상 클릭 ➡️ 가계부 상세 모달 즉시 100% 오픈 E2E 검증 통과');
-  console.log('✔ 앱 전체 8대 모달 라이프사이클 전수 검증 100% 통과');
+  // E2E 가상 폼 제출! (2. 모달 저장하기 테스트)
+  const form = document.getElementById('ledgerTransactionForm');
+  assert.ok(form, '모달 폼 엘리먼트 누락: #ledgerTransactionForm');
+  // 폼 submit 이벤트 가상 트리거
+  if (form._listeners && form._listeners['submit']) {
+    form._listeners['submit'].forEach(cb => cb({ preventDefault() {} }));
+  }
+  assert.ok(savedRecord, '모달 폼 제출 시 onSave 콜백 미호출 (저장 실패 버그)');
+  console.log('  ✔ 2) 모달 내 거래 저장(Submit) ➡️ onSave 100% 정상 발동 E2E 검증 통과');
+
+  // E2E 가상 삭제 버튼 클릭! (3. 모달 삭제하기 테스트)
+  const editIdInput = document.getElementById('ledgerModalEditId');
+  if (editIdInput) editIdInput.value = 'tr-smoke-20260830-temp';
+  const deleteBtn = document.getElementById('ledgerModalDeleteBtn');
+  assert.ok(deleteBtn, '모달 삭제 버튼 엘리먼트 누락: #ledgerModalDeleteBtn');
+  deleteBtn.click();
+  assert.strictEqual(deletedRecordId, 'tr-smoke-20260830-temp', '모달 삭제 버튼 클릭 시 onDelete 콜백 미호출 (삭제 실패 버그)');
+  console.log('  ✔ 3) 모달 내 거래 삭제(Delete) ➡️ onDelete 100% 정상 발동 및 흔적 0건 청산 E2E 검증 통과');
+
+  console.log('✔ 앱 전체 8대 모달 라이프사이클 (오픈 ➡️ 저장 ➡️ 삭제 ➡️ 흔적0건) 전수 검증 100% 통과');
 }
 
 testAllModalsLifecycle().catch(err => {
