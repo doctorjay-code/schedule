@@ -606,6 +606,41 @@ if (schemaOk) {
 }
 
 // -------------------------------------------------------------
+// Step 9: Version & Cache-Busting Consistency Check (Rule 1)
+// Enforces that js/version.js APP_BUILD_TIME and index.html style.css?v=
+// are 100% exactly matched to prevent browser cache corruption.
+// -------------------------------------------------------------
+console.log('\n\x1b[36m[9/9] Checking Version & Cache-Busting Consistency (version.js vs index.html)...\x1b[0m');
+let versionOk = true;
+totalChecks++;
+
+const versionJsPath = path.join(JS_DIR, 'version.js');
+const versionJsContent = fs.readFileSync(versionJsPath, 'utf8');
+const versionMatch = versionJsContent.match(/APP_BUILD_TIME\s*=\s*['"]([^'"]+)['"]/);
+const appBuildTime = versionMatch ? versionMatch[1] : null;
+
+const cssVersionMatch = indexHtmlContent.match(/href=["']style\.css\?v=([^"']+)["']/);
+const indexCssVersion = cssVersionMatch ? cssVersionMatch[1] : null;
+
+if (!appBuildTime) {
+  versionOk = false;
+  logFail('APP_BUILD_TIME missing in js/version.js', 'Export APP_BUILD_TIME = "YYYYMMDD_HHmm" format.');
+} else if (!indexCssVersion) {
+  versionOk = false;
+  logFail('style.css?v= missing in index.html', 'Include <link rel="stylesheet" href="style.css?v=YYYYMMDD_HHmm">.');
+} else if (appBuildTime !== indexCssVersion) {
+  versionOk = false;
+  logFail(
+    `Version Mismatch: js/version.js ("${appBuildTime}") !== index.html style.css?v= ("${indexCssVersion}")`,
+    'Both must be updated to the exact same timestamp before deployment (cache_and_version_rules.md Rule 1).'
+  );
+}
+
+if (versionOk) {
+  logPass(`Version consistency 100% verified: [${appBuildTime}] matches across js/version.js and index.html.`);
+}
+
+// -------------------------------------------------------------
 // Summary
 // -------------------------------------------------------------
 console.log('\n\x1b[1m=== 📊 Verification Summary ===\x1b[0m');
