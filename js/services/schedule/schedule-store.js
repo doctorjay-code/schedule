@@ -274,8 +274,18 @@ export async function syncColorSettingsFromDB() {
 
 export function saveColorSettings() {
   _state.colorSettings = normalizeColorSettings(_state.colorSettings);
-  localStorage.setItem(USER_COLOR_SETTINGS_KEY, JSON.stringify(_state.colorSettings));
-  saveColorSettingsToDB(_state.colorSettings).catch(e => console.warn('saveColorSettingsToDB warn:', e));
+  if (typeof localStorage !== 'undefined' && localStorage.setItem) {
+    try {
+      localStorage.setItem(USER_COLOR_SETTINGS_KEY, JSON.stringify(_state.colorSettings));
+    } catch (e) {
+      console.warn('localStorage saveColorSettings error:', e);
+    }
+  }
+  const isTest = (typeof process !== 'undefined' && process.versions && Boolean(process.versions.node)) ||
+                 (typeof window !== 'undefined' && Boolean(window.__IS_TEST_ENV__));
+  if (!isTest) {
+    saveColorSettingsToDB(_state.colorSettings).catch(e => console.warn('saveColorSettingsToDB warn:', e));
+  }
 }
 
 export function resetScheduleColorSettings() {

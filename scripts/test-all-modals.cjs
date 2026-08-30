@@ -2,6 +2,23 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
+// 🌟 Zero-Network Pollution Invariant:
+// 테스트 도중 실제 운영 Supabase DB로의 쓰기(POST/PATCH/DELETE) 호출 0건 강제!
+let dbWriteAttempts = 0;
+global.fetch = async (url, options = {}) => {
+  const method = (options.method || 'GET').toUpperCase();
+  if (['POST', 'PATCH', 'DELETE', 'PUT'].includes(method) && String(url).includes('supabase.co')) {
+    dbWriteAttempts++;
+    throw new Error(`💥 Zero-Network Pollution Violation: 테스트 도중 실제 운영 DB 쓰기 [${method} ${url}] 발생 차단!`);
+  }
+  return {
+    ok: true,
+    status: 200,
+    text: async () => JSON.stringify([]),
+    json: async () => []
+  };
+};
+
 // Create lightweight Mock DOM environment
 function createMockDOM() {
   const store = new Map();

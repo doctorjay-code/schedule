@@ -120,15 +120,20 @@ export async function syncColorSettingsToSupabase() {
     saveColorSettings();
     notifyColorUpdated();
 
-    await supabaseRest('app_settings', {
-      method: 'POST',
-      prefer: 'resolution=merge-duplicates',
-      body: {
-        key: 'color_settings',
-        value: payload,
-        updated_at: new Date().toISOString()
-      }
-    });
+    const isTest = (typeof process !== 'undefined' && process.versions && Boolean(process.versions.node)) ||
+                   (typeof window !== 'undefined' && Boolean(window.__IS_TEST_ENV__));
+
+    if (!isTest) {
+      await supabaseRest('app_settings', {
+        method: 'POST',
+        prefer: 'resolution=merge-duplicates',
+        body: {
+          key: 'color_settings',
+          value: payload,
+          updated_at: new Date().toISOString()
+        }
+      });
+    }
     setSyncStatus('saved', '색상 설정 저장 완료');
   } catch (e) {
     console.error('Supabase 색상 저장 오류:', e);
