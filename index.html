@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="스마트일정">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
-  <link rel="stylesheet" href="style.css?v=20260830_1806">
+  <link rel="stylesheet" href="style.css?v=20260830_1846">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -719,59 +719,61 @@
       <h3 id="ledgerAverageBalanceTitle" style="font-size:15px;">🏦 기업은행 평잔 계산기</h3>
       <button id="ledgerAverageBalanceCloseBtn" type="button" class="close-btn" aria-label="닫기">✕</button>
     </div>
-    <div class="sheet-body ledger-average-body" style="padding:0;">
-      <!-- 1. 기간 및 시작잔액 설정 카드 -->
-      <div class="ledger-average-section">
-        <div class="ledger-average-controls-row" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-          <div class="btn-group ledger-avg-mode-group" id="ledgerAvgModeGroup" style="display:flex; width:auto; gap:4px;">
-            <button type="button" class="option-btn active" id="ledgerAvgModeSingleBtn" data-mode="single" style="padding:4px 10px; font-size:11.5px; font-weight:700; height:32px; min-width:54px;">한 달</button>
-            <button type="button" class="option-btn" id="ledgerAvgModeMultiBtn" data-mode="multi" style="padding:4px 10px; font-size:11.5px; font-weight:700; height:32px; min-width:54px;">여러 달</button>
+    <div class="sheet-body ledger-average-body" style="padding:0; display:flex; flex-direction:column; gap:6px;">
+      <!-- 1. 초슬림 상단 설정 & 평잔 통합 대시보드 카드 -->
+      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:8px 10px; display:flex; flex-direction:column; gap:6px;">
+        <!-- 상단 1행: 기간 선택 및 시작잔액 -->
+        <div style="display:flex; gap:6px; align-items:center; flex-wrap:nowrap;">
+          <div class="btn-group ledger-avg-mode-group" id="ledgerAvgModeGroup" style="display:flex; width:auto; gap:2px; flex-shrink:0;">
+            <button type="button" class="option-btn active" id="ledgerAvgModeSingleBtn" data-mode="single" style="padding:3px 8px; font-size:11px; font-weight:700; height:28px; min-width:48px;">한달</button>
+            <button type="button" class="option-btn" id="ledgerAvgModeMultiBtn" data-mode="multi" style="padding:3px 8px; font-size:11px; font-weight:700; height:28px; min-width:48px;">여러달</button>
           </div>
 
           <!-- 한 달 선택 드롭다운 -->
-          <div class="ledger-avg-picker-wrap" id="ledgerAvgSinglePickerWrap" style="flex:1; min-width:130px;">
-            <select class="select-btn ledger-avg-select" id="ledgerAvgSingleMonthSelect" style="width:100%; height:32px; padding:0 6px; font-size:12.5px; font-weight:600;"></select>
+          <div class="ledger-avg-picker-wrap" id="ledgerAvgSinglePickerWrap" style="flex:1; min-width:90px;">
+            <select class="select-btn ledger-avg-select" id="ledgerAvgSingleMonthSelect" style="width:100%; height:28px; padding:0 4px; font-size:11.5px; font-weight:600;"></select>
           </div>
 
           <!-- 여러 달 선택 드롭다운 (시작월 ~ 종료월) -->
-          <div class="ledger-avg-picker-wrap hidden" id="ledgerAvgMultiPickerWrap" style="flex:1; min-width:190px; display:flex; align-items:center; gap:4px;">
-            <select class="select-btn ledger-avg-select" id="ledgerAvgStartMonthSelect" style="flex:1; height:32px; padding:0 6px; font-size:12.5px; font-weight:600;"></select>
-            <span style="font-weight:bold; color:#64748B; font-size:12px;">~</span>
-            <select class="select-btn ledger-avg-select" id="ledgerAvgEndMonthSelect" style="flex:1; height:32px; padding:0 6px; font-size:12.5px; font-weight:600;"></select>
+          <div class="ledger-avg-picker-wrap hidden" id="ledgerAvgMultiPickerWrap" style="flex:1; min-width:140px; display:flex; align-items:center; gap:2px;">
+            <select class="select-btn ledger-avg-select" id="ledgerAvgStartMonthSelect" style="flex:1; height:28px; padding:0 2px; font-size:11px; font-weight:600;"></select>
+            <span style="font-weight:bold; color:#64748B; font-size:10px;">~</span>
+            <select class="select-btn ledger-avg-select" id="ledgerAvgEndMonthSelect" style="flex:1; height:28px; padding:0 2px; font-size:11px; font-weight:600;"></select>
+          </div>
+
+          <!-- 시작 잔액 입력 -->
+          <div style="display:flex; align-items:center; gap:3px; flex-shrink:0;">
+            <input type="text" class="input-text ledger-avg-opening-input" id="ledgerAverageOpeningBalanceInput" inputmode="numeric" placeholder="시작잔액" title="시작잔액" style="text-align:right; font-weight:700; color:#1E293B; width:84px; height:28px; font-size:11.5px; padding:2px 4px;">
+            <button type="button" id="ledgerAvgResetBankBtn" class="ledger-avg-btn" title="기업은행 원본 다시 로드" style="font-size:11px; padding:3px 6px; height:28px; border-radius:6px; background:#FFFFFF; border:1px solid #CBD5E1; cursor:pointer; font-weight:600; color:#334155;">↺</button>
           </div>
         </div>
 
-        <div class="ledger-avg-opening-wrap" style="margin-top:6px; display:flex; align-items:center; gap:6px; background:#F8FAFC; padding:5px 10px; border-radius:8px; border:1px solid #E2E8F0;">
-          <label style="font-size:12px; font-weight:600; color:#475569; white-space:nowrap;">시작 잔액</label>
-          <input type="text" class="input-text ledger-avg-opening-input" id="ledgerAverageOpeningBalanceInput" inputmode="numeric" placeholder="0" style="text-align:right; font-weight:700; color:#1E293B; flex:1; max-width:140px; height:28px; font-size:12.5px; padding:2px 6px;">
-          <span style="font-size:12px; font-weight:600; color:#475569;">원</span>
-          <button type="button" id="ledgerAvgResetBankBtn" class="ledger-avg-btn" style="margin-left:auto; font-size:11.5px; padding:3px 8px; border-radius:6px; background:#FFFFFF; border:1px solid #CBD5E1; cursor:pointer; font-weight:600; color:#334155; box-shadow:0 1px 2px rgba(0,0,0,0.05);">↺ 다시 로드</button>
+        <!-- 상단 2행: 핵심 기간 평균 잔액 결과 배너 -->
+        <div style="background:#EEF2FF; border:1px solid #818CF8; border-radius:6px; padding:6px 10px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:10.5px; font-weight:700; color:#4338CA;">기간 평균 잔액</div>
+            <div id="ledgerAverageResultPeriod" style="font-size:10px; color:#6366F1; font-weight:500;">2026.08.01 ~ 2026.08.31</div>
+          </div>
+          <div id="ledgerAverageResultValue" style="font-size:17px; font-weight:800; color:#1E1B4B; letter-spacing:-0.02em;">0원</div>
         </div>
       </div>
 
-      <!-- 2. 핵심 결과: 기간 평균 잔액 -->
-      <div class="ledger-average-result-card" style="background:#EEF2FF; border:1.5px solid #818CF8; border-radius:10px; padding:8px 14px; margin-top:6px; text-align:center;">
-        <div class="ledger-avg-res-label" style="font-size:11px; font-weight:700; color:#4338CA; letter-spacing:0.02em; margin-bottom:2px;">기간 평균 잔액</div>
-        <div class="ledger-avg-res-val" id="ledgerAverageResultValue" style="font-size:20px; font-weight:800; color:#1E1B4B; letter-spacing:-0.02em;">0원</div>
-        <div class="ledger-avg-res-sub" id="ledgerAverageResultPeriod" style="font-size:11px; color:#6366F1; font-weight:600; margin-top:2px;">2026.08.01 ~ 2026.08.31 (31일간)</div>
-      </div>
-
-      <!-- 3. 거래 목록 테이블 -->
-      <div class="ledger-average-section" style="margin-top:8px;">
-        <div class="ledger-average-list-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <strong style="font-size:13px; color:#1E293B;">거래 목록</strong>
-          <button id="ledgerAverageAddTransactionBtn" type="button" class="ledger-avg-add-btn" style="background:#2563EB; color:#fff; font-weight:bold; border:none; padding:4px 10px; border-radius:6px; font-size:11.5px; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,0.1);">＋ 거래 추가</button>
+      <!-- 2. 거래 목록 테이블 -->
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <strong style="font-size:12px; color:#1E293B;">거래 목록</strong>
+          <button id="ledgerAverageAddTransactionBtn" type="button" style="background:#2563EB; color:#fff; font-weight:bold; border:none; padding:3px 8px; border-radius:5px; font-size:11px; cursor:pointer;">＋ 거래 추가</button>
         </div>
 
-        <div class="table-wrapper ledger-avg-table-wrap" style="max-height: 28vh; overflow-y:auto; border-radius:8px; border:1px solid #E2E8F0; background:#FFFFFF;">
+        <div class="table-wrapper ledger-avg-table-wrap" style="max-height: 120px; overflow-y:auto; border-radius:6px; border:1px solid #E2E8F0; background:#FFFFFF;">
           <table class="schedule-table ledger-schedule-table" id="ledgerAverageTable">
             <thead>
               <tr>
-                <th class="col-date" style="width: 22%; min-width: 82px; text-align:center; padding:5px 2px; font-size:11.5px;">날짜/요일</th>
-                <th class="col-clinic" style="width: 33%; text-align:left; padding-left:8px; font-size:11.5px;">항목</th>
-                <th class="col-trans" style="width: 15%; text-align:right; padding-right:6px; font-size:11.5px;">입금</th>
-                <th class="col-hr" style="width: 15%; text-align:right; padding-right:6px; font-size:11.5px;">출금</th>
-                <th class="col-ot" style="width: 15%; text-align:right; padding-right:6px; font-size:11.5px;">잔액</th>
+                <th class="col-date" style="width: 22%; min-width: 78px; text-align:center; padding:4px 2px; font-size:11px;">날짜/요일</th>
+                <th class="col-clinic" style="width: 33%; text-align:left; padding-left:6px; font-size:11px;">항목</th>
+                <th class="col-trans" style="width: 15%; text-align:right; padding-right:4px; font-size:11px;">입금</th>
+                <th class="col-hr" style="width: 15%; text-align:right; padding-right:4px; font-size:11px;">출금</th>
+                <th class="col-ot" style="width: 15%; text-align:right; padding-right:4px; font-size:11px;">잔액</th>
               </tr>
             </thead>
             <tbody id="ledgerAverageTableBody"></tbody>

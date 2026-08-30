@@ -2562,8 +2562,11 @@ body {
 }
 
 /* Average Balance Calculator Modal Specific Components */
+#ledgerAverageBalanceOverlay .bottom-sheet {
+  max-height: min(65vh, 65dvh);
+}
 .ledger-avg-table-wrap {
-  max-height: 180px;
+  max-height: 120px;
   overflow-y: auto;
 }
 
