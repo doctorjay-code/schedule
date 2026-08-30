@@ -61,9 +61,15 @@ export function createLedgerTransactionModal(options = {}) {
     const amountInput = document.getElementById('ledgerModalAmount');
     const typeSelect = document.getElementById('ledgerModalType');
 
+    const itemInput = document.getElementById('ledgerModalItem');
+    const memoInput = document.getElementById('ledgerModalMemo');
+    const paymentSelect = document.getElementById('ledgerModalPayment');
+    const personInput = document.getElementById('ledgerModalPerson');
+    const categoryGroup = document.getElementById('ledgerModalCategoryGroup');
+
     if (isAggregate) {
-      // 🌟 가상 집계행(기업카드 결제행, 생활비 등):
-      // 폼 전체는 수정 가능하게 열어두고 금액만 수정 불가(readOnly) 처리!
+      // 🌟 가상 집계행(기업카드 결제행, 토스 생활비 등):
+      // [날짜] 및 [구분(고정비)] 2개만 수정 가능하게 열어두고, 나머지는 모두 픽스(readOnly/disabled) 잠금!
       setFormReadOnly(document.getElementById('ledgerTransactionForm'), false);
       if (amountInput) {
         amountInput.readOnly = true;
@@ -72,11 +78,49 @@ export function createLedgerTransactionModal(options = {}) {
         amountInput.title = '금액은 세부내역 합계로 자동 계산됩니다.';
       }
       if (typeSelect) {
-        typeSelect.disabled = false;
+        typeSelect.disabled = true;
+        typeSelect.title = '수입/지출은 세부내역 정산 흐름에 따라 자동 결정됩니다.';
+      }
+      if (itemInput) {
+        itemInput.readOnly = true;
+        itemInput.style.backgroundColor = '#F8FAFC';
+      }
+      if (memoInput) {
+        memoInput.readOnly = true;
+        memoInput.style.backgroundColor = '#F8FAFC';
+      }
+      if (paymentSelect) {
+        paymentSelect.disabled = true;
+      }
+      if (personInput) {
+        personInput.readOnly = true;
+      }
+      if (categoryGroup) {
+        categoryGroup.style.pointerEvents = 'none';
+        categoryGroup.style.opacity = '0.6';
       }
       setElementVisible(document.getElementById('ledgerModalSaveBtn'), true);
       setElementVisible(document.getElementById('ledgerModalDeleteBtn'), false);
       return;
+    }
+
+    if (itemInput) {
+      itemInput.readOnly = false;
+      itemInput.style.backgroundColor = '';
+    }
+    if (memoInput) {
+      memoInput.readOnly = false;
+      memoInput.style.backgroundColor = '';
+    }
+    if (paymentSelect) {
+      paymentSelect.disabled = false;
+    }
+    if (personInput) {
+      personInput.readOnly = false;
+    }
+    if (categoryGroup) {
+      categoryGroup.style.pointerEvents = '';
+      categoryGroup.style.opacity = '';
     }
 
     if (amountInput) {
@@ -157,7 +201,7 @@ export function createLedgerTransactionModal(options = {}) {
       }
     }
 
-    document.getElementById('ledgerModalType').value = (isAggregate && !value.type) ? '' : (value.type || 'expense');
+    document.getElementById('ledgerModalType').value = value.type || 'expense';
     let selectedPayment = String(value.payment || defaults.payment || '').trim();
     if (selectedPayment === '토스' || selectedPayment === '토스카드' || selectedPayment === '토스뱅크') selectedPayment = '토스은행';
     if (selectedPayment === '기업' || selectedPayment === '신용카드' || selectedPayment === '카드') selectedPayment = '기업카드';

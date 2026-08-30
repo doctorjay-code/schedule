@@ -665,56 +665,54 @@ async function testAllModalsLifecycle() {
   console.log('  ✔ 2) 통합행 [날짜/수단/금액] 클릭 시 상세 모달 100% 정상 오픈 검증 통과');
 
   // -------------------------------------------------------------
-  // Step 13: Aggregate Row Mutation Roundtrip & Blank Type Invariant
+  // Step 13: Aggregate Modal Fixed Fields & Automatic Cashflow Type Invariant
   // Enforces that:
-  //   1) Opening modal for Toss Living Cost MUST have blank/unlocked type
-  //   2) Saving fixedCost='고정비' on Toss Living Cost MUST persist across generateForecastRecords
-  //      and render .ledger-fixed-tag in the DOM table!
   // -------------------------------------------------------------
-  console.log('--- Step 13: Aggregate Row Mutation Roundtrip & Blank Type Invariant ---');
+  // Step 13: Aggregate Row Cashflow Type & Persistence Invariant
+  // Enforces that:
+  //   1) Net living expense (expense > income) automatically resolves to type='expense'
+  //   2) Net living income (income > expense) automatically resolves to type='income'
+  //   3) Saving fixedCost='고정비' on Aggregate Row persists across generateForecastRecords
+  // -------------------------------------------------------------
+  console.log('--- Step 13: Aggregate Row Cashflow Type & Persistence Invariant ---');
   const forecastModule = await import('../js/features/ledger/ledger-forecast.js');
   const { generateForecastRecords, saveForecastAggregateOverride } = forecastModule;
 
-  const txModal = createLedgerTransactionModal({
-    findRecord: () => mockAggregateTx,
-    onSave: (form, overrides) => {
-      saveForecastAggregateOverride('fc-var-toss-2026-08', {
-        fixedCost: '고정비'
-      });
-    }
+  // 1) 수입/지출 자동 결정 검증: 순 지출(50000) ➡️ 'expense' 자동 설정
+  const sampleTossExpense = [
+    { id: 'tr-toss-1', date: '2026-08-05', amount: 50000, payment_method: '토스은행', type: 'expense', item: '장보기' }
+  ];
+  const { displayRows: expRows } = generateForecastRecords({
+    allRecords: sampleTossExpense,
+    monthCursor: new Date('2026-08-01')
   });
+  const expRow = expRows.find(r => r.id === 'fc-var-toss-2026-08');
+  assert.strictEqual(expRow.type, 'expense', '토스 순지출 시 type=expense 자동 결정 실패');
 
-  txModal.open({ record: mockAggregateTx });
+  // 1-B) 순 수입(환급 100,000 > 지출 30,000) ➡️ 'income' 자동 설정
+  const sampleTossIncome = [
+    { id: 'tr-toss-2', date: '2026-08-05', amount: 100000, payment_method: '토스은행', type: 'income', item: '환급' },
+    { id: 'tr-toss-3', date: '2026-08-06', amount: 30000, payment_method: '토스은행', type: 'expense', item: '식사' }
+  ];
+  const { displayRows: incRows } = generateForecastRecords({
+    allRecords: sampleTossIncome,
+    monthCursor: new Date('2026-08-01')
+  });
+  const incRow = incRows.find(r => r.id === 'fc-var-toss-2026-08');
+  assert.strictEqual(incRow.type, 'income', '토스 순수입 시 type=income 자동 결정 실패');
+  console.log('  ✔ 1) 토스 생활비 잔액 흐름에 따른 수입/지출 자동 결정 100% 검증 통과');
 
-  // 2) 고정비 저장 실행
+  // 2) 고정비 저장 실행 및 상태 보존 검증
   saveForecastAggregateOverride('fc-var-toss-2026-08', {
     fixedCost: '고정비'
   });
-
-  // 3) generateForecastRecords를 다시 실행했을 때 생성된 행에 fixedCost: '고정비'가 살아남는지 검증!
-  const sampleTossRecords = [
-    { id: 'tr-toss-1', date: '2026-08-05', amount: 50000, payment_method: '토스은행', type: 'expense', item: '장보기' }
-  ];
   const { displayRows: recomputedRows } = generateForecastRecords({
-    allRecords: sampleTossRecords,
+    allRecords: sampleTossExpense,
     monthCursor: new Date('2026-08-01')
   });
-
   const recomputedTossRow = recomputedRows.find(r => r.id === 'fc-var-toss-2026-08');
-  assert.ok(recomputedTossRow, '토스 생활비 가상행 재생성 실패');
-  assert.strictEqual(
-    recomputedTossRow.fixedCost,
-    '고정비',
-    '토스 생활비 고정비 저장 후 generateForecastRecords에서 fixedCost 누락/초기화 버그 적발!'
-  );
-  console.log('  ✔ 1) 토스 생활비 고정비 저장 및 왕복 상태 보존 100% 검증 통과');
-
-  // 1-A) 수입/지출 선택란이 지출로 강제 고정되지 않고 비어있는지 검증!
-  const typeSelect = document.getElementById('ledgerModalType');
-  assert.ok(
-    !typeSelect || typeSelect.value === '' || !typeSelect.disabled,
-    '토스 생활비 모달의 수입/지출란이 강제 고정되어 비워지지 않는 결함 적발!'
-  );
+  assert.strictEqual(recomputedTossRow.fixedCost, '고정비', '고정비 저장 왕복 보존 실패');
+  console.log('  ✔ 2) 토스 생활비 고정비 저장 및 왕복 상태 보존 100% 검증 통과');
 }
 
 testAllModalsLifecycle().catch(err => {
