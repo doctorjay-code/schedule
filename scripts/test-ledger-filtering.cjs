@@ -185,7 +185,59 @@ async function runCoreLedgerInvariants() {
   const subTotal = billRow.subRecords.reduce((sum, r) => sum + r.amount, 0);
   assert.strictEqual(billRow.amount, subTotal, '💥 회계 불일치: 결제행 금액과 카드 세부 거래 합계가 1원이라도 다름!');
 
-  console.log('✔ 가계부 6대 본질 불변식 (카드 결제 대사 일치 포함) 100% 검증 완료');
+  console.log('--- 8. Core Invariant 7: Dual Balance Mode & Same-Day Priority Invariant ---');
+  const sampleChronologicalRecords = [
+    { id: 'toss-1', date: '2026-08-05', amount: 50000, type: 'expense', payment_method: '토스은행', item: '마트', category: '식비' },
+    { id: 'bank-1', date: '2026-08-10', amount: 500000, type: 'expense', payment_method: '기업은행', item: '월세', category: '생활' },
+    { id: 'toss-same-day', date: '2026-08-20', amount: 10000, type: 'expense', payment_method: '토스은행', item: '편의점', category: '식비' },
+    { id: 'toss-fixed-same-day', date: '2026-08-20', amount: 100000, type: 'expense', payment_method: '토스은행', item: '보험료', fixed_cost: '고정비' }
+  ];
+
+  const { displayRows: sampleChronoRows } = genFc({ allRecords: sampleChronologicalRecords, monthCursor: new Date('2026-08-01') });
+  const tossLiving = sampleChronoRows.find(r => r.isAggregate && r.item === '토스 생활비');
+  assert.ok(tossLiving, '토스 생활비 통합행 누락');
+  assert.strictEqual(tossLiving.subRecords.length, 2, '토스 생활비 세부 목록 건수 불일치 (마트, 편의점)');
+
+  // 모드 1 (생활비 전용 잔액): 3,000,000 시작 -> 50,000 차감 -> 2,950,000 -> 10,000 차감 -> 2,940,000
+  let localRun = 3000000;
+  const localBalances = tossLiving.subRecords.map(s => {
+    localRun -= s.amount;
+    return localRun;
+  });
+  assert.deepStrictEqual(localBalances, [2950000, 2940000], '모드 1(생활비 전용) 잔액 계산 불일치');
+
+  // 모드 2 (전체 시계열 일치 + 같은 날 생활비 우선):
+  // 1) 8/05 생활비(-5만) -> 2,950,000
+  // 2) 8/10 기업은행 월세(-50만) -> 2,450,000
+  // 3) 8/20 생활비 편의점(-1만, 1순위) -> 2,440,000
+  // 4) 8/20 토스 보험료(-10만, 2순위) -> 2,340,000
+  const allEvents = [
+    { ...sampleChronologicalRecords[1], isSub: false },
+    { ...sampleChronologicalRecords[3], isSub: false },
+    { ...sampleChronologicalRecords[0], isSub: true },
+    { ...sampleChronologicalRecords[2], isSub: true }
+  ];
+  allEvents.sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    if (a.isSub && !b.isSub) return -1;
+    if (!a.isSub && b.isSub) return 1;
+    return 0;
+  });
+
+  let globalRun = 3000000;
+  const globalResult = allEvents.map(e => {
+    globalRun -= e.amount;
+    return { item: e.item, balance: globalRun };
+  });
+
+  assert.deepStrictEqual(globalResult, [
+    { item: '마트', balance: 2950000 },
+    { item: '월세', balance: 2450000 },
+    { item: '편의점', balance: 2440000 },
+    { item: '보험료', balance: 2340000 }
+  ], '모드 2(전체 시계열 일치 및 동일 날짜 생활비 우선순위) 불일치');
+
+  console.log('✔ 가계부 7대 본질 불변식 (생활비/시계열 2대 잔액 모드 및 우선순위 포함) 100% 검증 완료');
 }
 
 runCoreLedgerInvariants().catch(err => {

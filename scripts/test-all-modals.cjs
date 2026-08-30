@@ -795,6 +795,19 @@ async function testAllModalsLifecycle() {
   const recomputedTossRow = recomputedRows.find(r => r.id === 'fc-var-toss-2026-08');
   assert.strictEqual(recomputedTossRow.fixedCost, '고정비', '고정비 저장 왕복 보존 실패');
   console.log('  ✔ 2) 토스 생활비 고정비 저장 및 왕복 상태 보존 100% 검증 통과');
+
+  console.log('--- Step 14: Balance Toggle Button & Accordion Preservation E2E ---');
+  const balanceBtn = document.getElementById('ledgerBalanceModeToggleBtn');
+  assert.ok(balanceBtn, '#ledgerBalanceModeToggleBtn 버튼 DOM 존재 누락');
+
+  // 1) 버튼 클릭 시 active 토글 검증
+  balanceBtn.classList.remove('active');
+  assert.strictEqual(balanceBtn.classList.contains('active'), false, '초기 상태는 unactive여야 함');
+  balanceBtn.click();
+  assert.strictEqual(balanceBtn.classList.contains('active'), true, '클릭 후 active 활성화 실패');
+  balanceBtn.click();
+  assert.strictEqual(balanceBtn.classList.contains('active'), false, '재클릭 후 unactive 복귀 실패');
+  console.log('  ✔ 1) [잔액] 토글 버튼 DOM 및 상태 전환 100% 검증 통과');
 }
 
 testAllModalsLifecycle().catch(err => {
