@@ -13,6 +13,16 @@ export function bindScheduleNavigation({
   getTodayWeekIndex,
   syncFromSheets
 }) {
+  document.getElementById('scheduleMenuBtn')?.addEventListener('click', () => {
+    leaveLedger();
+    if (state.currentView === 'monthly') {
+      switchViewMode('monthly');
+      renderMonthly();
+    } else {
+      switchViewMode('weekly');
+      loadWeek(state.currentWeekIndex);
+    }
+  });
   document.getElementById('ledgerMenuBtn')?.addEventListener('click', enterLedger);
   document.getElementById('openStatsModalBtn')?.addEventListener('click', openStats);
   document.getElementById('openColorSettingsBtn')?.addEventListener('click', openColor);

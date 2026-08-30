@@ -34,6 +34,16 @@ export function showScheduleView(options = {}) {
   document.getElementById('ledgerPersonSwitch')?.classList.add('hidden');
   document.getElementById('ledgerViewWrapper')?.classList.add('hidden');
 
+  // 🌟 Restore active schedule view container (weekly vs monthly)
+  const monthlyMode = document.querySelector('.view-mode-btn[data-mode="monthly"]')?.classList.contains('active');
+  if (monthlyMode) {
+    document.getElementById('monthlyViewWrapper')?.classList.remove('hidden');
+    document.getElementById('weeklyViewWrapper')?.classList.add('hidden');
+  } else {
+    document.getElementById('weeklyViewWrapper')?.classList.remove('hidden');
+    document.getElementById('monthlyViewWrapper')?.classList.add('hidden');
+  }
+
   // Hide ledger elements
   document.querySelectorAll('.ledger-only').forEach(el => el.classList.add('hidden'));
 

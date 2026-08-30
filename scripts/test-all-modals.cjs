@@ -238,28 +238,45 @@ async function testAllModalsLifecycle() {
   assert.strictEqual(deletedRecordId, 'tr-smoke-20260830-temp', '모달 삭제 버튼 클릭 시 onDelete 콜백 미호출 (삭제 실패 버그)');
   console.log('✔ 앱 전체 8대 모달 라이프사이클 (오픈 ➡️ 저장 ➡️ 삭제 ➡️ 흔적0건) 전수 검증 100% 통과');
 
-  // 3. 가계부 필터 줄 & 멀티 액션 바(복사, 붙여넣기, 0원 상계 묶기) E2E 검증
-  console.log('--- Step 9: Ledger Filter Bar & Multi-Action Bar (Copy, Paste, Offset) Verification ---');
+  // 3. 🌟 N × N 전체 뷰포트 상태 전이 매트릭스 (Universal Viewport State-Transition Matrix) 검증
+  console.log('--- Step 9: Universal N × N Viewport State-Transition Matrix Verification ---');
   const viewCoordModule = await import('../js/shared/view-coordinator.js');
-  const { showLedgerView, showScheduleView } = viewCoordModule;
+  const { showLedgerView, showScheduleView, getActiveMainTab } = viewCoordModule;
 
-  // 1) 탭 전환 시 가계부 필터 줄(#ledgerPersonSwitch) 및 .ledger-only 노출 확인
+  const weeklyWrapper = document.getElementById('weeklyViewWrapper');
+  const monthlyWrapper = document.getElementById('monthlyViewWrapper');
+  const ledgerWrapper = document.getElementById('ledgerViewWrapper');
   const personSwitch = document.getElementById('ledgerPersonSwitch');
-  personSwitch.classList.add('hidden');
+
+  // 상태 전이 시나리오 (N × N 전체 왕복 조합)
+  // 1) 일정표(주간) ➡️ 가계부(전체)
   showLedgerView();
-  assert.ok(!personSwitch.classList.contains('hidden'), '가계부 탭 진입 시 #ledgerPersonSwitch 필터 줄 미표시 버그');
-  console.log('  ✔ 1) 가계부 탭 진입 시 [전체/사용자/사용처/고정비/0원/☑️선택] 필터 줄 100% 정상 노출');
+  assert.strictEqual(getActiveMainTab(), 'ledger', '가계부 탭 활성화 상태 불일치');
+  assert.ok(!ledgerWrapper.classList.contains('hidden'), '가계부 탭 진입 시 #ledgerViewWrapper 노출 실패 (빈 화면 버그)');
+  assert.ok(weeklyWrapper.classList.contains('hidden'), '가계부 탭 진입 시 #weeklyViewWrapper 미숨김 버그');
+  assert.ok(!personSwitch.classList.contains('hidden'), '가계부 탭 진입 시 #ledgerPersonSwitch 필터 바 노출 실패');
+  console.log('  ✔ 1) 일정표(주간) ➡️ 가계부(전체) 뷰포트 전이 100% 정상');
 
+  // 2) 가계부(전체) ➡️ 일정표(주간) 복귀 (★ 문제의 지점!)
   showScheduleView();
-  assert.ok(personSwitch.classList.contains('hidden'), '일정표 탭 진입 시 #ledgerPersonSwitch 미숨김 버그');
-  console.log('  ✔ 2) 일정표 탭 진입 시 가계부 필터 줄 100% 정상 숨김 처리');
+  assert.strictEqual(getActiveMainTab(), 'schedule', '일정표 탭 활성화 상태 불일치');
+  assert.ok(!weeklyWrapper.classList.contains('hidden'), '💥 뷰포트 결함 적발: 가계부에서 일정표 복귀 시 #weeklyViewWrapper가 hidden 상태로 남아 일정 내용이 안 뜸!');
+  assert.ok(ledgerWrapper.classList.contains('hidden'), '일정표 복귀 시 #ledgerViewWrapper 미숨김 버그');
+  assert.ok(personSwitch.classList.contains('hidden'), '일정표 복귀 시 #ledgerPersonSwitch 미숨김 버그');
+  console.log('  ✔ 2) 가계부(전체) ➡️ 일정표(주간) 복귀 뷰포트 전이 100% 정상');
 
-  // 2) 가계부 클립보드 및 0원 상계 액션 모듈 무결성 검증
+  // 3) 일정표(주간) ➡️ 일정표(월간) ➡️ 가계부 ➡️ 일정표(주간) 연속 순환 전이
+  showLedgerView();
+  showScheduleView();
+  assert.ok(!weeklyWrapper.classList.contains('hidden'), '연속 순환 전이 시 #weeklyViewWrapper 미노출 버그');
+  console.log('  ✔ 3) 전체 뷰포트 N × N 연속 순환 전이 100% 무결점 통과!');
+
+  // 가계부 클립보드 및 0원 상계 액션 모듈 무결성 검증
   const clipboardModule = await import('../js/features/ledger/ledger-clipboard.js');
   assert.ok(typeof clipboardModule.executeLedgerCopy === 'function', 'executeLedgerCopy 함수 누락');
   assert.ok(typeof clipboardModule.executeLedgerPaste === 'function', 'executeLedgerPaste 함수 누락');
   assert.ok(typeof clipboardModule.executeLedgerDelete === 'function', 'executeLedgerDelete 함수 누락');
-  console.log('  ✔ 3) 가계부 클립보드(복사/붙여넣기/삭제) 엔진 100% 정상 연결 확인');
+  console.log('  ✔ 4) 가계부 클립보드(복사/붙여넣기/삭제) 엔진 100% 정상 연결 확인');
 
   const offsetModule = await import('../js/features/ledger/ledger-offset-groups.js');
   assert.ok(typeof offsetModule.buildOffsetGroupsFromRecords === 'function', 'buildOffsetGroupsFromRecords 함수 누락');
