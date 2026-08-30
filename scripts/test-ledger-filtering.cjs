@@ -198,13 +198,9 @@ async function runCoreLedgerInvariants() {
   assert.ok(tossLiving, '토스 생활비 통합행 누락');
   assert.strictEqual(tossLiving.subRecords.length, 2, '토스 생활비 세부 목록 건수 불일치 (마트, 편의점)');
 
-  // 모드 1 (생활비 전용 잔액): 3,000,000 시작 -> 50,000 차감 -> 2,950,000 -> 10,000 차감 -> 2,940,000
-  let localRun = 3000000;
-  const localBalances = tossLiving.subRecords.map(s => {
-    localRun -= s.amount;
-    return localRun;
-  });
-  assert.deepStrictEqual(localBalances, [2950000, 2940000], '모드 1(생활비 전용) 잔액 계산 불일치');
+  // 기본 모드 (원래 방식 100% 보존): 세부 목록의 balance는 undefined로 공란 유지
+  const defaultSubBalances = tossLiving.subRecords.map(s => s.balance);
+  assert.deepStrictEqual(defaultSubBalances, [undefined, undefined], '기본 모드(원래 방식)에서 세부 목록 잔액 공란 유지 실패');
 
   // 모드 2 (전체 시계열 일치 + 같은 날 생활비 우선):
   // 1) 8/05 생활비(-5만) -> 2,950,000

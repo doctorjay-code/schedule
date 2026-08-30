@@ -276,7 +276,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
 
       // 🌟 [잔액 모드 1 & 2 정밀 연산 엔진]
       if (isForecast && isGlobalBalance) {
-        // 🌟 모드 2: 전체 시계열 일치 (바깥 거래 + 생활비 세부거래 날짜순 인터리빙)
+        // 🌟 [잔액] 클릭 상태 (모드 2: 전체 시계열 일치 - 바깥 거래 + 생활비 세부거래 날짜순 인터리빙)
         const tossAgg = calculatedMonthRecords.find(r => r.isAggregate && String(r.item || '').includes('토스 생활비'));
         const tossSubs = (tossAgg && Array.isArray(tossAgg.subRecords)) ? tossAgg.subRecords : [];
         if (tossSubs.length > 0) {
@@ -316,17 +316,12 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
           });
         }
       } else if (isForecast && !isGlobalBalance) {
-        // 🌟 모드 1: 생활비 전용 (세부 거래들은 생활비 안에서만 순수 차감)
+        // 🌟 [잔액] 미클릭 상태 (기본 = 원래 방식 100% 보존): 세부 거래들은 잔액 칸 비움(undefined), 바깥 거래는 원래 잔액 유지!
         const tossAgg = calculatedMonthRecords.find(r => r.isAggregate && String(r.item || '').includes('토스 생활비'));
         const tossSubs = (tossAgg && Array.isArray(tossAgg.subRecords)) ? tossAgg.subRecords : [];
         if (tossSubs.length > 0) {
-          let localRunning = Number(tossAgg.balance || 0) + (tossAgg.type === 'expense' ? Number(tossAgg.amount || 0) : -Number(tossAgg.amount || 0));
-          const sortedSubs = [...tossSubs].sort((a, b) => compareLedgerRecords(a, b, true));
-          sortedSubs.forEach(sub => {
-            const amt = Number(sub.amount || 0);
-            const isExp = (sub.type || 'expense').toLowerCase() === 'expense';
-            localRunning += (isExp ? -amt : amt);
-            sub.balance = localRunning;
+          tossSubs.forEach(sub => {
+            sub.balance = undefined;
           });
         }
       }
