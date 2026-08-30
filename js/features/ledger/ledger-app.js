@@ -578,15 +578,10 @@ function renderMonthlyLedgerTable(container) {
 }
 
 function renderLedgerTable() {
-  const isMonthlyMode = document.getElementById('ledgerMonthlyViewBtn')?.classList.contains('active');
-  if (isMonthlyMode) {
-    renderMonthlyLedgerTable(document.getElementById('ledgerMonthlyTransactionList'));
-  } else {
-    const allContainer = document.getElementById('fundplanAllTimeList');
-    if (!allContainer) return;
-    const view = getFundplanView();
-    view.render();
-  }
+  const allContainer = document.getElementById('fundplanAllTimeList');
+  if (!allContainer) return;
+  const view = getFundplanView();
+  view.render();
 }
 
 function updateLedgerPeriodTitle() {
@@ -595,7 +590,7 @@ function updateLedgerPeriodTitle() {
   const cursor = ledgerState.monthCursor instanceof Date ? ledgerState.monthCursor : new Date();
   const year = cursor.getFullYear();
   const month = cursor.getMonth() + 1;
-  periodTitle.innerHTML = `${year}.${String(month).padStart(2, '0')} (${month}월)<span class="dropdown-arrow">▾</span>`;
+  periodTitle.innerHTML = `${year}.${String(month).padStart(2, '0')}<span class="dropdown-arrow">▾</span>`;
 }
 
 function applySourceButtonColors() {
@@ -714,18 +709,34 @@ function bindLedgerDomEvents() {
     allViewBtn.addEventListener('click', () => {
       allViewBtn.classList.add('active');
       monthlyViewBtn.classList.remove('active');
-      document.getElementById('fundplanAllTimeWrapper')?.classList.remove('hidden');
-      document.getElementById('ledgerMonthlyWrapper')?.classList.add('hidden');
       applyLedgerDataSources();
     });
     monthlyViewBtn.addEventListener('click', () => {
       monthlyViewBtn.classList.add('active');
       allViewBtn.classList.remove('active');
-      document.getElementById('ledgerMonthlyWrapper')?.classList.remove('hidden');
-      document.getElementById('fundplanAllTimeWrapper')?.classList.add('hidden');
       applyLedgerDataSources();
     });
   }
+
+  // 1-1. 이전 / 다음 / 오늘 버튼 바인딩
+  document.getElementById('ledgerPrevPeriodBtn')?.addEventListener('click', () => {
+    const cur = ledgerState.monthCursor instanceof Date ? ledgerState.monthCursor : new Date();
+    const next = new Date(cur);
+    next.setMonth(next.getMonth() - 1);
+    ledgerState.monthCursor = next;
+    applyLedgerDataSources();
+  });
+  document.getElementById('ledgerNextPeriodBtn')?.addEventListener('click', () => {
+    const cur = ledgerState.monthCursor instanceof Date ? ledgerState.monthCursor : new Date();
+    const next = new Date(cur);
+    next.setMonth(next.getMonth() + 1);
+    ledgerState.monthCursor = next;
+    applyLedgerDataSources();
+  });
+  document.getElementById('ledgerLatestBtn')?.addEventListener('click', () => {
+    ledgerState.monthCursor = new Date();
+    applyLedgerDataSources();
+  });
 
   // 1-2. 거래 입력 버튼 바인딩 (전체 뷰 & 월간 뷰)
   document.getElementById('ledgerToggleEntryBtn')?.addEventListener('click', () => {

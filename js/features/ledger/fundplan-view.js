@@ -196,11 +196,17 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
 
     const months = Object.keys(grouped).sort();
     const focusMonth = toIso(clampLedgerDate(ledgerState.monthCursor)).slice(0, 7);
-    const pivotMonth = months.includes(focusMonth) ? focusMonth : (months.find(month => month >= focusMonth) || months[months.length - 1]);
     setText('ledgerPeriodTitle', focusMonth.replace('-', '.'));
 
-    // Default expanded state: initial view has all months collapsed
-    if (Object.keys(monthExpandedState).length === 0) {
+    const isMonthlyMode = Boolean(document.getElementById('ledgerMonthlyViewBtn')?.classList.contains('active'));
+    const monthsToRender = isMonthlyMode
+      ? (grouped[focusMonth] ? [focusMonth] : [focusMonth])
+      : months;
+
+    // Default expanded state: initial view has all months collapsed, but monthly mode is 100% expanded
+    if (isMonthlyMode) {
+      monthExpandedState[focusMonth] = true;
+    } else if (Object.keys(monthExpandedState).length === 0) {
       months.forEach(m => {
         monthExpandedState[m] = false;
       });
@@ -217,8 +223,18 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
       });
     }
 
-    months.forEach(month => {
+    monthsToRender.forEach(month => {
       const monthRecords = (grouped[month] || []).sort((a, b) => compareLedgerRecords(a, b, isForecast));
+      if (isMonthlyMode && monthRecords.length === 0) {
+        const emptyRow = document.createElement('tr');
+        const emptyCell = document.createElement('td');
+        emptyCell.colSpan = 7;
+        emptyCell.className = 'ledger-empty-list ledger-empty-table-cell';
+        emptyCell.textContent = `${month.replace('-', '.')}월에 표시할 거래 내역이 없습니다.`;
+        emptyRow.appendChild(emptyCell);
+        fragment.appendChild(emptyRow);
+        return;
+      }
       const isExpanded = Boolean(monthExpandedState[month]);
       const monthRowElements = [];
 
