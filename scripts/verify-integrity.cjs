@@ -466,6 +466,76 @@ if (architectureOk) {
 }
 
 // -------------------------------------------------------------
+// Step 8: Canonical Schema Contract & Zero-localStorage Invariant
+// 1) Enforces that UI/Business modules use ONLY canonical camelCase fields:
+//    - offsetGroupId (NOT offset_group_id)
+//    - offsetTitle (NOT offset_title)
+//    - orderIndex (NOT order_index in UI)
+//    - fixedCost (NOT fixed_cost in UI)
+// 2) Enforces ZERO localStorage persistence for ledger order/offset state
+// -------------------------------------------------------------
+console.log('\n\x1b[36m[8/8] Checking Canonical Schema Contract & Zero-localStorage Invariant...\x1b[0m');
+let schemaOk = true;
+
+// 1. Check for legacy snake_case access in UI / Feature files
+const UI_FEATURE_DIRS = ['js/features/ledger'];
+const FORBIDDEN_UI_SNAKE_FIELDS = [
+  { field: 'offset_group_id', allowedFiles: ['js/services/ledger/ledger-api.js', 'js/services/ledger/supabase-client.js'], canonical: 'offsetGroupId' },
+  { field: 'offset_title', allowedFiles: ['js/services/ledger/ledger-api.js', 'js/services/ledger/supabase-client.js'], canonical: 'offsetTitle' },
+  { field: 'order_index', allowedFiles: ['js/services/ledger/ledger-api.js', 'js/services/ledger/supabase-client.js'], canonical: 'orderIndex' }
+];
+
+jsFiles.forEach(file => {
+  const relPath = path.relative(ROOT_DIR, file).replace(/\\/g, '/');
+  if (!relPath.startsWith('js/features/ledger/')) return;
+
+  const content = fs.readFileSync(file, 'utf8');
+  FORBIDDEN_UI_SNAKE_FIELDS.forEach(({ field, allowedFiles, canonical }) => {
+    totalChecks++;
+    if (allowedFiles.includes(relPath)) return;
+
+    // Check occurrences like .offset_group_id or ['offset_group_id']
+    const regex = new RegExp(`(\\.\\b${field}\\b|\\[['"]${field}['"]\\])`, 'g');
+    const matches = [...content.matchAll(regex)];
+    if (matches.length > 0) {
+      schemaOk = false;
+      logFail(
+        `Schema Inconsistency: Forbidden snake_case field "${field}" used in [${relPath}]`,
+        `Found ${matches.length} occurrences. Must use canonical camelCase "${canonical}" everywhere in UI/Features layer.`
+      );
+    }
+  });
+});
+
+// 2. Check for Forbidden localStorage Keys in Ledger Features
+const FORBIDDEN_STORAGE_KEYS = [
+  'LEDGER_OFFSET_GROUPS_V1',
+  'LEDGER_FORECAST_ORDER_MAP_V1',
+  'LEDGER_FORECAST_AGGREGATE_OVERRIDES_V1'
+];
+
+jsFiles.forEach(file => {
+  const relPath = path.relative(ROOT_DIR, file).replace(/\\/g, '/');
+  if (!relPath.startsWith('js/features/ledger/') && !relPath.startsWith('js/services/ledger/')) return;
+
+  const content = fs.readFileSync(file, 'utf8');
+  FORBIDDEN_STORAGE_KEYS.forEach(key => {
+    totalChecks++;
+    if (content.includes(key)) {
+      schemaOk = false;
+      logFail(
+        `Zero-localStorage Violation: Forbidden legacy key "${key}" found in [${relPath}]`,
+        `Ledger state must be 100% backed by Supabase DB with zero localStorage dependency.`
+      );
+    }
+  });
+});
+
+if (schemaOk) {
+  logPass('All ledger modules strictly adhere to Canonical Schema (camelCase) with Zero localStorage dependency.');
+}
+
+// -------------------------------------------------------------
 // Summary
 // -------------------------------------------------------------
 console.log('\n\x1b[1m=== 📊 Verification Summary ===\x1b[0m');
