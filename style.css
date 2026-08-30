@@ -2456,14 +2456,18 @@ body {
 }
 #ledgerPersonSwitch .ledger-filter-primary {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 4px;
+  grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+  gap: 3px !important;
   width: 100%;
 }
 #ledgerPersonSwitch .ledger-filter-primary .filter-chip {
   width: 100%;
   min-width: 0;
-  padding: 6px 4px;
+  padding: 6px 1px !important;
+  font-size: 11.5px !important;
+  letter-spacing: -0.5px !important;
+  white-space: nowrap !important;
+  text-align: center !important;
 }
 .schedule-table tr.ledger-row-selected td,
 .schedule-table tr.selected-row td,
