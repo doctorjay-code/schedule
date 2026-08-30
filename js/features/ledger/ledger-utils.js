@@ -50,57 +50,16 @@ export function recalculateRunningBalances(items, isCompanyCard = false) {
   }
 
   // 🏦 일반 계좌 (토스은행 / 현금 / 기업은행 / 잔액전망):
-  // 1. 목록 및 subRecords에서 가장 빠른 시점의 '실제 유효 기초 잔액(Opening Balance)'을 탐색
-  let openingBalance = 0;
-  for (const it of items) {
-    const b = Number(it.balance);
-    if (Number.isFinite(b) && it.balance !== '' && it.balance !== null && b > 0 && !it.isVirtualAggregate) {
-      openingBalance = b;
-      break;
-    }
-    if (Array.isArray(it.subRecords)) {
-      for (const sub of it.subRecords) {
-        const sb = Number(sub.balance);
-        if (Number.isFinite(sb) && sub.balance !== '' && sub.balance !== null && sb > 0) {
-          openingBalance = sb;
-          break;
-        }
-      }
-      if (openingBalance > 0) break;
-    }
-  }
+  // 순수 현금흐름 연속 누적 회계: currentBalance += (incAmt - expAmt)
+  let currentBalance = 0;
 
-  let currentBalance = null;
-
-  return items.map((item, idx) => {
+  return items.map((item) => {
     const incAmt = Number(item.incomeAmount !== undefined ? item.incomeAmount : (item.type === 'income' ? item.amount : 0));
     const expAmt = Number(item.expenseAmount !== undefined ? item.expenseAmount : (item.type === 'expense' ? item.amount : 0));
     const delta = incAmt - expAmt;
 
-    if (idx === 0) {
-      const rawBal = Number(item.balance);
-      if (Number.isFinite(rawBal) && item.balance !== '' && item.balance !== null && rawBal > 0 && !item.isVirtualAggregate) {
-        currentBalance = rawBal;
-      } else if (openingBalance > 0) {
-        currentBalance = openingBalance + delta;
-      } else {
-        currentBalance = delta;
-      }
-      return {
-        ...item,
-        balance: currentBalance
-      };
-    }
+    currentBalance += delta;
 
-    if (currentBalance !== null) {
-      currentBalance += delta;
-      return {
-        ...item,
-        balance: currentBalance
-      };
-    }
-
-    currentBalance = delta;
     return {
       ...item,
       balance: currentBalance

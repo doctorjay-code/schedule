@@ -1,4 +1,4 @@
-const assert = require('assert');
+﻿const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
@@ -67,8 +67,8 @@ async function runCoreLedgerInvariants() {
   const mockDataset = [
     // 1월 (기업카드 실사용액 80,000원 -> 2월에 청구됨, 1월 토스 실거래는 없음!)
     { id: 'tr-20260112-10-c2e560', date: '2026-01-12', payment: '기업카드', amount: 80000, type: 'expense', category: '식비' },
-    // 2월 (토스 최초 기초잔액 21,314원)
-    { id: 'tr-20260201-10-559a9a', date: '2026-02-01', payment: '토스은행', amount: 98, type: 'income', category: '이자', balance: 21314 },
+    // 2월
+    { id: 'tr-20260201-10-559a9a', date: '2026-02-01', payment: '토스은행', amount: 98, type: 'income', category: '이자' },
     { id: 'tr-20260202-20-a8ccca', date: '2026-02-02', payment: '토스은행', amount: 15000, type: 'expense', category: '식비' },
     { id: 'tr-20260205-30-7fa535', date: '2026-02-05', payment: '토스은행', amount: 20000, type: 'expense', category: '저축', fixedCost: '고정비' },
     { id: 'tr-20260210-40-79866c', date: '2026-02-10', payment: '토스은행', amount: 3000000, type: 'income', category: '월급' },
@@ -113,15 +113,12 @@ async function runCoreLedgerInvariants() {
   assert.ok(salaryRow, '월급 실거래 행 누락');
   assert.strictEqual(salaryRow.id, 'tr-20260210-40-79866c', `참조 투명성 위반: 실거래 ID가 접두사로 오염됨 (${salaryRow.id} !== tr-20260210-40-79866c)`);
 
-  console.log('--- 4. Core Invariant 3: Continuous Accounting Balance (연속 회계 등식 보존성) ---');
-  // 최초 기초 잔액(21,314원)으로부터 전체 행의 연속 누적 잔액이 단절 없이 성립하는가?
+  console.log('--- 4. Core Invariant 3: Continuous Pure Cashflow Balance (순수 입출금 누적 회계 등식) ---');
+  // 모든 거래의 누적 잔액이 ∑(수입) - ∑(지출)과 1원도 틀리지 않고 정확히 일치하는가?
   const calculatedForecast = recalculateRunningBalances(forecastRows, false);
   assert.ok(calculatedForecast.length > 0, '잔액전망 계산 결과가 비어있음');
-  
-  const firstBal = Number(calculatedForecast[0].balance);
-  assert.ok(Number.isFinite(firstBal) && firstBal > 0, `첫 행 잔액이 유효하지 않거나 0 이하임: ${firstBal}`);
 
-  // 모든 연속 행 i, i-1에 대해: curBalance === prevBalance + (income ? amt : -amt)
+  // 모든 연속 행 i, i-1에 대해: curBalance === prevBalance + (incAmt - expAmt)
   for (let i = 1; i < calculatedForecast.length; i++) {
     const prev = calculatedForecast[i - 1];
     const cur = calculatedForecast[i];
@@ -131,6 +128,16 @@ async function runCoreLedgerInvariants() {
     const expected = Number(prev.balance) + delta;
     assert.strictEqual(Number(cur.balance), expected, `연속 회계 등식 위반 at row ${i} (${cur.item}): ${cur.balance} !== ${expected}`);
   }
+
+  // 전체 최종 잔액 === ∑(전체 수입) - ∑(전체 지출)
+  let totalNet = 0;
+  calculatedForecast.forEach(r => {
+    const inc = Number(r.incomeAmount !== undefined ? r.incomeAmount : (r.type === 'income' ? r.amount : 0));
+    const exp = Number(r.expenseAmount !== undefined ? r.expenseAmount : (r.type === 'expense' ? r.amount : 0));
+    totalNet += (inc - exp);
+  });
+  const finalBal = Number(calculatedForecast[calculatedForecast.length - 1].balance);
+  assert.strictEqual(finalBal, totalNet, `최종 누적잔액(${finalBal}) !== 전체 순현금흐름(${totalNet})`);
 
   console.log('--- 5. Core Invariant 4: No Legacy ID Regex in Codebase ---');
   const ledgerDir = path.join(__dirname, '../js/features/ledger');
