@@ -701,7 +701,12 @@ function initLedgerApp() {
   }
 }
 
+let isDomEventsBound = false;
+
 function bindLedgerDomEvents() {
+  if (isDomEventsBound) return;
+  isDomEventsBound = true;
+
   // 1. 전체 / 월간 서브메뉴 전환
   const allViewBtn = document.getElementById('ledgerAllViewBtn');
   const monthlyViewBtn = document.getElementById('ledgerMonthlyViewBtn');
@@ -836,34 +841,6 @@ function bindLedgerDomEvents() {
   if (multiToggleBtn) {
     multiToggleBtn.addEventListener('click', () => {
       setMultiEditMode(!ledgerState.multiEditMode);
-    });
-  }
-
-  const prevPeriodBtn = document.getElementById('ledgerPrevPeriodBtn');
-  if (prevPeriodBtn) {
-    prevPeriodBtn.addEventListener('click', () => {
-      const cur = new Date(ledgerState.monthCursor);
-      cur.setMonth(cur.getMonth() - 1);
-      ledgerState.monthCursor = cur;
-      applyLedgerDataSources();
-    });
-  }
-
-  const nextPeriodBtn = document.getElementById('ledgerNextPeriodBtn');
-  if (nextPeriodBtn) {
-    nextPeriodBtn.addEventListener('click', () => {
-      const cur = new Date(ledgerState.monthCursor);
-      cur.setMonth(cur.getMonth() + 1);
-      ledgerState.monthCursor = cur;
-      applyLedgerDataSources();
-    });
-  }
-
-  const latestBtn = document.getElementById('ledgerLatestBtn');
-  if (latestBtn) {
-    latestBtn.addEventListener('click', () => {
-      ledgerState.monthCursor = new Date();
-      applyLedgerDataSources();
     });
   }
 
