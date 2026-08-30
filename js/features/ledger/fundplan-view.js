@@ -326,15 +326,12 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
         ? monthRecords
         : recalculateRunningBalances(monthRecords, true);
 
-      // 🌟 원본 해당 월 최종 결산 잔액 미리 백업 (시계열 덮어쓰기로 인한 오염 방지)
-      const lastOrigRecord = (monthRecords.length > 0) ? monthRecords[monthRecords.length - 1] : null;
-      const originalMonthFinalBalance = lastOrigRecord ? Number(lastOrigRecord.balance || 0) : 0;
-
       const isGlobalBalance = (ledgerState.balanceMode === 'global');
+      let monthFinalComputedBalance = 0;
 
       // 🌟 [잔액 모드 1 & 2 정밀 연산 엔진]
       if (isForecast && isGlobalBalance) {
-        // 🌟 [잔액] 클릭 상태 (모드 2: 전체 시계열 일치 - 바깥 거래 + 생활비 세부거래 날짜순 인터리빙)
+        // 🌟 [잔액] 클릭 상태: 전체 시계열(바깥 거래 + 세부 거래) 중 가장 늦은 마지막 거래의 잔액을 당월 최종 잔액으로 산출!
         const tossAgg = calculatedMonthRecords.find(r => r.isAggregate && String(r.item || '').includes('토스 생활비'));
         const tossSubs = (tossAgg && Array.isArray(tossAgg.subRecords)) ? tossAgg.subRecords : [];
         if (tossSubs.length > 0) {
@@ -372,9 +369,13 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
               ev.originalRef.balance = running;
             }
           });
+          monthFinalComputedBalance = running; // 🌟 시간상 가장 늦은 거래 직후의 최종 잔액!
+        } else {
+          const lastRec = calculatedMonthRecords.length > 0 ? calculatedMonthRecords[calculatedMonthRecords.length - 1] : null;
+          monthFinalComputedBalance = lastRec ? Number(lastRec.balance || 0) : 0;
         }
       } else if (isForecast && !isGlobalBalance) {
-        // 🌟 [잔액] 미클릭 상태 (기본 = 원래 방식 100% 보존): 세부 거래들은 잔액 칸 비움(undefined), 바깥 거래는 원래 잔액 유지!
+        // 🌟 [잔액] 미클릭 상태: 바깥 거래들의 맨 마지막 행 잔액을 당월 최종 잔액으로 산출!
         const tossAgg = calculatedMonthRecords.find(r => r.isAggregate && String(r.item || '').includes('토스 생활비'));
         const tossSubs = (tossAgg && Array.isArray(tossAgg.subRecords)) ? tossAgg.subRecords : [];
         if (tossSubs.length > 0) {
@@ -382,6 +383,11 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
             sub.balance = undefined;
           });
         }
+        const lastRec = calculatedMonthRecords.length > 0 ? calculatedMonthRecords[calculatedMonthRecords.length - 1] : null;
+        monthFinalComputedBalance = lastRec ? Number(lastRec.balance || 0) : 0;
+      } else {
+        const lastRec = calculatedMonthRecords.length > 0 ? calculatedMonthRecords[calculatedMonthRecords.length - 1] : null;
+        monthFinalComputedBalance = lastRec ? Number(lastRec.balance || 0) : 0;
       }
 
       calculatedMonthRecords.forEach(record => {
@@ -564,8 +570,8 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
       const [y, m] = month.split('-').map(Number);
       const nextMonthNum = m === 12 ? 1 : m + 1;
 
-      // 🌟 [월말 최종 마감/예상 잔액 요약행] 렌더링 (잔액 모드와 무관하게 그 달의 진짜 최종 결산 잔액 고정)
-      const finalMonthBal = originalMonthFinalBalance;
+      // 🌟 [월말 최종 마감/예상 잔액 요약행] 렌더링
+      const finalMonthBal = monthFinalComputedBalance;
 
       const summaryRow = createLedgerMonthSummaryRow({
         monthKey: month,

@@ -58,7 +58,7 @@ async function runCoreLedgerInvariants() {
   const cardModule = await import('../js/features/ledger/card.js');
   const { filterLedgerRecords } = cardModule;
   const utilsModule = await import('../js/features/ledger/ledger-utils.js');
-  const { recalculateRunningBalances, formatMoney, normalizeLedgerDate } = utilsModule;
+  const { recalculateRunningBalances, formatMoney, normalizeLedgerDate, compareLedgerRecords } = utilsModule;
   const transViewModule = await import('../js/features/ledger/transaction-view.js');
   const { renderTransactionRow } = transViewModule;
   const forecastModule = await import('../js/features/ledger/ledger-forecast.js');
@@ -269,7 +269,40 @@ async function runCoreLedgerInvariants() {
     assert.strictEqual(diff, 0, `💥 [${m}] 회계 불일치: 실제 통장 순액(${actualNet}) !== 잔액전망 행 순액(${forecastNet}) (차이: ${diff}원)`);
   });
 
-  console.log('✔ 가계부 8대 본질 불변식 (실제 DB 전수 월별 1:1 회계 대사 완벽 일치) 100% 검증 완료');
+  console.log('--- 10. Core Invariant 9: Month Final Balance Invariant on Toggle ---');
+  const { displayRows: augDisplayRows } = genFc({ allRecords: realDbRecords, monthCursor: new Date('2026-08-01') });
+  const sortedAug = [...augDisplayRows].sort((a, b) => compareLedgerRecords(a, b, true));
+  const calculatedAugLocal = recalculateRunningBalances(sortedAug, false);
+  const augRowsLocal = calculatedAugLocal.filter(r => normalizeLedgerDate(r.date).startsWith('2026-08'));
+  const localFinalBal = augRowsLocal[augRowsLocal.length - 1].balance;
+
+  const tossAgg8 = augRowsLocal.find(r => r.isAggregate && String(r.item || '').includes('토스 생활비'));
+  const allEvents8 = [];
+  augRowsLocal.forEach(r => {
+    if (r.id !== tossAgg8.id) allEvents8.push({ ...r, isSub: false });
+  });
+  tossAgg8.subRecords.forEach(sub => allEvents8.push({ ...sub, isSub: true }));
+  allEvents8.sort((a, b) => {
+    const da = normalizeLedgerDate(a.date);
+    const db = normalizeLedgerDate(b.date);
+    if (da !== db) return da.localeCompare(db);
+    if (a.isSub && !b.isSub) return -1;
+    if (!a.isSub && b.isSub) return 1;
+    return compareLedgerRecords(a, b, true);
+  });
+  let runGlobal = Number(tossAgg8.balance || 0) + (tossAgg8.type === 'expense' ? Number(tossAgg8.amount || 0) : -Number(tossAgg8.amount || 0));
+  allEvents8.forEach(ev => {
+    const amt = Number(ev.amount || 0);
+    const isExp = (ev.type || 'expense').toLowerCase() === 'expense';
+    runGlobal += (isExp ? -amt : amt);
+  });
+  const globalFinalBal = runGlobal;
+
+  assert.strictEqual(localFinalBal, 44324, `기본 모드 8월 최종 잔액(${localFinalBal}) !== 44,324원`);
+  assert.strictEqual(globalFinalBal, 44324, `시계열 모드 8월 최종 잔액(${globalFinalBal}) !== 44,324원`);
+  assert.strictEqual(localFinalBal, globalFinalBal, `💥 모드 간 최종 잔액 불일치: 기본모드(${localFinalBal}) !== 시계열모드(${globalFinalBal})`);
+
+  console.log('✔ 가계부 9대 본질 불변식 (잔액 버튼 토글 간 월 최종 잔액 100% 불변 보존) 100% 검증 완료');
 }
 
 runCoreLedgerInvariants().catch(err => {
