@@ -129,6 +129,62 @@ export function createLedgerMonthDividerRow({
   return dividerRow;
 }
 
+export function createLedgerMonthSummaryRow({
+  monthKey,
+  isCompanyCard,
+  finalBalance,
+  isExpanded,
+  source
+}) {
+  const [yearStr, monthStr] = monthKey.split('-');
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10);
+
+  const todayIso = new Date().toISOString().slice(0, 7);
+  const isPast = monthKey < todayIso;
+
+  const summaryRow = document.createElement('tr');
+  summaryRow.className = 'ledger-month-summary-row';
+  summaryRow.dataset.monthGroup = monthKey;
+  if (!isExpanded) summaryRow.style.display = 'none';
+
+  // 1~4열 통합 라벨 셀
+  const titleCell = document.createElement('td');
+  titleCell.colSpan = 4;
+  titleCell.className = 'ledger-month-summary-title-cell';
+
+  const titlePrefix = isCompanyCard
+    ? `${year}년 ${month}월 결제 청구액`
+    : (isPast ? `${year}년 ${month}월 마감 잔액` : `${year}년 ${month}월 최종 예상 잔액`);
+
+  titleCell.innerHTML = `<span class="ledger-month-summary-tag">🏁 결산</span> <span class="ledger-month-summary-text">${titlePrefix}</span>`;
+  summaryRow.appendChild(titleCell);
+
+  // 5열: 수입/입금 (공란)
+  const inCell = document.createElement('td');
+  inCell.className = 'ledger-month-summary-empty-cell';
+  summaryRow.appendChild(inCell);
+
+  // 6열: 지출/출금 (공란)
+  const outCell = document.createElement('td');
+  outCell.className = 'ledger-month-summary-empty-cell';
+  summaryRow.appendChild(outCell);
+
+  // 7열: 최종 잔액 셀
+  const balCell = document.createElement('td');
+  balCell.className = 'ledger-month-summary-balance-cell';
+  const numVal = Number(finalBalance || 0);
+  balCell.textContent = formatMoney(numVal);
+  if (numVal < 0) {
+    balCell.style.color = '#DC2626';
+  } else {
+    balCell.style.color = '#1D4ED8';
+  }
+  summaryRow.appendChild(balCell);
+
+  return summaryRow;
+}
+
 // Bank, cash, and card all-time ledger rendering responsibility.
 export function createFundplanView({ ledgerState, getColorSettings, colorSettings, getActiveSourceRecords, clampLedgerDate, minDate, setText, ledgerDataSources, getLedgerDataSources, refreshLedgerSheetData, renderActiveLedgerPeriod, showLedgerToast, onRowClick }) {
   const monthExpandedState = {};
@@ -505,6 +561,22 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
       // 3. 월별 하단 액션 바: 당월 고정비/상계 거래 다음 달로 넘기기 버튼 (Push 방식!)
       const [y, m] = month.split('-').map(Number);
       const nextMonthNum = m === 12 ? 1 : m + 1;
+
+      // 🌟 [월말 최종 마감/예상 잔액 요약행] 렌더링
+      const lastMonthRecord = calculatedMonthRecords.length > 0
+        ? calculatedMonthRecords[calculatedMonthRecords.length - 1]
+        : null;
+      const finalMonthBal = lastMonthRecord ? Number(lastMonthRecord.balance || 0) : 0;
+
+      const summaryRow = createLedgerMonthSummaryRow({
+        monthKey: month,
+        isCompanyCard,
+        finalBalance: finalMonthBal,
+        isExpanded,
+        source
+      });
+      fragment.appendChild(summaryRow);
+      monthRowElements.push(summaryRow);
 
       const actionRow = document.createElement('tr');
       actionRow.className = 'schedule-row ledger-month-action-row';

@@ -2832,3 +2832,45 @@ tr.ledger-fixed-row .ledger-fixed-tag,
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* Ledger Month Summary Final Balance Row */
+.ledger-month-summary-row {
+  background-color: #F8FAFC;
+  border-top: 1.5px solid #CBD5E1;
+  border-bottom: 1.5px solid #94A3B8;
+  font-weight: 700;
+  transition: background-color 0.15s ease;
+}
+.ledger-month-summary-row:hover {
+  background-color: #F1F5F9;
+}
+.ledger-month-summary-title-cell {
+  padding: 8px 10px;
+  font-size: 0.88em;
+  color: #334155;
+  text-align: left;
+}
+.ledger-month-summary-tag {
+  display: inline-block;
+  background-color: #E2E8F0;
+  color: #475569;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.78em;
+  font-weight: 800;
+  margin-right: 4px;
+}
+.ledger-month-summary-text {
+  font-weight: 700;
+}
+.ledger-month-summary-empty-cell {
+  padding: 8px 6px;
+  background-color: transparent;
+}
+.ledger-month-summary-balance-cell {
+  padding: 8px 10px;
+  text-align: right;
+  font-size: 0.95em;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
