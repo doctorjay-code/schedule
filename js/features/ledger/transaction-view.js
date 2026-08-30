@@ -56,9 +56,10 @@ export function renderTransactionRow(item, listTarget = 'fundplanAllTimeList', o
   const { source = 'card', colorSettings = {}, onRowClick = null, isSelected = false, multiEditMode = false } = resolvedOptions;
   const detailRow = document.createElement('tr');
   detailRow.className = 'schedule-row schedule-row-detail';
+  const isAggRow = Boolean(item.isAggregate || item.isVirtualAggregate);
   detailRow.dataset.ledgerId = item.id;
   if (isSelected) detailRow.classList.add('selected-row');
-  if (typeof onRowClick === 'function') {
+  if (!isAggRow && typeof onRowClick === 'function') {
     detailRow.addEventListener('click', (e) => {
       e.stopPropagation();
       onRowClick(item);
@@ -68,7 +69,7 @@ export function renderTransactionRow(item, listTarget = 'fundplanAllTimeList', o
   tagRow.className = 'schedule-row schedule-row-tag cell-day-end-border';
   tagRow.dataset.ledgerId = item.id;
   if (isSelected) tagRow.classList.add('selected-row');
-  if (typeof onRowClick === 'function') {
+  if (!isAggRow && typeof onRowClick === 'function') {
     tagRow.addEventListener('click', (e) => {
       e.stopPropagation();
       onRowClick(item);

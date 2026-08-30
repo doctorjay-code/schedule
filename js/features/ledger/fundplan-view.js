@@ -406,14 +406,11 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
             });
           };
 
-          // 항목 및 비고 칸(.ledger-accordion-toggle-cell) 클릭 시 세부내역 아코디언 토글! (나머지 칸은 상세 모달 오픈)
+          // 통합/합산행은 행 전체(어느 칸을 누르든) 클릭 시 세부내역 아코디언 토글!
           mainRows.forEach(rowEl => {
-            const toggleCells = rowEl.querySelectorAll('.ledger-accordion-toggle-cell, .ledger-accordion-icon');
-            toggleCells.forEach(cell => {
-              cell.style.cursor = 'pointer';
-              cell.title = '클릭하여 세부 거래 내역 펼치기/접기';
-              cell.addEventListener('click', toggleSubAccordion);
-            });
+            rowEl.style.cursor = 'pointer';
+            rowEl.title = '클릭하여 세부 거래 내역 펼치기/접기';
+            rowEl.addEventListener('click', toggleSubAccordion);
           });
         }
       });

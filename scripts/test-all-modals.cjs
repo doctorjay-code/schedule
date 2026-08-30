@@ -30,9 +30,29 @@ function createMockDOM() {
           } else if (force) this.add(c); else this.remove(c);
         }
       },
-      appendChild(c) { this.children.push(c); c.parentNode = this; return c; },
-      append(...c) { this.children.push(...c); },
-      replaceChildren(...c) { this.children = [...c]; },
+      appendChild(c) {
+        if (c && c.nodeType === 11) {
+          c.children.forEach(ch => { this.children.push(ch); ch.parentNode = this; });
+          c.children = [];
+          return c;
+        }
+        this.children.push(c); c.parentNode = this; return c;
+      },
+      append(...c) {
+        c.forEach(item => this.appendChild(item));
+      },
+      replaceChildren(...c) {
+        this.children = [];
+        c.forEach(item => {
+          if (item && item.nodeType === 11) {
+            item.children.forEach(ch => { this.children.push(ch); ch.parentNode = this; });
+            item.children = [];
+          } else if (item) {
+            this.children.push(item);
+            item.parentNode = this;
+          }
+        });
+      },
       replaceWith(...c) { if (this.parentNode) this.parentNode.children = [...c]; },
       closest(sel) {
         let cur = this;
@@ -108,7 +128,9 @@ function createMockDOM() {
         return makeEl('', tag);
       },
       createDocumentFragment() {
-        return makeEl('', 'fragment');
+        const frag = makeEl('', '#document-fragment');
+        frag.nodeType = 11;
+        return frag;
       },
       getElementById(id) {
         if (!store.has(id)) return makeEl(id);
@@ -513,6 +535,75 @@ async function testAllModalsLifecycle() {
     assert.strictEqual(chipJuJuEl.style.borderColor, '#D1FAE5', '쥬쥬 필터 칩 커스텀 색상 실시간 반영 누락');
   }
   console.log('  ✔ 3) 색상 설정 저장 후 필터 칩 & 시트 버튼 DOM 스타일 실시간 반영 100% 검증 통과');
+
+  // -------------------------------------------------------------
+  // Step 12: Aggregate Row Full Accordion & Zero-Modal Invariant
+  // Enforces that clicking ANYWHERE on an aggregate row (e.g. Toss Living Cost, Company Card Bill)
+  // MUST NOT open transaction modal, and MUST expand subRecords inline!
+  // -------------------------------------------------------------
+  console.log('--- Step 12: Aggregate Row Full Accordion & Zero-Modal Invariant ---');
+  const fundplanModule = await import('../js/features/ledger/fundplan-view.js');
+  const { createFundplanView } = fundplanModule;
+
+  const mockAggregateTx = {
+    id: 'fc-var-toss-2026-08',
+    date: '2026-08-01',
+    type: 'expense',
+    amount: 500000,
+    payment: '토스은행',
+    item: '토스 생활비 (변동비 합계)',
+    isAggregate: true,
+    isVirtualAggregate: true,
+    subRecords: [
+      { id: 'toss-sub-1', date: '2026-08-02', amount: 15000, type: 'expense', item: '편의점', isSubDetail: true },
+      { id: 'toss-sub-2', date: '2026-08-05', amount: 30000, type: 'expense', item: '식당', isSubDetail: true }
+    ]
+  };
+
+  const fundView = createFundplanView({
+    ledgerState: {
+      source: 'forecast',
+      records: [mockAggregateTx],
+      monthCursor: new Date('2026-08-01'),
+      filters: { fixed: 'all' }
+    },
+    getColorSettings: () => sharedState.colorSettings || {},
+    getActiveSourceRecords: () => [mockAggregateTx],
+    clampLedgerDate: (d) => (d instanceof Date ? d : new Date(d || Date.now())),
+    minDate: () => '2026-01-01',
+    setText: () => {},
+    onRowClick: (r) => {
+      const modal = document.getElementById('ledgerTransactionModalOverlay');
+      if (modal) modal.classList.add('active');
+    }
+  });
+
+  const fundContainer = document.getElementById('fundplanAllTimeList') || document.createElement('tbody');
+  fundContainer.id = 'fundplanAllTimeList';
+  fundView.render();
+
+  const aggMainTr = fundContainer.children.find(r => r.dataset && r.dataset.ledgerId === 'fc-var-toss-2026-08');
+  assert.ok(aggMainTr, '토스 생활비 통합행(#fc-var-toss-2026-08) DOM 미생성');
+
+  const ledgerTxModalOverlay = document.getElementById('ledgerTransactionModalOverlay');
+  if (ledgerTxModalOverlay) ledgerTxModalOverlay.classList.remove('active');
+
+  aggMainTr.click();
+
+  // 1) 상세 모달이 열리면 안 됨!
+  assert.ok(
+    !ledgerTxModalOverlay.classList.contains('active'),
+    '통합/합산행 클릭 시 상세 모달 오픈 차단 실패 (모달이 열리는 버그 적발!)'
+  );
+
+  // 2) 하위 세부 목록이 펼쳐졌는지 검증!
+  const subRowEl = fundContainer.children.find(r => r.dataset && r.dataset.ledgerId === 'toss-sub-1');
+  assert.ok(subRowEl, '토스 세부 거래 tr[data-ledger-id="toss-sub-1"] 미생성');
+  assert.ok(
+    subRowEl.style.display !== 'none',
+    '통합행 클릭 후 하위 세부 목록 아코디언 펼침 실패 (세부 목록 미노출 버그 적발!)'
+  );
+  console.log('  ✔ 1) 통합행 클릭 시 모달 차단 및 세부 목록 100% 아코디언 펼침 E2E 검증 통과');
 }
 
 testAllModalsLifecycle().catch(err => {
