@@ -1187,15 +1187,19 @@ td.cell-selected,
 
 .bottom-sheet {
   width: 100%;
+  max-width: 440px;
+  box-sizing: border-box;
   background-color: #FFFFFF;
   border-top-left-radius: 20px;
   border-top-right-radius: 20px;
-  padding: 12px 20px 24px;
+  padding: 12px 18px 24px;
   transform: translateY(100%);
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  max-height: 85vh;
-  overflow-y: auto;
+  max-height: min(75vh, 75dvh);
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 -10px 25px rgba(0,0,0,0.15);
+  overflow: hidden;
 }
 
 .modal-overlay.active .bottom-sheet {
@@ -1203,20 +1207,28 @@ td.cell-selected,
 }
 
 .sheet-handle {
+  flex-shrink: 0;
   width: 36px;
   height: 4px;
   background-color: #CBD5E1;
   border-radius: 2px;
-  margin: 0 auto 12px;
+  margin: 0 auto 10px;
 }
 
 .sheet-header {
+  flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   border-bottom: 1px solid var(--border-grid);
   padding-bottom: 8px;
+}
+
+.sheet-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .sheet-header h3 {
@@ -2550,11 +2562,8 @@ body {
 }
 
 /* Average Balance Calculator Modal Specific Components */
-.ledger-average-sheet {
-  max-height: 82vh;
-}
 .ledger-avg-table-wrap {
-  max-height: 28vh;
+  max-height: 180px;
   overflow-y: auto;
 }
 
