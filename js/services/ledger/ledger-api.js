@@ -254,34 +254,6 @@ export async function deleteLedgerOffsetGroup(groupId, fetchImpl = fetch) {
 }
 
 /**
- * Supabase DB 잔액전망 순서 맵 CRUD 함수 (app_settings JSON 맵 연동)
- */
-export async function fetchForecastOrders(fetchImpl = fetch) {
-  const rows = await supabaseRest('app_settings?key=eq.forecast_orders', { fetchImpl });
-  if (Array.isArray(rows) && rows.length > 0) {
-    return rows[0]?.value || {};
-  }
-  return {};
-}
-
-export async function saveForecastOrders(orderMap, fetchImpl = fetch) {
-  if (!orderMap || typeof orderMap !== 'object') return { ok: false };
-
-  await supabaseRest('app_settings', {
-    method: 'POST',
-    fetchImpl,
-    prefer: 'resolution=merge-duplicates',
-    body: {
-      key: 'forecast_orders',
-      value: orderMap,
-      updated_at: new Date().toISOString()
-    }
-  });
-
-  return { ok: true };
-}
-
-/**
  * Supabase DB 잔액전망 가상행 오버라이드 CRUD 함수 (app_settings JSON 연동)
  */
 export async function fetchForecastAggregateOverrides(fetchImpl = fetch) {

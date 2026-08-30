@@ -1,9 +1,8 @@
-import { fetchForecastOrders, saveForecastOrders, insertLedgerRecordsBatch, upsertLedgerOffsetGroup, fetchForecastAggregateOverrides, saveForecastAggregateOverridesToDB } from '../../services/ledger/ledger-api.js';
+import { insertLedgerRecordsBatch, upsertLedgerOffsetGroup, fetchForecastAggregateOverrides, saveForecastAggregateOverridesToDB } from '../../services/ledger/ledger-api.js';
 import { compareLedgerRecords, normalizeLedgerDate, generateLedgerId } from './ledger-utils.js';
 
 // 🌟 Zero-localStorage: 순수 메모리 상태 & Supabase DB 영구 저장 직결
 let inMemoryAggregateOverrides = {};
-let inMemoryForecastOrderMap = {};
 
 export function loadForecastAggregateOverrides() {
   return inMemoryAggregateOverrides;
@@ -34,33 +33,6 @@ export async function syncForecastAggregateOverridesFromDB() {
   }
 }
 
-export function loadForecastOrderMap() {
-  return inMemoryForecastOrderMap;
-}
-
-export function saveForecastOrderMap(orderedIds) {
-  if (!Array.isArray(orderedIds)) return;
-  orderedIds.forEach((id, idx) => {
-    inMemoryForecastOrderMap[String(id)] = (idx + 1) * 10;
-  });
-  try {
-    saveForecastOrders(inMemoryForecastOrderMap);
-  } catch (err) {
-    console.warn('Failed to save forecast order map to DB:', err);
-  }
-}
-
-export async function syncForecastOrdersFromDB() {
-  try {
-    const remoteOrders = await fetchForecastOrders();
-    if (remoteOrders && typeof remoteOrders === 'object') {
-      inMemoryForecastOrderMap = { ...inMemoryForecastOrderMap, ...remoteOrders };
-    }
-  } catch (err) {
-    console.warn('Failed to sync forecast orders from DB:', err);
-  }
-}
-
 export function isManualCardPayment(record) {
   if (!record) return false;
   const isCard = (record.payment_method || record.payment || record.sheetName) === '기업카드';
@@ -78,7 +50,6 @@ export function generateForecastRecords({
   monthCursor = new Date(),
   isManualCardPayment = () => false
 }) {
-  const orderMap = loadForecastOrderMap();
   const aggregateOverrides = loadForecastAggregateOverrides();
 
   // 1. 전체 레코드에서 존재하는 모든 월(YYYY-MM) 수집
@@ -268,13 +239,8 @@ export function generateForecastRecords({
     }
   });
 
-  // 4. 정렬 순서 적용 (orderMap 기반)
-  displayRows.forEach((row, idx) => {
-    const savedOrder = orderMap[String(row.id)] || orderMap[String(row.originalId)];
-    row.orderIndex = savedOrder ?? ((idx + 1) * 10);
-  });
-
-  displayRows.sort(compareLedgerRecords);
+  // 4. 잔액전망 순서 정렬 적용 (forecast_order_index 기준 100% 순수 DB 정렬)
+  displayRows.sort((a, b) => compareLedgerRecords(a, b, true));
 
   return {
     displayRows
