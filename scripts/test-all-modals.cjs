@@ -236,6 +236,39 @@ async function testAllModalsLifecycle() {
   assert.ok(deleteBtn, '모달 삭제 버튼 엘리먼트 누락: #ledgerModalDeleteBtn');
   deleteBtn.click();
   assert.strictEqual(deletedRecordId, 'tr-smoke-20260830-temp', '모달 삭제 버튼 클릭 시 onDelete 콜백 미호출 (삭제 실패 버그)');
+
+  // 4) 🌟 가계부 색상 설정 모달 풀-인터랙션 E2E 검증 (색상 칩 클릭 ➡️ 저장 ➡️ 뷰 리렌더링)
+  const ledgerColorModule = await import('../js/features/ledger/modals/color-settings.js');
+  const { createLedgerColorSettings } = ledgerColorModule;
+  const ledgerStoreModule = await import('../js/services/schedule/schedule-store.js');
+  const { state: sharedState, pastelPalette: palette, defaultColorSettings: defColors, saveColorSettings: saveColors } = ledgerStoreModule;
+
+  let renderedViewsCalled = false;
+  const ledgerColorHandler = createLedgerColorSettings({
+    state: sharedState,
+    pastelPalette: palette,
+    defaultColorSettings: defColors,
+    saveColorSettings: saveColors,
+    renderLedgerViews: () => { renderedViewsCalled = true; }
+  });
+
+  ledgerColorHandler.open();
+  const ledgerColorOverlay = document.getElementById('ledgerColorOverlay');
+  assert.ok(ledgerColorOverlay.classList.contains('active'), '가계부 색상 설정 모달 오버레이 오픈 실패');
+
+  const firstColorChip = document.querySelector('#ledgerColorSettingsContent .color-chip');
+  if (firstColorChip) {
+    firstColorChip.click();
+    assert.ok(firstColorChip.classList.contains('selected'), '가계부 색상 칩 클릭 시 selected 활성화 실패');
+  }
+
+  const colorSaveBtn = document.getElementById('ledgerColorSaveBtn');
+  assert.ok(colorSaveBtn, '가계부 색상 설정 #ledgerColorSaveBtn 누락');
+  colorSaveBtn.click();
+  assert.ok(!ledgerColorOverlay.classList.contains('active'), '가계부 색상 설정 모달 저장 후 닫기 실패');
+  assert.ok(renderedViewsCalled, '가계부 색상 저장 후 renderLedgerViews 콜백 미호출');
+  console.log('  ✔ 4) 가계부 색상 설정 모달 풀-인터랙션 (칩 선택 ➡️ 저장 ➡️ 뷰 리렌더링) E2E 100% 검증 통과');
+
   console.log('✔ 앱 전체 8대 모달 라이프사이클 (오픈 ➡️ 저장 ➡️ 삭제 ➡️ 흔적0건) 전수 검증 100% 통과');
 
   // 3. 🌟 N × N 전체 뷰포트 상태 전이 매트릭스 (Universal Viewport State-Transition Matrix) 검증

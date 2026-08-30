@@ -1,4 +1,4 @@
-import { state } from '../../../services/schedule/state.js';
+import { state } from '../../../services/schedule/schedule-store.js';
 import { loadWeekDataFn } from './edit.js';
 import { escapeHtml } from '../../../shared/safe.js';
 

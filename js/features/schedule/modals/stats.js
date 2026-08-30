@@ -1,4 +1,4 @@
-import { state } from '../../../services/schedule/state.js';
+import { state } from '../../../services/schedule/schedule-store.js';
 import { openCustomFilteredSummaryModal } from './summary.js';
 import { escapeHtml } from '../../../shared/safe.js';
 import { parseHoursFromDetail, formatOtHoursString, formatHoursToDaysString, calculateRequiredClinicSessions } from './stats-calculations.js';

@@ -1,6 +1,6 @@
 import { getLedgerTagColor } from '../ledger-utils.js';
-import { syncColorSettingsToSupabase } from '../../../services/schedule/api.js';
-import { resetLedgerColorSettings } from '../../../services/schedule/state.js';
+import { syncColorSettingsToSupabase } from '../../../services/schedule/schedule-api.js';
+import { resetLedgerColorSettings } from '../../../services/schedule/schedule-store.js';
 
 // Ledger tag-color settings and word-rule UI responsibility.
 export function createLedgerColorSettings({ state, pastelPalette, defaultColorSettings, saveColorSettings, renderLedgerViews }) {

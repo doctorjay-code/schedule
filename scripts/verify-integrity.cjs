@@ -105,6 +105,14 @@ jsFiles.forEach(file => {
     if (!resolvedPath || !fs.existsSync(resolvedPath)) {
       importsOk = false;
       logFail(`Broken ${imp.type} import in [${relFilePath}]: "${imp.path}"`, `Expected target file at: ${resolvedPath || 'Unknown'}`);
+    } else {
+      // 🌟 레거시 어댑터(api.js, state.js 등 re-export 전용 파일) 우회 임포트 금지
+      const legacyAdapters = ['/services/schedule/api.js', '/services/schedule/state.js'];
+      const normalizedTarget = resolvedPath.replace(/\\/g, '/');
+      if (legacyAdapters.some(leg => normalizedTarget.endsWith(leg))) {
+        importsOk = false;
+        logFail(`Legacy adapter import detected in [${relFilePath}]: "${imp.path}"`, `Use direct canonical module (e.g. schedule-api.js, schedule-store.js) instead of backward-compatibility adapters.`);
+      }
     }
   });
 });

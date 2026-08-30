@@ -555,7 +555,8 @@ function applySourceButtonColors() {
     { id: 'ledgerCashSourceBtn', payment: '현금' },
     { id: 'ledgerCompanyCardBtn', payment: '기업카드' },
     { id: 'ledgerTossBankBtn', payment: '토스은행' },
-    { id: 'ledgerBankSourceBtn', payment: '기업은행' }
+    { id: 'ledgerBankSourceBtn', payment: '기업은행' },
+    { id: 'ledgerForecastSourceBtn', payment: '잔액전망' }
   ];
 
   sourceButtons.forEach(({ id, payment }) => {
@@ -571,6 +572,24 @@ function applySourceButtonColors() {
       } else {
         btn.style.backgroundColor = '';
         btn.style.color = '';
+      }
+    }
+  });
+
+  // 18개 필터 칩(사용자/사용처) 커스텀 색상 실시간 반영
+  document.querySelectorAll('#ledgerPersonSwitch .filter-chip[data-ledger-filter-type]').forEach(chip => {
+    const fType = chip.dataset.ledgerFilterType;
+    const fVal = chip.dataset.ledgerFilterValue;
+    if (!fType || !fVal) return;
+    const tagColor = getLedgerTagColor(colorSettings, fType, fVal);
+    if (tagColor) {
+      chip.style.borderColor = tagColor;
+      if (chip.classList.contains('active')) {
+        chip.style.backgroundColor = tagColor;
+        chip.style.color = '#0F172A';
+      } else {
+        chip.style.backgroundColor = '';
+        chip.style.color = '';
       }
     }
   });

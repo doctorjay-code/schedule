@@ -1,4 +1,4 @@
-import { state, updateSummaryCounts } from '../../services/schedule/state.js';
+import { state, updateSummaryCounts } from '../../services/schedule/schedule-store.js';
 import { openModal } from './modals/edit.js';
 import { escapeHtml, safeCssColor } from '../../shared/safe.js';
 import { isHolidayDate } from '../../domain/schedule/calendar-rules.js';
