@@ -34,6 +34,15 @@ function createMockDOM() {
       append(...c) { this.children.push(...c); },
       replaceChildren(...c) { this.children = [...c]; },
       replaceWith(...c) { if (this.parentNode) this.parentNode.children = [...c]; },
+      closest(sel) {
+        let cur = this;
+        while (cur) {
+          if (cur.dataset && cur.dataset.ledgerFilterType) return cur;
+          if (cur.className && cur.className.includes('filter-chip')) return cur;
+          cur = cur.parentNode;
+        }
+        return null;
+      },
       querySelector(sel) { return null; },
       querySelectorAll(sel) { return []; },
       addEventListener(type, cb) {
@@ -42,8 +51,21 @@ function createMockDOM() {
         this._listeners[type].push(cb);
       },
       click() {
-        if (this._listeners && this._listeners['click']) {
-          this._listeners['click'].forEach(cb => cb({ target: this, preventDefault() {}, stopPropagation() {} }));
+        let stopped = false;
+        const ev = {
+          target: this,
+          currentTarget: this,
+          preventDefault() {},
+          stopPropagation() { stopped = true; }
+        };
+        let cur = this;
+        while (cur) {
+          if (cur._listeners && cur._listeners['click']) {
+            ev.currentTarget = cur;
+            cur._listeners['click'].forEach(cb => cb(ev));
+          }
+          if (stopped) break;
+          cur = cur.parentNode;
         }
       }
     };
@@ -73,6 +95,12 @@ function createMockDOM() {
   makeEl('ledgerTransactionModalCloseBtn', 'button');
   makeEl('ledgerTransactionBottomSheet', 'div');
   makeEl('fundplanAllTimeList', 'tbody');
+
+  const personSwitch = makeEl('ledgerPersonSwitch', 'div');
+  const pOpt = makeEl('ledgerPersonFilterOptions', 'div');
+  const cOpt = makeEl('ledgerCategoryFilterOptions', 'div');
+  personSwitch.appendChild(pOpt);
+  personSwitch.appendChild(cOpt);
 
   return {
     document: {
@@ -237,15 +265,18 @@ async function testAllModalsLifecycle() {
   assert.ok(typeof offsetModule.buildOffsetGroupsFromRecords === 'function', 'buildOffsetGroupsFromRecords 함수 누락');
   assert.ok(typeof offsetModule.createOffsetGroupRow === 'function', 'createOffsetGroupRow 함수 누락');
   // 4. 🌟 Zero-Hardcoding: HTML 내 모든 버튼/인터랙티브 요소 100% 전수 자동 클릭 E2E 검증
-  console.log('--- Step 10: Zero-Hardcoding Full 75-Button Click E2E Verification ---');
-  
-  // HTML에서 모든 button 및 interactive ID 전수 자동 수집
-  const buttonIdRegex = /id="([^"]+)"/g;
-  let match;
+  // 4. 🌟 Zero-Hardcoding: HTML 내 모든 버튼/인터랙티브 요소 100% 전수 자동 크롤링 & 클릭 E2E 검증 (id 유무 무관!)
+  console.log('--- Step 10: Zero-Hardcoding Full Automated Button & Chip E2E Verification ---');
+
+  // 앱 모듈 초기화 및 바인딩
+  const ledgerAppModule = await import('../js/features/ledger/ledger-app.js');
+  const { initLedgerApp } = ledgerAppModule;
+  initLedgerApp();
+
+  // 1) id 있는 모든 인터랙티브 엘리먼트 수집 및 클릭
   const allInteractiveIds = new Set();
-  
-  // Extract all IDs from button tags and interactive classes
   const btnTagRegex = /<(?:button|a)\b[^>]*\bid="([^"]+)"[^>]*>/gi;
+  let match;
   while ((match = btnTagRegex.exec(htmlContent)) !== null) {
     allInteractiveIds.add(match[1]);
   }
@@ -254,20 +285,13 @@ async function testAllModalsLifecycle() {
     allInteractiveIds.add(match[1]);
   }
 
-  console.log(`  🔍 HTML에서 발견된 총 ${allInteractiveIds.size}개 인터랙티브 버튼/칩 전수 자동 크롤링 완료`);
-
-  // 앱 모듈 초기화 및 바인딩
-  const ledgerAppModule = await import('../js/features/ledger/ledger-app.js');
-  const { initLedgerApp } = ledgerAppModule;
-  initLedgerApp();
-
+  console.log(`  🔍 1) ID 기반 인터랙티브 요소 ${allInteractiveIds.size}개 전수 크롤링 및 가상 클릭 시작`);
   let clickedSuccessCount = 0;
   const clickErrors = [];
 
   for (const btnId of allInteractiveIds) {
     const btnEl = document.getElementById(btnId);
     if (!btnEl) continue;
-
     try {
       btnEl.click();
       clickedSuccessCount++;
@@ -276,14 +300,53 @@ async function testAllModalsLifecycle() {
     }
   }
 
+  // 2) 🌟 ID가 없는 모든 <button data-ledger-filter-type="..."> 칩들 전수 수집 및 기능 유효성 검증!
+  const dataBtnRegex = /<button\b([^>]*\bdata-ledger-filter-type="([^"]+)"[^>]*\bdata-ledger-filter-value="([^"]+)"[^>]*)>([^<]*)<\/button>/gi;
+  const dataChips = [];
+  while ((match = dataBtnRegex.exec(htmlContent)) !== null) {
+    const rawAttrs = match[1];
+    const filterType = match[2];
+    const filterValue = match[3];
+    const text = match[4].trim();
+    dataChips.push({ filterType, filterValue, text });
+  }
+
+  console.log(`  🔍 2) ID 없는 필터 칩 ${dataChips.length}개 전수 크롤링 및 기능 유효성(클릭 시 active 토글 & 필터 반영) 검증 시작`);
+  
+  const parentPerson = document.getElementById('ledgerPersonFilterOptions');
+  const parentCategory = document.getElementById('ledgerCategoryFilterOptions');
+
+  dataChips.forEach(({ filterType, filterValue, text }) => {
+    const parent = filterType === 'person' ? parentPerson : parentCategory;
+    const btn = document.createElement('button');
+    btn.className = 'filter-chip';
+    btn.dataset.ledgerFilterType = filterType;
+    btn.dataset.ledgerFilterValue = filterValue;
+    btn.textContent = text;
+    parent.appendChild(btn);
+
+    // 가상 클릭 실행!
+    btn.click();
+
+    // 🌟 무결성 검증: 클릭 시 실제로 active 클래스가 토글되거나 필터 상태가 갱신되어야 함!
+    if (!btn.classList.contains('active')) {
+      clickErrors.push({
+        id: `[data-${filterType}="${filterValue}"]`,
+        error: `필터 칩을 클릭했으나 클릭 이벤트 핸들러가 연결되어 있지 않아 active 클래스가 켜지지 않음! (미작동 버그)`
+      });
+    } else {
+      clickedSuccessCount++;
+    }
+  });
+
   if (clickErrors.length > 0) {
-    console.error(`  ❌ 총 ${clickErrors.length}개 버튼에서 클릭 런타임 에러 발생:`);
+    console.error(`  ❌ 총 ${clickErrors.length}개 버튼/필터 칩에서 미작동 또는 런타임 에러 적발:`);
     clickErrors.forEach(e => {
-      console.error(`    - [#${e.id}] 에러: ${e.error}`);
+      console.error(`    - ${e.id} 에러: ${e.error}`);
     });
-    throw new Error(`Zero-Hardcoding Button Click E2E 실패: ${clickErrors.length}개 버튼 런타임 에러 적발!`);
+    throw new Error(`Zero-Hardcoding Button & Chip E2E 실패: ${clickErrors.length}개 미작동 버튼 적발!`);
   } else {
-    console.log(`  ✔ 총 ${clickedSuccessCount}개 모든 버튼 가상 클릭 100% 무결점 에러 0건 통과!`);
+    console.log(`  ✔ 총 ${clickedSuccessCount}개 모든 버튼 및 필터 칩 가상 클릭 & 기능 유효성 100% 무결점 통과!`);
   }
 }
 

@@ -437,7 +437,11 @@ function getFundplanView() {
             monthCursor: ledgerState.monthCursor,
             isManualCardPayment
           });
-          return displayRows;
+          return filterLedgerRecords(displayRows, {
+            person: ledgerState.filters?.person,
+            category: ledgerState.filters?.category,
+            fixed: ledgerState.filters?.fixed || 'all'
+          });
         }
         const isCompanyCard = ledgerState.source === 'card' && ledgerState.payment === '기업카드';
         const filterPayment = ledgerState.source === 'card' ? ledgerState.payment : (ledgerState.source === 'cash' ? '현금' : '기업은행');
@@ -875,6 +879,39 @@ function bindLedgerDomEvents() {
     offsetFilterBtn.addEventListener('click', () => {
       ledgerState.showOffsetGroups = !ledgerState.showOffsetGroups;
       offsetFilterBtn.classList.toggle('active', ledgerState.showOffsetGroups);
+      applyLedgerDataSources();
+    });
+  }
+
+  // 1-5. 사용자 / 사용처 드롭다운 칩 다중 중복 선택 바인딩 (이벤트 위임)
+  const filterSwitchContainer = document.getElementById('ledgerPersonSwitch');
+  if (filterSwitchContainer) {
+    filterSwitchContainer.addEventListener('click', (e) => {
+      const chip = e.target.closest('.filter-chip[data-ledger-filter-type]');
+      if (!chip) return;
+      e.stopPropagation();
+
+      const filterType = chip.dataset.ledgerFilterType;
+      const filterValue = chip.dataset.ledgerFilterValue;
+      if (!filterType || !filterValue) return;
+
+      if (!ledgerState.filters) ledgerState.filters = { person: new Set(), category: new Set(), fixed: 'all' };
+      if (!ledgerState.filters.person) ledgerState.filters.person = new Set();
+      if (!ledgerState.filters.category) ledgerState.filters.category = new Set();
+
+      const targetSet = filterType === 'person' ? ledgerState.filters.person : ledgerState.filters.category;
+      if (targetSet.has(filterValue)) {
+        targetSet.delete(filterValue);
+        chip.classList.remove('active');
+      } else {
+        targetSet.add(filterValue);
+        chip.classList.add('active');
+      }
+
+      // 전체 버튼 활성화 상태 동기화
+      const hasAnyFilter = ledgerState.filters.person.size > 0 || ledgerState.filters.category.size > 0 || (ledgerState.filters.fixed && ledgerState.filters.fixed !== 'all');
+      if (filterAllBtn) filterAllBtn.classList.toggle('active', !hasAnyFilter);
+
       applyLedgerDataSources();
     });
   }
