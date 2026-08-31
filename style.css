@@ -1161,23 +1161,28 @@ td.cell-selected,
   transition: opacity 0.25s ease;
 }
 
-#statsModalOverlay {
-  z-index: 1000;
-}
-
-#summaryModalOverlay {
-  z-index: 1000;
-}
-
-#modalOverlay,
-#scheduleModalOverlay,
+/* Tier 1 Primary Modals */
+.modal-overlay,
+#statsModalOverlay,
+#weekSelectModalOverlay,
+#monthSelectModalOverlay,
+#colorSettingsModalOverlay,
 #ledgerTransactionModalOverlay,
 #ledgerAverageBalanceOverlay {
   z-index: 1000;
 }
 
-#ledgerAvgEditOverlay {
+/* Tier 2 Secondary Sub-Modals (Opens on top of Stats/Filter) */
+#summaryModalOverlay,
+#ledgerAvgEditOverlay,
+#ledgerColorSettingsModalOverlay {
   z-index: 1100;
+}
+
+/* Tier 3 Detail Edit Modals (Opens on top of Summary Collector) */
+#modalOverlay,
+#scheduleModalOverlay {
+  z-index: 1200;
 }
 
 .modal-overlay.active {
