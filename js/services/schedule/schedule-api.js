@@ -218,10 +218,25 @@ export function parseSupabaseScheduleRecords(records) {
     return ay !== by ? ay - by : am !== bm ? am - bm : ad - bd;
   });
 
-  const parsedWeeks = keys.map(k => ({
-    title: k,
-    items: grouped[k]
-  }));
+  const parsedWeeks = keys.map(k => {
+    const year = extractYearFromTitle(k);
+    const items = grouped[k] || [];
+    // 주차 내부 행들을 날짜 및 오전/오후 순으로 엄격하게 자동 정렬
+    items.sort((a, b) => {
+      const [ay, am, ad] = parseDateSortKey(a.date, year);
+      const [by, bm, bd] = parseDateSortKey(b.date, year);
+      if (ay !== by) return ay - by;
+      if (am !== bm) return am - bm;
+      if (ad !== bd) return ad - bd;
+      const aTimeVal = (a.time || '').includes('오후') ? 1 : 0;
+      const bTimeVal = (b.time || '').includes('오후') ? 1 : 0;
+      return aTimeVal - bTimeVal;
+    });
+    return {
+      title: k,
+      items
+    };
+  });
 
   setAllWeeksData(parsedWeeks);
   const todayIdx = getTodayWeekIndex();
