@@ -54,16 +54,15 @@ export function openWeekSelectModal(options = {}) {
   if (overlay) {
     overlay.classList.add('active');
 
-    // 바깥 화면(window) 이동 없이 모달 내부만 중앙으로 스크롤 계산
-    const sheet = document.getElementById('weekSelectBottomSheet');
+    // 모달 내부 리스트 컨테이너를 현재 선택된 주차 위치로 중앙 스크롤
     requestAnimationFrame(() => {
       setTimeout(() => {
         const activeCard = container.querySelector('.week-select-card.active');
-        if (activeCard && sheet) {
+        if (activeCard && container) {
           const cardTop = activeCard.offsetTop;
           const cardHeight = activeCard.offsetHeight;
-          const sheetHeight = sheet.clientHeight;
-          sheet.scrollTop = cardTop - (sheetHeight / 2) + (cardHeight / 2);
+          const containerHeight = container.clientHeight;
+          container.scrollTop = Math.max(0, cardTop - (containerHeight / 2) + (cardHeight / 2));
         }
       }, 50);
     });

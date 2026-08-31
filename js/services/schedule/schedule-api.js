@@ -144,13 +144,17 @@ export async function syncColorSettingsToSupabase() {
 /**
  * 날짜 정렬 키 추출
  */
-function parseDateSortKey(dateStr, titleYear = new Date().getFullYear()) {
+function parseDateSortKey(dateStr, titleYear = new Date().getFullYear(), weekTitle = '') {
   const nums = (dateStr || '').match(/\d+/g);
   if (!nums) return [9999, 99, 99];
-  const year  = nums.find(n => n.length === 4) ? parseInt(nums.find(n => n.length === 4), 10) : titleYear;
-  const rest  = nums.filter(n => n.length !== 4).map(Number);
+  let year = nums.find(n => n.length === 4) ? parseInt(nums.find(n => n.length === 4), 10) : titleYear;
+  const rest = nums.filter(n => n.length !== 4).map(Number);
   const month = rest[0] ?? 99;
-  const day   = rest[1] ?? 99;
+  const day = rest[1] ?? 99;
+  // 12월 주차 내에 포함된 1월 날짜는 다음 해(year + 1)로 정확히 보정
+  if (month === 1 && String(weekTitle).includes('12월')) {
+    year += 1;
+  }
   return [year, month, day];
 }
 
@@ -209,22 +213,14 @@ export function parseSupabaseScheduleRecords(records) {
     });
   });
 
-  // 각 주차의 첫 번째 실제 날짜 기준으로 정렬
-  const keys = Object.keys(grouped).sort((a, b) => {
-    const aFirstDate = grouped[a][0]?.date || '';
-    const bFirstDate = grouped[b][0]?.date || '';
-    const [ay, am, ad] = parseDateSortKey(aFirstDate, extractYearFromTitle(a));
-    const [by, bm, bd] = parseDateSortKey(bFirstDate, extractYearFromTitle(b));
-    return ay !== by ? ay - by : am !== bm ? am - bm : ad - bd;
-  });
-
-  const parsedWeeks = keys.map(k => {
+  // 각 주차 내부 행들을 먼저 날짜순 정렬한 뒤, 각 주차의 첫 번째 날짜 기준으로 전체 주차 정렬
+  const parsedWeeks = Object.keys(grouped).map(k => {
     const year = extractYearFromTitle(k);
     const items = grouped[k] || [];
     // 주차 내부 행들을 날짜 및 오전/오후 순으로 엄격하게 자동 정렬
     items.sort((a, b) => {
-      const [ay, am, ad] = parseDateSortKey(a.date, year);
-      const [by, bm, bd] = parseDateSortKey(b.date, year);
+      const [ay, am, ad] = parseDateSortKey(a.date, year, k);
+      const [by, bm, bd] = parseDateSortKey(b.date, year, k);
       if (ay !== by) return ay - by;
       if (am !== bm) return am - bm;
       if (ad !== bd) return ad - bd;
@@ -236,6 +232,15 @@ export function parseSupabaseScheduleRecords(records) {
       title: k,
       items
     };
+  });
+
+  // 전체 주차들을 각 주차의 첫 번째 날짜 기준으로 시간순 정렬
+  parsedWeeks.sort((a, b) => {
+    const aFirstDate = a.items[0]?.date || '';
+    const bFirstDate = b.items[0]?.date || '';
+    const [ay, am, ad] = parseDateSortKey(aFirstDate, extractYearFromTitle(a.title), a.title);
+    const [by, bm, bd] = parseDateSortKey(bFirstDate, extractYearFromTitle(b.title), b.title);
+    return ay !== by ? ay - by : am !== bm ? am - bm : ad - bd;
   });
 
   setAllWeeksData(parsedWeeks);
