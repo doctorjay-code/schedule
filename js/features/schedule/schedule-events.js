@@ -40,7 +40,11 @@ function loadLedgerFeature() {
   return ledgerLoadPromise;
 }
 function preloadLedgerFeature() {
-  loadLedgerFeature().catch(error => console.error('Ledger feature preload failed:', error));
+  loadLedgerFeature().then(() => {
+    import(getVersionedUrl('../ledger/ledger-app.js')).then(mod => {
+      mod.preloadLedgerData?.();
+    }).catch(e => console.warn('Background ledger prefetch error:', e));
+  }).catch(error => console.error('Ledger feature preload failed:', error));
 }
 async function enterLedgerFeature() {
   try {

@@ -1065,6 +1065,19 @@ export function refreshLedgerData() {
   }).catch(e => console.warn('Auto refreshLedgerData error:', e));
 }
 
+/**
+ * 백그라운드 가계부 데이터 동시 사전 로드 (로그인 직후 병렬 프리페치)
+ */
+export function preloadLedgerData() {
+  if (ledgerState.recordsLoaded) return;
+  fetchLedgerData().then(res => {
+    ledgerState.records = res.records || [];
+    ledgerState.recordsLoaded = true;
+    syncForecastAggregateOverridesFromDB();
+    syncBankCardBillRecords({ allRecords: ledgerState.records, upsertRecordFn: upsertLedgerRecord });
+  }).catch(e => console.warn('Background ledger prefetch notice:', e));
+}
+
 export function setLedgerRecordsForTesting(records) {
   ledgerState.records = records || [];
   applyLedgerDataSources();
