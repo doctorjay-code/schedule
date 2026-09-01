@@ -930,22 +930,50 @@ function bindLedgerDomEvents() {
   }
 
   const filterAllBtn = document.getElementById('ledgerFilterAllBtn');
+  const fixedFilterBtn = document.getElementById('ledgerFixedFilterBtn');
+
   if (filterAllBtn) {
     filterAllBtn.addEventListener('click', () => {
       ledgerState.filters = { person: new Set(), category: new Set(), fixed: 'all' };
-      document.querySelectorAll('#ledgerPersonSwitch .filter-chip').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#ledgerPersonSwitch .filter-chip').forEach(b => {
+        b.classList.remove('active');
+        b.classList.remove('active-variable');
+      });
+      if (fixedFilterBtn) fixedFilterBtn.textContent = '고정비';
       filterAllBtn.classList.add('active');
       applyLedgerDataSources();
     });
   }
 
-  const fixedFilterBtn = document.getElementById('ledgerFixedFilterBtn');
   if (fixedFilterBtn) {
     fixedFilterBtn.addEventListener('click', () => {
-      const isFixed = ledgerState.filters?.fixed === 'fixed';
       if (!ledgerState.filters) ledgerState.filters = { person: new Set(), category: new Set(), fixed: 'all' };
-      ledgerState.filters.fixed = isFixed ? 'all' : 'fixed';
-      fixedFilterBtn.classList.toggle('active', !isFixed);
+      const current = ledgerState.filters.fixed || 'all';
+
+      if (current === 'all') {
+        // 1단계: 고정비만 보기
+        ledgerState.filters.fixed = 'fixed';
+        fixedFilterBtn.textContent = '고정비';
+        fixedFilterBtn.classList.add('active');
+        fixedFilterBtn.classList.remove('active-variable');
+      } else if (current === 'fixed') {
+        // 2단계: 변동비만 보기 (고정비 제외)
+        ledgerState.filters.fixed = 'variable';
+        fixedFilterBtn.textContent = '변동비';
+        fixedFilterBtn.classList.add('active');
+        fixedFilterBtn.classList.add('active-variable');
+      } else {
+        // 3단계: 전체 보기 (필터 해제)
+        ledgerState.filters.fixed = 'all';
+        fixedFilterBtn.textContent = '고정비';
+        fixedFilterBtn.classList.remove('active');
+        fixedFilterBtn.classList.remove('active-variable');
+      }
+
+      // 전체 버튼 활성화 상태 동기화
+      const hasAnyFilter = ledgerState.filters.person.size > 0 || ledgerState.filters.category.size > 0 || (ledgerState.filters.fixed && ledgerState.filters.fixed !== 'all');
+      if (filterAllBtn) filterAllBtn.classList.toggle('active', !hasAnyFilter);
+
       applyLedgerDataSources();
     });
   }

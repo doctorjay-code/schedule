@@ -762,6 +762,13 @@ body {
   font-weight: 700;
 }
 
+.filter-chip.active-variable {
+  background-color: #EA580C !important;
+  color: white !important;
+  border-color: #EA580C !important;
+  font-weight: 700 !important;
+}
+
 .multi-edit-chip {
   background-color: #EEF2FF !important;
   color: #4F46E5 !important;
