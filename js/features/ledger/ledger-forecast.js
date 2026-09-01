@@ -49,9 +49,8 @@ export async function syncBankCardBillRecords({ allRecords = [], upsertRecordFn,
   if (!Array.isArray(allRecords) || typeof upsertRecordFn !== 'function') return;
 
   const cardRecords = allRecords.filter(r => (r.payment_method || r.payment || r.sheetName) === '기업카드');
-  if (cardRecords.length === 0) return;
 
-  // 전체 카드 거래에서 발생한 모든 청구월 수집
+  // 전체 카드 거래에서 발생한 모든 청구월 + 기업은행에 이미 존재하는 카드 결제행의 월 수집
   const billingMonths = new Set();
   cardRecords.forEach(r => {
     const dStr = normalizeLedgerDate(r.date);
@@ -67,6 +66,18 @@ export async function syncBankCardBillRecords({ allRecords = [], upsertRecordFn,
     const billMonthKey = `${y}-${String(m).padStart(2, '0')}`;
     if (billMonthKey >= '2026-08') {
       billingMonths.add(billMonthKey);
+    }
+  });
+
+  // 기업은행에 이미 존재하는 모든 카드 결제행의 청구월도 포괄
+  allRecords.forEach(r => {
+    const isBank = (r.payment_method || r.payment || r.sheetName) === '기업은행';
+    const isCard = String(r.item || '').includes('기업카드') || String(r.memo || '').includes('기업카드 결제');
+    if (isBank && isCard) {
+      const d = normalizeLedgerDate(r.date);
+      if (d && d.length >= 7 && d >= '2026-08') {
+        billingMonths.add(d.slice(0, 7));
+      }
     }
   });
 
