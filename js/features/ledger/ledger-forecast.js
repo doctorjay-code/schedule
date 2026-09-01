@@ -45,7 +45,7 @@ export function isManualCardPayment(record) {
 /**
  * 🌟 기업카드 실사용 내역을 기반으로 기업은행 매월 27일 결제행 자동 계산 및 실시간 동기화
  */
-export async function syncBankCardBillRecords({ allRecords = [], upsertRecordFn }) {
+export async function syncBankCardBillRecords({ allRecords = [], upsertRecordFn, onLocalUpdated }) {
   if (!Array.isArray(allRecords) || typeof upsertRecordFn !== 'function') return;
 
   const cardRecords = allRecords.filter(r => (r.payment_method || r.payment || r.sheetName) === '기업카드');
@@ -88,7 +88,6 @@ export async function syncBankCardBillRecords({ allRecords = [], upsertRecordFn 
     });
 
     const cycleTotal = cycleCards.reduce((sum, r) => sum + (r.type === 'expense' ? Number(r.amount || 0) : -Number(r.amount || 0)), 0);
-    if (cycleTotal <= 0) continue;
 
     const paymentDate = `${billMonthKey}-27`;
     const billId = `tr-${billMonthKey.replace('-', '')}-50-crdauto`;
@@ -103,24 +102,37 @@ export async function syncBankCardBillRecords({ allRecords = [], upsertRecordFn 
 
     if (existing) {
       if (Number(existing.amount) !== cycleTotal) {
-        updates.push({ ...existing, amount: cycleTotal });
+        existing.amount = cycleTotal;
+        updates.push({ ...existing });
       }
-    } else {
-      updates.push({
+    } else if (cycleTotal > 0) {
+      const newRow = {
         id: billId,
         date: paymentDate,
         payment_method: '기업은행',
+        payment: '기업은행',
+        sheetName: '기업은행',
         type: 'expense',
         amount: cycleTotal,
         category: '상환',
         item: '기업카드',
+        person: '쥬쥬',
         user_name: '쥬쥬',
         memo: '쥬쥬 기업카드 결제',
         fixed_cost: '고정비',
+        fixedCost: '고정비',
         order_index: 50,
-        forecast_order_index: 50
-      });
+        orderIndex: 50,
+        forecast_order_index: 50,
+        source: 'supabase'
+      };
+      allRecords.push(newRow);
+      updates.push(newRow);
     }
+  }
+
+  if (typeof onLocalUpdated === 'function' && updates.length > 0) {
+    onLocalUpdated();
   }
 
   for (const row of updates) {
@@ -409,20 +421,37 @@ export async function copyMonthFixedRecordsToNextMonth({
     const sheetName = r.sheetName || (r.payment === '기업은행' ? '기업은행' : r.payment === '현금' ? '현금' : '토스은행');
 
     const isOffset = sourceOffsetRecordIds.has(String(r.id)) || sourceOffsetRecordIds.has(String(r.originalId));
-    const newAmount = isOffset ? 0 : Number(r.amount || 0);
+    const isCardBill = (r.payment === '기업은행' || sheetName === '기업은행') &&
+      (String(r.item || '').includes('기업카드') || String(r.memo || '').includes('기업카드 결제'));
+
+    let finalAmount = isOffset ? 0 : Number(r.amount || 0);
+    let finalItem = r.item || '';
+    let finalMemo = r.memo || '';
+    let finalPerson = r.person || r.user_name || '기타';
+    let finalCategory = r.category || '';
+    let finalFixed = r.fixedCost || '';
+
+    if (isCardBill) {
+      finalAmount = 0; // 🌟 기업카드 결제행은 금액 0원으로 비우고 행 틀을 복사!
+      finalItem = '기업카드';
+      finalMemo = '쥬쥬 기업카드 결제';
+      finalPerson = '쥬쥬';
+      finalCategory = '상환';
+      finalFixed = '고정비';
+    }
 
     const newRecord = {
       id: newId,
       date: newDateStr,
       type: r.type,
-      amount: newAmount,
+      amount: finalAmount,
       balance: 0,
       payment: r.payment || (sheetName === '기업은행' ? '기업은행' : sheetName === '현금' ? '현금' : '토스은행'),
-      item: r.item || '',
-      person: r.person || r.user_name || '기타',
-      category: r.category || '',
-      memo: r.memo || '',
-      fixedCost: r.fixedCost || '', // 원래 고정비였던 것만 고정비 유지!
+      item: finalItem,
+      person: finalPerson,
+      category: finalCategory,
+      memo: finalMemo,
+      fixedCost: finalFixed,
       orderIndex: (idx + 1) * 10,
       createdAt: (idx + 1) * 10,
       source: 'supabase',

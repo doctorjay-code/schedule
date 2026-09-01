@@ -273,6 +273,19 @@ function applyOptimisticDelete(record) {
   applyLedgerDataSources();
 }
 
+/**
+ * 기업카드 사용내역 변경 시 기업은행 매월 27일 결제행 실시간 자동 동기화
+ */
+function triggerCardBillSync() {
+  syncBankCardBillRecords({
+    allRecords: ledgerState.records,
+    upsertRecordFn: upsertLedgerRecord,
+    onLocalUpdated: () => {
+      applyLedgerDataSources();
+    }
+  });
+}
+
 function saveLedgerRecord(form, overrides = {}) {
   const values = { ...Object.fromEntries(new FormData(form).entries()), ...overrides };
   const rawAmountStr = String(values.amount || '').replace(/[^\d]/g, '');
@@ -327,6 +340,7 @@ function saveLedgerRecord(form, overrides = {}) {
   record.sheetName = ledgerSheetNameForRecord(record);
 
   applyOptimisticSave(record);
+  triggerCardBillSync();
   getLedgerTransactionModal().close();
   showLedgerToast(isEdit ? '✏️ 거래가 수정되었습니다.' : '＋ 거래가 등록되었습니다.');
 
@@ -354,6 +368,7 @@ function deleteRecord(id) {
   };
 
   applyOptimisticDelete(record);
+  triggerCardBillSync();
   getLedgerTransactionModal().close();
   showLedgerToast('🗑️ 거래가 삭제되었습니다.');
 
@@ -891,6 +906,7 @@ function bindLedgerDomEvents() {
         insertBatchFn: insertLedgerRecordsBatch,
         onComplete: () => {
           setMultiEditMode(false);
+          triggerCardBillSync();
           applyLedgerDataSources();
         }
       });
