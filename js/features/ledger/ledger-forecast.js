@@ -516,7 +516,7 @@ export async function copyMonthFixedRecordsToNextMonth(
 
     const isOffset = Boolean(r.offset_group_id) || sourceOffsetRecordIds.has(String(r.id)) || sourceOffsetRecordIds.has(String(r.originalId));
 
-    let finalAmount = isOffset ? 0 : Number(r.amount || 0);
+    let finalAmount = Number(r.amount || 0);
     let finalItem = r.item || '';
     let finalMemo = r.memo || '';
     let finalPerson = r.person || r.user_name || '기타';
