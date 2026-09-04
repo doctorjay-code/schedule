@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="스마트일정">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
-  <link rel="stylesheet" href="style.css?v=20260905_0000">
+  <link rel="stylesheet" href="style.css?v=20260905_0005">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -775,13 +775,13 @@
       </div>
 
       <!-- 3. 거래 목록 카드 (가계부 리포트 그룹 스타일) -->
-      <div style="border: 1px solid #E2E8F0; border-radius: 12px; background: #FFF; padding: 12px;">
+      <div style="border: 1px solid #E2E8F0; border-radius: 12px; background: #FFF; padding: 12px; flex: 1; min-height: 0; display: flex; flex-direction: column;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
           <span style="font-size: 13px; font-weight: 700; color: #334155;">거래 목록</span>
           <button id="ledgerAverageAddTransactionBtn" type="button" style="height: 28px; padding: 0 10px; font-size: 11.5px; font-weight: 700; border-radius: 6px; cursor: pointer; border: none; background: #2F5597; color: #FFF;">＋ 거래 추가</button>
         </div>
 
-        <div class="table-wrapper ledger-avg-table-wrap" style="max-height: 200px; overflow-y: auto; border-radius: 8px; border: 1px solid #E2E8F0; background: #FFFFFF;">
+        <div class="table-wrapper ledger-avg-table-wrap" style="flex: 1; min-height: 0; max-height: none; overflow-y: auto; border-radius: 8px; border: 1px solid #E2E8F0; background: #FFFFFF;">
           <table class="schedule-table ledger-schedule-table" id="ledgerAverageTable">
             <thead>
               <tr>

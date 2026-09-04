@@ -1215,6 +1215,20 @@ td.cell-selected,
   transform: translateY(0);
 }
 
+#ledgerAverageBottomSheet {
+  height: 75vh;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#ledgerAverageBottomSheet .sheet-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .sheet-handle {
   width: 36px;
   height: 4px;
