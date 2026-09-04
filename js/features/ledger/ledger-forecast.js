@@ -1,5 +1,6 @@
 import { insertLedgerRecordsBatch, upsertLedgerOffsetGroup, fetchForecastAggregateOverrides, saveForecastAggregateOverridesToDB } from '../../services/ledger/ledger-api.js';
 import { compareLedgerRecords, normalizeLedgerDate, generateLedgerId } from './ledger-utils.js';
+import { buildOffsetGroupsFromRecords } from './ledger-offset-groups.js';
 
 // 🌟 Zero-localStorage: 순수 메모리 상태 & Supabase DB 영구 저장 직결
 let inMemoryAggregateOverrides = {};
@@ -369,18 +370,49 @@ export function generateForecastRecords({
 }
 
 /**
- * 다음 달 고정비 원클릭 복사 엔진 (+1 month copy)
+ * 다음 달 고정비 & 상계 묶음 원클릭 복사 엔진 (+1 month push)
  */
-export async function copyMonthFixedRecordsToNextMonth({
-  allRecords = [],
-  sourceMonthCursor = new Date(),
-  saveRecordsBatchFn = insertLedgerRecordsBatch,
-  saveOffsetGroupFn = upsertLedgerOffsetGroup
-}) {
-  const sy = sourceMonthCursor.getFullYear();
-  const sm = sourceMonthCursor.getMonth() + 1; // 1-indexed
-  const sourceMonthKey = `${sy}-${String(sm).padStart(2, '0')}`;
+export async function copyMonthFixedRecordsToNextMonth(
+  sourceMonthKeyOrOptions,
+  ledgerDataSources = {},
+  options = {}
+) {
+  let sourceMonthKey = '';
+  let allRecords = [];
+  let saveRecordsBatchFn = insertLedgerRecordsBatch;
+  let saveOffsetGroupFn = upsertLedgerOffsetGroup;
+  let currentSource = options.source || 'forecast';
 
+  if (typeof sourceMonthKeyOrOptions === 'string') {
+    sourceMonthKey = sourceMonthKeyOrOptions;
+    const cardList = ledgerDataSources.card || [];
+    const tossRecords = cardList.filter(r => (r.payment === '토스은행' || r.sheetName === '토스은행'));
+    const cardRecords = cardList.filter(r => (r.payment === '기업카드' || r.sheetName === '기업카드'));
+    const bankRecords = ledgerDataSources.bank || [];
+    const cashRecords = ledgerDataSources.cash || [];
+
+    if (currentSource === 'forecast') {
+      allRecords = [...tossRecords, ...bankRecords, ...cardRecords];
+    } else if (currentSource === 'bank') {
+      allRecords = [...bankRecords];
+    } else if (currentSource === 'cash') {
+      allRecords = [...cashRecords];
+    } else if (currentSource === 'card') {
+      allRecords = options.payment === '기업카드' ? [...cardRecords] : [...tossRecords];
+    } else {
+      allRecords = Array.isArray(ledgerDataSources) ? ledgerDataSources : [...tossRecords, ...bankRecords, ...cardRecords, ...cashRecords];
+    }
+  } else if (sourceMonthKeyOrOptions && typeof sourceMonthKeyOrOptions === 'object') {
+    allRecords = sourceMonthKeyOrOptions.allRecords || [];
+    if (sourceMonthKeyOrOptions.saveRecordsBatchFn) saveRecordsBatchFn = sourceMonthKeyOrOptions.saveRecordsBatchFn;
+    if (sourceMonthKeyOrOptions.saveOffsetGroupFn) saveOffsetGroupFn = sourceMonthKeyOrOptions.saveOffsetGroupFn;
+    const cursor = sourceMonthKeyOrOptions.sourceMonthCursor || new Date();
+    const sy = typeof cursor.getFullYear === 'function' ? cursor.getFullYear() : new Date().getFullYear();
+    const sm = typeof cursor.getMonth === 'function' ? cursor.getMonth() + 1 : new Date().getMonth() + 1;
+    sourceMonthKey = `${sy}-${String(sm).padStart(2, '0')}`;
+  }
+
+  const [sy, sm] = sourceMonthKey.split('-').map(Number);
   let ty = sy;
   let tm = sm + 1;
   if (tm > 12) {
@@ -389,16 +421,30 @@ export async function copyMonthFixedRecordsToNextMonth({
   }
   const targetMonthKey = `${ty}-${String(tm).padStart(2, '0')}`;
 
-  // 1. 해당 월(sourceMonth)의 고정비 및 상계 거래 추출
+  // 1. 해당 월의 상계 그룹 및 소속 레코드 ID 추출
+  const allOffsetGroups = buildOffsetGroupsFromRecords(allRecords);
+  const sourceOffsetRecordIds = new Set();
+  const sourceOffsetGroups = [];
+
+  Object.values(allOffsetGroups).forEach(group => {
+    const gDate = normalizeLedgerDate(group.date);
+    if (gDate && gDate.startsWith(sourceMonthKey) && Array.isArray(group.recordIds)) {
+      sourceOffsetGroups.push(group);
+      group.recordIds.forEach(id => sourceOffsetRecordIds.add(String(id)));
+    }
+  });
+
+  // 2. 해당 월(sourceMonthKey)의 고정비 및 상계 거래 추출
   const toCopyBank = [];
   const toCopyCard = [];
 
   allRecords.forEach(r => {
     const dStr = normalizeLedgerDate(r.date);
     if (!dStr || !dStr.startsWith(sourceMonthKey)) return;
+    if (String(r.id || '').startsWith('fc-')) return; // 가상 행은 복사 대상에서 원천 제외
 
     const isFixed = r.fixed_cost === '고정비' || r.fixedCost === '고정비';
-    const isOffset = Boolean(r.offset_group_id);
+    const isOffset = Boolean(r.offset_group_id) || sourceOffsetRecordIds.has(String(r.id)) || sourceOffsetRecordIds.has(String(r.originalId));
     const sheet = r.payment_method || r.payment || r.sheetName || '토스은행';
 
     if (sheet === '기업카드') {
@@ -410,14 +456,14 @@ export async function copyMonthFixedRecordsToNextMonth({
 
   const totalCount = toCopyBank.length + toCopyCard.length;
   if (totalCount === 0) {
-    return { ok: false, message: `${sm}월 고정비가 이미 ${tm}월에 모두 등록되어 있어 추가로 복사할 거래가 없습니다 (중복 방지 완료).` };
+    return { ok: false, message: `${sm}월 고정비/상계 거래가 이미 ${tm}월에 모두 등록되어 있어 추가로 복사할 거래가 없습니다.` };
   }
 
-  // 2. 새 레코드 매핑 생성
+  // 3. 새 레코드 매핑 생성
   const newRecordsBySheet = {};
   const idMapping = {}; // oldId -> newId
 
-  // 2-1. 일반 통장 거래 복사 매핑
+  // 3-1. 일반 통장/은행 거래 복사 매핑
   toCopyBank.forEach((r, idx) => {
     const oldDateStr = normalizeLedgerDate(r.date);
     const day = oldDateStr.slice(8);
@@ -430,8 +476,7 @@ export async function copyMonthFixedRecordsToNextMonth({
     if (r.originalId) idMapping[String(r.originalId)] = newId;
 
     const sheetName = r.sheetName || (r.payment === '기업은행' ? '기업은행' : r.payment === '현금' ? '현금' : '토스은행');
-
-    const isOffset = sourceOffsetRecordIds.has(String(r.id)) || sourceOffsetRecordIds.has(String(r.originalId));
+    const isOffset = Boolean(r.offset_group_id) || sourceOffsetRecordIds.has(String(r.id)) || sourceOffsetRecordIds.has(String(r.originalId));
     const isCardBill = (r.payment === '기업은행' || sheetName === '기업은행') &&
       (String(r.item || '').includes('기업카드') || String(r.memo || '').includes('기업카드 결제'));
 
@@ -440,10 +485,10 @@ export async function copyMonthFixedRecordsToNextMonth({
     let finalMemo = r.memo || '';
     let finalPerson = r.person || r.user_name || '기타';
     let finalCategory = r.category || '';
-    let finalFixed = r.fixedCost || '';
+    let finalFixed = r.fixedCost || r.fixed_cost || '';
 
     if (isCardBill) {
-      finalAmount = 0; // 🌟 기업카드 결제행은 금액 0원으로 비우고 행 틀을 복사!
+      finalAmount = 0; // 🌟 기업카드 결제행은 금액 0원으로 비우고 틀 복사!
       finalItem = '기업카드';
       finalMemo = '쥬쥬 기업카드 결제';
       finalPerson = '쥬쥬';
@@ -458,21 +503,27 @@ export async function copyMonthFixedRecordsToNextMonth({
       amount: finalAmount,
       balance: 0,
       payment: r.payment || (sheetName === '기업은행' ? '기업은행' : sheetName === '현금' ? '현금' : '토스은행'),
+      payment_method: r.payment || (sheetName === '기업은행' ? '기업은행' : sheetName === '현금' ? '현금' : '토스은행'),
       item: finalItem,
       person: finalPerson,
+      user_name: finalPerson,
       category: finalCategory,
       memo: finalMemo,
       fixedCost: finalFixed,
+      fixed_cost: finalFixed,
       orderIndex: (idx + 1) * 10,
+      order_index: (idx + 1) * 10,
       createdAt: (idx + 1) * 10,
       source: 'supabase',
-      sheetName
+      sheetName,
+      offset_group_id: null,
+      offset_title: isOffset ? (r.offset_title || '상계 묶음') : null
     };
 
     (newRecordsBySheet[sheetName] ||= []).push(newRecord);
   });
 
-  // 2-2. 기업카드 고정비 거래 복사 매핑 (+1 month)
+  // 3-2. 기업카드 고정비 거래 복사 매핑 (+1 month)
   toCopyCard.forEach((c, idx) => {
     const oldDateStr = normalizeLedgerDate(c.date);
     const [cy, cm, cd] = oldDateStr.split('-').map(Number);
@@ -497,12 +548,16 @@ export async function copyMonthFixedRecordsToNextMonth({
       amount: Number(c.amount || 0),
       balance: 0,
       payment: '기업카드',
+      payment_method: '기업카드',
       item: c.item || '',
       person: c.person || c.user_name || '기타',
+      user_name: c.person || c.user_name || '기타',
       category: c.category || '',
       memo: c.memo || '',
       fixedCost: '고정비',
+      fixed_cost: '고정비',
       orderIndex: (idx + 1) * 10,
+      order_index: (idx + 1) * 10,
       createdAt: (idx + 1) * 10,
       source: 'supabase',
       sheetName: '기업카드'
@@ -511,15 +566,11 @@ export async function copyMonthFixedRecordsToNextMonth({
     (newRecordsBySheet['기업카드'] ||= []).push(newCardRecord);
   });
 
-  // 3. 일괄 저장 실행
-  const flatToInsert = Object.values(newRecordsBySheet).flat();
-  if (flatToInsert.length > 0) {
-    await saveRecordsBatchFn(flatToInsert);
-  }
-
   // 4. 상계 그룹 복제 및 연결
   let offsetGroupCount = 0;
-  for (const group of Object.values(allOffsetGroups)) {
+  const flatRecords = Object.values(newRecordsBySheet).flat();
+
+  for (const group of sourceOffsetGroups) {
     const groupRecordIds = group.recordIds || [];
     const mappedIds = groupRecordIds
       .map(id => idMapping[String(id)])
@@ -529,19 +580,44 @@ export async function copyMonthFixedRecordsToNextMonth({
       const newGroupId = `offset-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       const newGroup = {
         id: newGroupId,
+        date: `${targetMonthKey}-01`,
         title: group.title || '상계 묶음',
         recordIds: mappedIds
       };
+
+      mappedIds.forEach(mId => {
+        const found = flatRecords.find(r => r.id === mId);
+        if (found) {
+          found.offset_group_id = newGroupId;
+          found.offset_title = newGroup.title;
+        }
+      });
+
       await saveOffsetGroupFn(newGroup);
       offsetGroupCount++;
     }
   }
 
+  // 5. 일괄 저장 실행
+  if (flatRecords.length > 0) {
+    await saveRecordsBatchFn(flatRecords);
+  }
+
+  // 6. 기업카드 결제대금 자동 동기화
+  syncBankCardBillRecords({
+    allRecords: [...allRecords, ...flatRecords],
+    upsertRecordFn: async (row) => {
+      await saveRecordsBatchFn([row]);
+    }
+  });
+
   return {
     ok: true,
-    count: flatToInsert.length,
+    count: flatRecords.length,
     offsetGroupCount,
-    targetMonth: tm,
+    sourceMonthKey,
+    targetMonthKey,
+    targetMonthNum: tm,
     targetYear: ty
   };
 }
