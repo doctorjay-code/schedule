@@ -112,3 +112,33 @@ export function generateLedgerId(dateStr = '', orderIndex = 0) {
   const rand = Math.random().toString(36).slice(2, 8);
   return `tr-${dKey}-${oKey}-${rand}`;
 }
+
+/**
+ * 기업카드 및 일반 가계부 월별 그룹핑 키(YYYY-MM) 산출
+ * - 일반: YYYY-MM
+ * - 기업카드: 전월 13일 ~ 당월 12일 주기 (단, 2026년 1월은 오픈 예외로 2026년 2월에 합침)
+ */
+export function getRecordMonthGroup(record, isCompanyCard) {
+  const dStr = normalizeLedgerDate(record.date);
+  if (!isCompanyCard) {
+    return dStr.slice(0, 7);
+  }
+  const [yearStr, monthStr, dayStr] = dStr.split('-');
+  let year = parseInt(yearStr, 10);
+  let month = parseInt(monthStr, 10);
+  const day = parseInt(dayStr, 10);
+
+  if (day >= 13) {
+    month += 1;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+  }
+  // 기업카드 1월은 2월행에 합침 (오직 2026년 시스템 오픈 월에만 적용!)
+  if (year === 2026 && month === 1) {
+    month = 2;
+  }
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+

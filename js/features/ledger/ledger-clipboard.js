@@ -136,11 +136,18 @@ export function executeLedgerPaste({
       // 기업카드 13일 정산 주기 스마트 계산
       let calcYear = targetYear;
       let calcMonth = targetMonth;
-      if (targetMonth <= 1) {
+      if (calcYear === 2026 && targetMonth <= 1) {
         calcMonth = targetMonth;
       } else {
-        if (origDay >= 13) calcMonth = targetMonth - 1;
-        else calcMonth = targetMonth;
+        if (origDay >= 13) {
+          calcMonth = targetMonth - 1;
+          if (calcMonth < 0) {
+            calcMonth = 11;
+            calcYear -= 1;
+          }
+        } else {
+          calcMonth = targetMonth;
+        }
       }
       const maxDays = new Date(calcYear, calcMonth + 1, 0).getDate();
       const clampedDay = Math.min(origDay, maxDays);

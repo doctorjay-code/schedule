@@ -1,31 +1,9 @@
-import { toIso, formatMoney, recalculateRunningBalances, normalizeLedgerDate, compareLedgerRecords } from './ledger-utils.js';
+import { toIso, formatMoney, recalculateRunningBalances, normalizeLedgerDate, compareLedgerRecords, getRecordMonthGroup } from './ledger-utils.js';
 import { createLedgerTableHead, renderTransactionRow } from './transaction-view.js';
 import { buildOffsetGroupsFromRecords, deleteOffsetGroup, createOffsetGroupRow } from './ledger-offset-groups.js';
 import { copyMonthFixedRecordsToNextMonth } from './ledger-forecast.js';
 
-export function getRecordMonthGroup(record, isCompanyCard) {
-  const dStr = normalizeLedgerDate(record.date);
-  if (!isCompanyCard) {
-    return dStr.slice(0, 7);
-  }
-  const [yearStr, monthStr, dayStr] = dStr.split('-');
-  let year = parseInt(yearStr, 10);
-  let month = parseInt(monthStr, 10);
-  const day = parseInt(dayStr, 10);
-
-  if (day >= 13) {
-    month += 1;
-    if (month > 12) {
-      month = 1;
-      year += 1;
-    }
-  }
-  // 기업카드 1월은 2월행에 합침
-  if (month === 1) {
-    month = 2;
-  }
-  return `${year}-${String(month).padStart(2, '0')}`;
-}
+export { getRecordMonthGroup };
 
 export function formatMonthTitle(monthKey, isCompanyCard) {
   const [yearStr, monthStr] = monthKey.split('-');

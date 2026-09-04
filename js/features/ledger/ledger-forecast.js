@@ -1,5 +1,5 @@
 import { insertLedgerRecordsBatch, upsertLedgerOffsetGroup, fetchForecastAggregateOverrides, saveForecastAggregateOverridesToDB } from '../../services/ledger/ledger-api.js';
-import { compareLedgerRecords, normalizeLedgerDate, generateLedgerId } from './ledger-utils.js';
+import { compareLedgerRecords, normalizeLedgerDate, generateLedgerId, getRecordMonthGroup } from './ledger-utils.js';
 import { buildOffsetGroupsFromRecords } from './ledger-offset-groups.js';
 
 // 🌟 Zero-localStorage: 순수 메모리 상태 & Supabase DB 영구 저장 직결
@@ -457,16 +457,21 @@ export async function copyMonthFixedRecordsToNextMonth(
 
   allRecords.forEach(r => {
     const dStr = normalizeLedgerDate(r.date);
-    if (!dStr || !dStr.startsWith(sourceMonthKey)) return;
+    if (!dStr) return;
     if (String(r.id || '').startsWith('fc-')) return; // 가상 행은 복사 대상에서 원천 제외
 
     const isFixed = r.fixed_cost === '고정비' || r.fixedCost === '고정비';
-    const isOffset = Boolean(r.offset_group_id) || sourceOffsetRecordIds.has(String(r.id)) || sourceOffsetRecordIds.has(String(r.originalId));
     const sheet = r.payment_method || r.payment || r.sheetName || '토스은행';
 
     if (sheet === '기업카드') {
-      if (isFixed) toCopyCard.push(r);
+      // 🌟 기업카드는 결제월 주기(전월 13일 ~ 당월 12일)를 기준으로 당월(sourceMonthKey)에 귀속된 고정비를 추출!
+      const cardMonthGroup = getRecordMonthGroup(r, true);
+      if (cardMonthGroup === sourceMonthKey && isFixed) {
+        toCopyCard.push(r);
+      }
     } else {
+      if (!dStr.startsWith(sourceMonthKey)) return;
+      const isOffset = Boolean(r.offset_group_id) || sourceOffsetRecordIds.has(String(r.id)) || sourceOffsetRecordIds.has(String(r.originalId));
       if (isFixed || isOffset) toCopyBank.push(r);
     }
   });
@@ -568,6 +573,17 @@ export async function copyMonthFixedRecordsToNextMonth(
     const safeDay = Math.min(cd, maxDays);
     const newDateStr = `${nextY}-${String(nextM).padStart(2, '0')}-${String(safeDay).padStart(2, '0')}`;
 
+    // 🌟 대상 날짜에 동일 항목 및 금액의 기업카드 거래가 이미 존재하면 중복 생성 방지
+    const alreadyExists = allRecords.some(existing => {
+      const eDate = normalizeLedgerDate(existing.date);
+      const eSheet = existing.payment_method || existing.payment || existing.sheetName || '';
+      return eSheet === '기업카드' &&
+        eDate === newDateStr &&
+        existing.item === c.item &&
+        Math.abs(Number(existing.amount || 0) - Number(c.amount || 0)) < 0.01;
+    });
+    if (alreadyExists) return;
+
     const newId = generateLedgerId(newDateStr, idx);
     idMapping[String(c.id)] = newId;
     if (c.originalId) idMapping[String(c.originalId)] = newId;
@@ -630,9 +646,10 @@ export async function copyMonthFixedRecordsToNextMonth(
   }
 
   // 5. 일괄 저장 실행
-  if (flatRecords.length > 0) {
-    await saveRecordsBatchFn(flatRecords);
+  if (flatRecords.length === 0) {
+    return { ok: false, message: `이미 모든 고정비 및 상계 거래가 ${tm}월에 복사되어 있습니다.` };
   }
+  await saveRecordsBatchFn(flatRecords);
 
   // 6. 기업카드 결제대금 자동 동기화
   syncBankCardBillRecords({
