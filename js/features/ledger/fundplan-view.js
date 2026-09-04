@@ -165,8 +165,27 @@ export function createLedgerMonthSummaryRow({
 export function createFundplanView({ ledgerState, getColorSettings, colorSettings, getActiveSourceRecords, clampLedgerDate, minDate, setText, ledgerDataSources, getLedgerDataSources, refreshLedgerSheetData, renderActiveLedgerPeriod, showLedgerToast, onRowClick }) {
   const monthExpandedState = {};
   const subAccordionExpandedState = {};
+  let lastFilterSignature = '';
 
   function render() {
+    const isMonthlyMode = Boolean(document.getElementById('ledgerMonthlyViewBtn')?.classList.contains('active'));
+    const currentFilterSignature = JSON.stringify({
+      source: ledgerState.source,
+      payment: ledgerState.payment,
+      category: Array.from(ledgerState.filters?.category || []),
+      person: Array.from(ledgerState.filters?.person || []),
+      fixed: ledgerState.filters?.fixed,
+      query: ledgerState.searchQuery
+    });
+    if (currentFilterSignature !== lastFilterSignature) {
+      lastFilterSignature = currentFilterSignature;
+      // 🌟 필터 변경 시: 월별행 & 부모 통합행 모두 기본 '닫혀서 준비' 상태로 초기화!
+      Object.keys(subAccordionExpandedState).forEach(k => delete subAccordionExpandedState[k]);
+      if (!isMonthlyMode) {
+        Object.keys(monthExpandedState).forEach(k => delete monthExpandedState[k]);
+      }
+    }
+
     const activeColorSettings = (typeof getColorSettings === 'function' ? getColorSettings() : colorSettings) || {};
     const source = ledgerState.source;
     const isCompanyCard = source === 'card' && ledgerState.payment === '\uAE30\uC5C5\uCE74\uB4DC';
@@ -231,7 +250,6 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
     const focusMonth = toIso(clampLedgerDate(ledgerState.monthCursor)).slice(0, 7);
     setText('ledgerPeriodTitle', focusMonth.replace('-', '.'));
 
-    const isMonthlyMode = Boolean(document.getElementById('ledgerMonthlyViewBtn')?.classList.contains('active'));
     const monthsToRender = isMonthlyMode
       ? (grouped[focusMonth] ? [focusMonth] : [focusMonth])
       : months;
@@ -269,14 +287,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
         return;
       }
       const isSearching = Boolean(ledgerState.searchQuery && ledgerState.searchQuery.trim());
-      const hasActiveFilter = Boolean(
-        isSearching ||
-        (ledgerState.filters?.category && ledgerState.filters.category.size > 0) ||
-        (ledgerState.filters?.person && ledgerState.filters.person.size > 0) ||
-        (ledgerState.filters?.fixed && ledgerState.filters.fixed !== 'all')
-      );
-      const isMonthExplicit = monthExpandedState[month] !== undefined;
-      const isExpanded = isMonthExplicit ? Boolean(monthExpandedState[month]) : (hasActiveFilter ? true : Boolean(monthExpandedState[month]));
+      const isExpanded = isSearching ? true : Boolean(monthExpandedState[month]);
       const monthRowElements = [];
 
       const dividerRow = createLedgerMonthDividerRow({
@@ -286,10 +297,13 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
         monthRecords,
         offsetRecordIds,
         onToggle: toggleIcon => {
-          const currentlyExpanded = monthExpandedState[month] !== undefined ? Boolean(monthExpandedState[month]) : hasActiveFilter;
+          const currentlyExpanded = Boolean(monthExpandedState[month]);
           const willExpand = !currentlyExpanded;
           monthExpandedState[month] = willExpand;
-          toggleIcon.textContent = willExpand ? '\u25BC' : '\u25B6';
+          toggleIcon.textContent = willExpand ? '▼' : '▶';
+          monthRecords.forEach(r => {
+            if (r && r.id) subAccordionExpandedState[r.id] = false;
+          });
           monthRowElements.forEach(r => {
             if (r.classList.contains('ledger-subdetail-row') || r.dataset.parentOffsetGroupId || r.dataset.parentAggregateId) {
               r.style.display = 'none'; // 서브 세부행과 상계 묶음 속 거래들은 항상 닫힌 상태 유지
@@ -517,10 +531,9 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
             if (sTarget === 'person') return sPerson.includes(q);
             return sItem.includes(q) || sMemo.includes(q) || sCat.includes(q) || sPerson.includes(q);
           });
-          const isExplicitlySet = subAccordionExpandedState[record.id] !== undefined;
-          const isSubExpanded = isExplicitlySet
-            ? Boolean(subAccordionExpandedState[record.id])
-            : (Boolean(hasMatchingSub) || Boolean(record.isSubFiltered));
+          const isSubExpanded = isSearching
+            ? (Boolean(subAccordionExpandedState[record.id]) || Boolean(hasMatchingSub))
+            : Boolean(subAccordionExpandedState[record.id]);
 
           record.subRecords.forEach((sub, sIdx) => {
             const isFirstSub = sIdx === 0;
@@ -537,7 +550,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
               subEl.dataset.parentAggregateId = record.id;
               if (isFirstSub) subEl.dataset.subdetailFirst = 'true';
               if (isLastSub) subEl.dataset.subdetailLast = 'true';
-              subEl.style.display = isSubExpanded ? '' : 'none'; // 🌟 상태 보존!
+              subEl.style.display = (isExpanded && isSubExpanded) ? '' : 'none'; // 🌟 월과 서브 아코디언이 모두 열려있을 때만 표시!
               monthRowElements.push(subEl);
               subRows.push(subEl);
             });
@@ -551,10 +564,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
 
           const toggleSubAccordion = (e) => {
             if (e) e.stopPropagation();
-            const currentExpanded = subAccordionExpandedState[record.id] !== undefined
-              ? Boolean(subAccordionExpandedState[record.id])
-              : (Boolean(hasMatchingSub) || Boolean(record.isSubFiltered));
-            const nextState = !currentExpanded;
+            const nextState = !Boolean(subAccordionExpandedState[record.id]);
             subAccordionExpandedState[record.id] = nextState;
             mainRows.forEach(mr => {
               const iconEl = mr.querySelector('.ledger-accordion-icon');
