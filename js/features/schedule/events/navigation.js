@@ -1,3 +1,5 @@
+import { attachHardReloadLongPress } from '../../../shared/sync-ui.js';
+
 // Schedule view, period navigation, and feature-launch event responsibility.
 export function bindScheduleNavigation({
   state,
@@ -99,16 +101,19 @@ export function bindScheduleNavigation({
   });
 
   const manualSyncBtn = document.getElementById('manualSyncBtn');
-  manualSyncBtn?.addEventListener('click', async () => {
-    manualSyncBtn.classList.add('spinning');
-    manualSyncBtn.disabled = true;
-    try {
-      await syncFromSheets();
-    } finally {
-      setTimeout(() => {
-        manualSyncBtn.classList.remove('spinning');
-        manualSyncBtn.disabled = false;
-      }, 500);
-    }
-  });
+  if (manualSyncBtn) {
+    attachHardReloadLongPress(manualSyncBtn);
+    manualSyncBtn.addEventListener('click', async () => {
+      manualSyncBtn.classList.add('spinning');
+      manualSyncBtn.disabled = true;
+      try {
+        await syncFromSheets();
+      } finally {
+        setTimeout(() => {
+          manualSyncBtn.classList.remove('spinning');
+          manualSyncBtn.disabled = false;
+        }, 500);
+      }
+    });
+  }
 }

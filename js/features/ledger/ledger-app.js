@@ -19,6 +19,7 @@ import { showLedgerToast, findLedgerRecordById, executeLedgerCopy, executeLedger
 import { generateForecastRecords, isManualCardPayment, saveForecastAggregateOverride, loadForecastAggregateOverrides, syncForecastAggregateOverridesFromDB, syncBankCardBillRecords } from './ledger-forecast.js';
 import { createOffsetGroupFromRecords, createOffsetGroupRow, deleteOffsetGroup } from './ledger-offset-groups.js';
 import { initAverageBalanceModal } from './modals/average-balance.js';
+import { attachHardReloadLongPress } from '../../shared/sync-ui.js';
 
 let ledgerState = {
   active: false,
@@ -880,6 +881,7 @@ function bindLedgerDomEvents() {
 
   const refreshBtn = document.getElementById('ledgerRefreshBtn');
   if (refreshBtn) {
+    attachHardReloadLongPress(refreshBtn);
     refreshBtn.addEventListener('click', () => {
       const badge = document.getElementById('ledgerDataBadge');
       if (badge) badge.textContent = '동기화 중...';

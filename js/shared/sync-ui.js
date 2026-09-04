@@ -92,3 +92,107 @@ export function setSyncStatus(state, detail = '') {
   // 3. 뱃지 텍스트 갱신
   setScheduleSyncBadge(state, detail);
 }
+
+/**
+ * 길게 누르기(Long-Press, 약 650ms) 시 웹앱/브라우저 전체를 최신 코드로 강제 새로고침하는 헬퍼
+ * - 일반 클릭 시: 기존 데이터 동기화 정상 수행
+ * - 650ms 이상 길게 누를 시: 진동 피드백 + 토스트 안내 후 캐시 우회 강제 리로드(URL timestamp param)
+ */
+export function attachHardReloadLongPress(element) {
+  if (!element) return;
+
+  let timer = null;
+  let isLongPress = false;
+  let startX = 0;
+  let startY = 0;
+
+  function executeHardReload() {
+    isLongPress = true;
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate([40, 60, 40]); } catch {}
+    }
+    const toast = typeof document !== 'undefined' ? document.getElementById('ledgerToast') : null;
+    if (toast) {
+      toast.textContent = '🔄 최신 코드로 새로고침합니다...';
+      toast.classList.remove('hidden');
+    }
+    setTimeout(() => {
+      try {
+        if (typeof window !== 'undefined') {
+          const url = new URL(window.location.href);
+          url.searchParams.set('t', Date.now().toString());
+          window.location.replace(url.toString());
+        }
+      } catch {
+        if (typeof window !== 'undefined') {
+          window.location.reload();
+        }
+      }
+    }, 250);
+  }
+
+  function startPress(clientX, clientY) {
+    isLongPress = false;
+    startX = clientX;
+    startY = clientY;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(executeHardReload, 650);
+  }
+
+  function cancelPress() {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  }
+
+  // Touch Events (모바일 웹앱/PWA)
+  element.addEventListener('touchstart', (e) => {
+    if (e.touches && e.touches.length === 1) {
+      startPress(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }, { passive: true });
+
+  element.addEventListener('touchmove', (e) => {
+    if (timer && e.touches && e.touches.length === 1) {
+      const dx = Math.abs(e.touches[0].clientX - startX);
+      const dy = Math.abs(e.touches[0].clientY - startY);
+      if (dx > 10 || dy > 10) {
+        cancelPress();
+      }
+    }
+  }, { passive: true });
+
+  element.addEventListener('touchend', cancelPress, { passive: true });
+  element.addEventListener('touchcancel', cancelPress, { passive: true });
+
+  // Mouse Events (데스크탑 마우스 롱클릭 지원)
+  element.addEventListener('mousedown', (e) => {
+    if (e.button === 0) {
+      startPress(e.clientX, e.clientY);
+    }
+  });
+
+  element.addEventListener('mousemove', (e) => {
+    if (timer) {
+      const dx = Math.abs(e.clientX - startX);
+      const dy = Math.abs(e.clientY - startY);
+      if (dx > 10 || dy > 10) {
+        cancelPress();
+      }
+    }
+  });
+
+  element.addEventListener('mouseup', cancelPress);
+  element.addEventListener('mouseleave', cancelPress);
+
+  // Click Event Interceptor: 롱프레스 발동 시 기존 데이터 동기화 click 발동 차단
+  element.addEventListener('click', (e) => {
+    if (isLongPress) {
+      e.preventDefault?.();
+      e.stopImmediatePropagation?.();
+      e.stopPropagation?.();
+      setTimeout(() => { isLongPress = false; }, 400);
+    }
+  }, true);
+}
