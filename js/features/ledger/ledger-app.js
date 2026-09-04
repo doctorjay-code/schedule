@@ -445,6 +445,23 @@ function openLedgerReportModal() {
   document.getElementById('ledgerReportOverlay')?.classList.add('active');
 }
 
+async function reloadLedgerData() {
+  const badge = document.getElementById('ledgerDataBadge');
+  if (badge) badge.textContent = 'DB 로딩 중...';
+  try {
+    const res = await fetchLedgerData();
+    ledgerState.records = res.records || [];
+    ledgerState.recordsLoaded = true;
+    if (badge) badge.textContent = '최신 거래 반영';
+    applyLedgerDataSources();
+    return ledgerState.records;
+  } catch (err) {
+    console.error('Ledger data reload error:', err);
+    if (badge) badge.textContent = '오프라인';
+    return [];
+  }
+}
+
 let fundplanViewInstance = null;
 
 function getFundplanView() {
@@ -489,6 +506,8 @@ function getFundplanView() {
         if (el) el.textContent = val;
       },
       showLedgerToast,
+      refreshLedgerSheetData: reloadLedgerData,
+      renderActiveLedgerPeriod: applyLedgerDataSources,
       onRowClick: (record) => {
         if (ledgerState.multiEditMode) {
           toggleMultiSelectRow(record.id);
@@ -720,19 +739,7 @@ function initLedgerApp() {
   });
 
   if (!ledgerState.recordsLoaded) {
-    const badge = document.getElementById('ledgerDataBadge');
-    if (badge) badge.textContent = 'DB 로딩 중...';
-
-    fetchLedgerData().then(res => {
-      ledgerState.records = res.records || [];
-      ledgerState.recordsLoaded = true;
-      if (badge) badge.textContent = '최신 거래 반영';
-      applyLedgerDataSources();
-    }).catch(err => {
-      console.error('Ledger data load error:', err);
-      if (badge) badge.textContent = '오프라인';
-    });
-
+    reloadLedgerData();
     syncForecastAggregateOverridesFromDB();
   } else {
     applyLedgerDataSources();

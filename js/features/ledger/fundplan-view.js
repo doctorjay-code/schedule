@@ -621,11 +621,11 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
               if (typeof showLedgerToast === 'function') {
                 showLedgerToast(`🎉 ${m}월 ${actionTitle} 거래 (${res.count}건)가 ${res.targetMonthNum}월로 완벽 복사되었습니다!`);
               }
-              if (typeof refreshLedgerSheetData === 'function') {
-                await refreshLedgerSheetData();
-              }
               if (res.targetMonthKey) {
                 monthExpandedState[res.targetMonthKey] = true;
+              }
+              if (typeof refreshLedgerSheetData === 'function') {
+                await refreshLedgerSheetData();
               }
               if (typeof renderActiveLedgerPeriod === 'function') {
                 renderActiveLedgerPeriod();
