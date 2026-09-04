@@ -269,7 +269,14 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
         return;
       }
       const isSearching = Boolean(ledgerState.searchQuery && ledgerState.searchQuery.trim());
-      const isExpanded = isSearching ? true : Boolean(monthExpandedState[month]);
+      const hasActiveFilter = Boolean(
+        isSearching ||
+        (ledgerState.filters?.category && ledgerState.filters.category.size > 0) ||
+        (ledgerState.filters?.person && ledgerState.filters.person.size > 0) ||
+        (ledgerState.filters?.fixed && ledgerState.filters.fixed !== 'all')
+      );
+      const isMonthExplicit = monthExpandedState[month] !== undefined;
+      const isExpanded = isMonthExplicit ? Boolean(monthExpandedState[month]) : (hasActiveFilter ? true : Boolean(monthExpandedState[month]));
       const monthRowElements = [];
 
       const dividerRow = createLedgerMonthDividerRow({
@@ -279,7 +286,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
         monthRecords,
         offsetRecordIds,
         onToggle: toggleIcon => {
-          const currentlyExpanded = Boolean(monthExpandedState[month]);
+          const currentlyExpanded = monthExpandedState[month] !== undefined ? Boolean(monthExpandedState[month]) : hasActiveFilter;
           const willExpand = !currentlyExpanded;
           monthExpandedState[month] = willExpand;
           toggleIcon.textContent = willExpand ? '\u25BC' : '\u25B6';
@@ -510,7 +517,10 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
             if (sTarget === 'person') return sPerson.includes(q);
             return sItem.includes(q) || sMemo.includes(q) || sCat.includes(q) || sPerson.includes(q);
           });
-          const isSubExpanded = Boolean(subAccordionExpandedState[record.id]) || Boolean(hasMatchingSub);
+          const isExplicitlySet = subAccordionExpandedState[record.id] !== undefined;
+          const isSubExpanded = isExplicitlySet
+            ? Boolean(subAccordionExpandedState[record.id])
+            : (Boolean(hasMatchingSub) || Boolean(record.isSubFiltered));
 
           record.subRecords.forEach((sub, sIdx) => {
             const isFirstSub = sIdx === 0;
@@ -541,7 +551,10 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
 
           const toggleSubAccordion = (e) => {
             if (e) e.stopPropagation();
-            const nextState = !Boolean(subAccordionExpandedState[record.id]);
+            const currentExpanded = subAccordionExpandedState[record.id] !== undefined
+              ? Boolean(subAccordionExpandedState[record.id])
+              : (Boolean(hasMatchingSub) || Boolean(record.isSubFiltered));
+            const nextState = !currentExpanded;
             subAccordionExpandedState[record.id] = nextState;
             mainRows.forEach(mr => {
               const iconEl = mr.querySelector('.ledger-accordion-icon');

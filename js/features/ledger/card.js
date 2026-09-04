@@ -76,108 +76,111 @@ export function filterLedgerRecords(records, filterTypeOrFilters, filterValue) {
 
   const hasJuJu = hasPersonFilter && (filters.person.has('진주') || filters.person.has('쥬쥬'));
 
-  return records.filter(record => {
-    // 1. 결제수단 / 시트 조건 (AND)
-    if (hasPaymentFilter) {
-      const recPayment = record.payment || record.payment_method || record.sheetName || '';
-      if (recPayment !== filters.payment) return false;
+  function matchRecordFilter(r, f, checkJuJu) {
+    if (f.payment) {
+      const recPayment = r.payment || r.payment_method || r.sheetName || '';
+      if (recPayment !== f.payment) return false;
     }
-
-    // 2. 사용자 조건 (AND)
-    if (hasPersonFilter) {
-      const p = record.person || record.user_name || '기타';
-      const personMatched = (hasJuJu && (p === '진주' || p === '쥬쥬')) || filters.person.has(p);
+    if (f.person && f.person.size > 0) {
+      const p = r.person || r.user_name || '기타';
+      const personMatched = (checkJuJu && (p === '진주' || p === '쥬쥬')) || f.person.has(p);
       if (!personMatched) return false;
     }
-
-    // 3. 사용처 조건 (AND)
-    if (hasCategoryFilter) {
-      const c = record.category || '';
-      if (!filters.category.has(c)) return false;
+    if (f.category && f.category.size > 0) {
+      const c = r.category || '';
+      if (!f.category.has(c)) return false;
     }
-
-    // 4. 고정비 조건 (AND)
-    if (hasFixedFilter) {
-      const fixed = String(record.fixedCost || record.fixed_cost || '').trim();
+    if (f.fixed && f.fixed !== 'all') {
+      const fixed = String(r.fixedCost || r.fixed_cost || '').trim();
       const isFixed = fixed === '고정비' || fixed === '고정' || fixed === 'true';
-      if (filters.fixed === 'fixed' && !isFixed) return false;
-      if (filters.fixed === 'variable' && isFixed) return false;
+      if (f.fixed === 'fixed' && !isFixed) return false;
+      if (f.fixed === 'variable' && isFixed) return false;
     }
+    if (f.query) {
+      const q = f.query;
+      const target = f.target || 'all';
+      const item = String(r.item || r.description || '').toLowerCase();
+      const memo = String(r.memo || r.note || r.remarks || '').toLowerCase();
+      const cat = String(r.category || '').toLowerCase();
+      const person = String(r.person || r.user_name || '').toLowerCase();
+      const payment = String(r.payment || r.payment_method || '').toLowerCase();
 
-    // 5. 검색어(query) 조건 (대상별: 전체/항목/비고/사용처/사용자/금액)
-    if (hasQueryFilter) {
-      const q = filters.query;
-      const target = filters.target || 'all';
-      const item = String(record.item || record.description || '').toLowerCase();
-      const memo = String(record.memo || record.note || record.remarks || '').toLowerCase();
-      const cat = String(record.category || '').toLowerCase();
-      const person = String(record.person || record.user_name || '').toLowerCase();
-      const payment = String(record.payment || record.payment_method || '').toLowerCase();
-
-      let match = false;
       if (target === 'item') {
-        match = item.includes(q);
-        if (!match && Array.isArray(record.subRecords)) {
-          match = record.subRecords.some(sub => String(sub.item || sub.description || '').toLowerCase().includes(q));
-        }
+        if (!item.includes(q)) return false;
       } else if (target === 'memo') {
-        match = memo.includes(q);
-        if (!match && Array.isArray(record.subRecords)) {
-          match = record.subRecords.some(sub => String(sub.memo || sub.note || sub.remarks || '').toLowerCase().includes(q));
-        }
+        if (!memo.includes(q)) return false;
       } else if (target === 'category') {
-        match = cat.includes(q);
-        if (!match && Array.isArray(record.subRecords)) {
-          match = record.subRecords.some(sub => String(sub.category || '').toLowerCase().includes(q));
-        }
+        if (!cat.includes(q)) return false;
       } else if (target === 'person') {
-        match = person.includes(q);
-        if (!match && Array.isArray(record.subRecords)) {
-          match = record.subRecords.some(sub => String(sub.person || sub.user_name || '').toLowerCase().includes(q));
-        }
+        if (!person.includes(q)) return false;
       } else if (target === 'amount') {
         const cleanQ = q.replace(/[,원\s]/g, '');
         if (cleanQ && !isNaN(Number(cleanQ))) {
-          const amountStr = String(record.amount ?? '');
-          const expenseStr = String(record.expense ?? '');
-          const incomeStr = String(record.income ?? '');
-          match = amountStr.includes(cleanQ) || expenseStr.includes(cleanQ) || incomeStr.includes(cleanQ);
-          if (!match && Array.isArray(record.subRecords)) {
-            match = record.subRecords.some(sub => {
-              const sAmt = String(sub.amount ?? '');
-              const sExp = String(sub.expense ?? '');
-              const sInc = String(sub.income ?? '');
-              return sAmt.includes(cleanQ) || sExp.includes(cleanQ) || sInc.includes(cleanQ);
-            });
-          }
+          const amountStr = String(r.amount ?? '');
+          const expenseStr = String(r.expense ?? '');
+          const incomeStr = String(r.income ?? '');
+          if (!amountStr.includes(cleanQ) && !expenseStr.includes(cleanQ) && !incomeStr.includes(cleanQ)) return false;
         }
       } else {
-        // target === 'all' (통합 검색)
-        match = item.includes(q) || memo.includes(q) || cat.includes(q) || person.includes(q) || payment.includes(q);
-        if (!match && Array.isArray(record.subRecords)) {
-          match = record.subRecords.some(sub => {
-            const sItem = String(sub.item || sub.description || '').toLowerCase();
-            const sMemo = String(sub.memo || sub.note || sub.remarks || '').toLowerCase();
-            const sCat = String(sub.category || '').toLowerCase();
-            const sPerson = String(sub.person || sub.user_name || '').toLowerCase();
-            return sItem.includes(q) || sMemo.includes(q) || sCat.includes(q) || sPerson.includes(q);
-          });
-        }
-        if (!match) {
+        const textMatch = item.includes(q) || memo.includes(q) || cat.includes(q) || person.includes(q) || payment.includes(q);
+        if (!textMatch) {
           const cleanQ = q.replace(/[,원\s]/g, '');
           if (cleanQ && !isNaN(Number(cleanQ))) {
-            const amountStr = String(record.amount ?? '');
-            const expenseStr = String(record.expense ?? '');
-            const incomeStr = String(record.income ?? '');
-            if (amountStr.includes(cleanQ) || expenseStr.includes(cleanQ) || incomeStr.includes(cleanQ)) {
-              match = true;
-            }
+            const amountStr = String(r.amount ?? '');
+            const expenseStr = String(r.expense ?? '');
+            const incomeStr = String(r.income ?? '');
+            if (!amountStr.includes(cleanQ) && !expenseStr.includes(cleanQ) && !incomeStr.includes(cleanQ)) return false;
+          } else {
+            return false;
           }
         }
       }
-      if (!match) return false;
+    }
+    return true;
+  }
+
+  const hasSubFilter = hasPersonFilter || hasCategoryFilter || hasFixedFilter || hasQueryFilter;
+  const result = [];
+
+  records.forEach(record => {
+    const hasSubRecords = (record.isAggregate || record.hasCardAccordion) && Array.isArray(record.subRecords) && record.subRecords.length > 0;
+
+    if (!hasSubRecords) {
+      if (matchRecordFilter(record, filters, hasJuJu)) {
+        result.push(record);
+      }
+      return;
     }
 
-    return true;
+    // 결제수단 조건
+    if (hasPaymentFilter) {
+      const recPayment = record.payment || record.payment_method || record.sheetName || '';
+      if (recPayment !== filters.payment) return;
+    }
+
+    if (hasSubFilter) {
+      // 🌟 세부 거래들 중 필터 조건에 부합하는 것만 정밀 추출 (그 중에 그것들만!)
+      const matchingSubs = record.subRecords.filter(sub => matchRecordFilter(sub, filters, hasJuJu));
+      const mainMatchedDirectly = matchRecordFilter(record, filters, hasJuJu);
+
+      if (matchingSubs.length > 0 || mainMatchedDirectly) {
+        const subsToKeep = matchingSubs.length > 0 ? matchingSubs : record.subRecords;
+        const filteredAmount = matchingSubs.length > 0
+          ? matchingSubs.reduce((sum, s) => sum + ((s.type || 'expense').toLowerCase() === 'income' ? -Number(s.amount || 0) : Number(s.amount || 0)), 0)
+          : record.amount;
+
+        result.push({
+          ...record,
+          subRecords: subsToKeep,
+          amount: Math.abs(filteredAmount),
+          type: filteredAmount < 0 ? 'income' : (record.type || 'expense'),
+          isSubFiltered: matchingSubs.length > 0
+        });
+      }
+    } else {
+      result.push(record);
+    }
   });
+
+  return result;
 }
