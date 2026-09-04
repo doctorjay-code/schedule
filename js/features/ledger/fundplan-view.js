@@ -34,7 +34,7 @@ export function formatMonthTitle(monthKey, isCompanyCard) {
   if (!isCompanyCard) {
     return `${year}년 ${month}월`;
   }
-  if (month === 2) {
+  if (year === 2026 && month === 2) {
     return `${year}년 2월 (01.01~02.12)`;
   }
   const prevMonth = month === 1 ? 12 : month - 1;
@@ -405,7 +405,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
             let prevY = y;
             let prevM = m - 1;
             if (prevM < 0) { prevM = 11; prevY -= 1; }
-            const cardStart = (m === 1)
+            const cardStart = (y === 2026 && m === 1)
               ? `${y}-01-01`
               : `${prevY}-${String(prevM + 1).padStart(2, '0')}-13`;
             const cardEnd = `${y}-${String(m + 1).padStart(2, '0')}-12`;

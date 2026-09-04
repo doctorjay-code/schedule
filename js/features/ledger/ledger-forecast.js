@@ -228,7 +228,7 @@ export function generateForecastRecords({
       cardStartMonth = 11;
       cardStartYear -= 1;
     }
-    const cardStartDate = (targetMonth + 1 === 2)
+    const cardStartDate = (targetYear === 2026 && targetMonth + 1 === 2)
       ? `${targetYear}-01-01`
       : `${cardStartYear}-${String(cardStartMonth + 1).padStart(2, '0')}-13`;
     const cardEndDate = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-12`;
