@@ -483,6 +483,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
             const subRows = renderTransactionRow({ ...sub, isSubDetail: true }, fragment, {
               source,
               colorSettings: activeColorSettings,
+              searchQuery: ledgerState.searchQuery || '',
               onRowClick: onRowClick ? () => onRowClick(sub) : null
             });
             (subRows || []).forEach(subEl => {
@@ -500,6 +501,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
         const mainRows = renderTransactionRow(record, fragment, {
           source,
           colorSettings: activeColorSettings,
+          searchQuery: ledgerState.searchQuery || '',
           isSelected: ledgerState.selectedLedgerIds ? ledgerState.selectedLedgerIds.has(String(record.id)) : false,
           multiEditMode: Boolean(ledgerState.multiEditMode),
           onRowClick: onRowClick ? () => onRowClick(record) : null
@@ -522,6 +524,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
             const subCreated = renderTransactionRow({ ...sub, isSubDetail: true }, fragment, {
               source,
               colorSettings: activeColorSettings,
+              searchQuery: ledgerState.searchQuery || '',
               onRowClick: onRowClick ? () => onRowClick(sub) : null
             });
             (subCreated || []).forEach(subEl => {

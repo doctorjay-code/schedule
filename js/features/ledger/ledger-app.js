@@ -32,6 +32,8 @@ let ledgerState = {
   selectedLedgerIds: new Set(),
   copiedRecords: [],
   showOffsetGroups: false,
+  searchQuery: '',
+  searchOpen: false,
   filters: {
     person: new Set(),
     category: new Set(),
@@ -460,7 +462,8 @@ function getFundplanView() {
           return filterLedgerRecords(displayRows, {
             person: ledgerState.filters?.person,
             category: ledgerState.filters?.category,
-            fixed: ledgerState.filters?.fixed || 'all'
+            fixed: ledgerState.filters?.fixed || 'all',
+            query: ledgerState.searchQuery || ''
           });
         }
         const isCompanyCard = ledgerState.source === 'card' && ledgerState.payment === '기업카드';
@@ -471,6 +474,7 @@ function getFundplanView() {
           person: ledgerState.filters?.person,
           category: ledgerState.filters?.category,
           fixed: ledgerState.filters?.fixed || 'all',
+          query: ledgerState.searchQuery || '',
           monthCursor: ledgerState.monthCursor,
           isCompanyCard
         });
@@ -508,7 +512,13 @@ function renderMonthlyLedgerTable(container) {
       monthCursor: ledgerState.monthCursor,
       isManualCardPayment
     });
-    recordsToRender = displayRows.filter(r => String(r.date).startsWith(curMonthKey));
+    const filteredForecast = filterLedgerRecords(displayRows, {
+      person: ledgerState.filters?.person,
+      category: ledgerState.filters?.category,
+      fixed: ledgerState.filters?.fixed || 'all',
+      query: ledgerState.searchQuery || ''
+    });
+    recordsToRender = filteredForecast.filter(r => String(r.date).startsWith(curMonthKey));
   } else {
     const filtered = filterLedgerRecords(ledgerState.records, {
       source: ledgerState.source,
@@ -516,6 +526,7 @@ function renderMonthlyLedgerTable(container) {
       person: ledgerState.filters?.person,
       category: ledgerState.filters?.category,
       fixed: ledgerState.filters?.fixed || 'all',
+      query: ledgerState.searchQuery || '',
       monthCursor: ledgerState.monthCursor,
       isCompanyCard
     });
@@ -537,6 +548,7 @@ function renderMonthlyLedgerTable(container) {
       isCompanyCard,
       colorSettings: state.colorSettings,
       multiEditMode: ledgerState.multiEditMode,
+      searchQuery: ledgerState.searchQuery || '',
       isSelected,
       onRowClick: (rec) => {
         if (ledgerState.multiEditMode) {
@@ -939,6 +951,9 @@ function bindLedgerDomEvents() {
   if (filterAllBtn) {
     filterAllBtn.addEventListener('click', () => {
       ledgerState.filters = { person: new Set(), category: new Set(), fixed: 'all' };
+      ledgerState.searchQuery = '';
+      const searchInputEl = document.getElementById('ledgerSearchInput');
+      if (searchInputEl) searchInputEl.value = '';
       document.querySelectorAll('#ledgerPersonSwitch .filter-chip').forEach(b => {
         b.classList.remove('active');
         b.classList.remove('active-variable');
@@ -1020,6 +1035,68 @@ function bindLedgerDomEvents() {
       const hasAnyFilter = ledgerState.filters.person.size > 0 || ledgerState.filters.category.size > 0 || (ledgerState.filters.fixed && ledgerState.filters.fixed !== 'all');
       if (filterAllBtn) filterAllBtn.classList.toggle('active', !hasAnyFilter);
 
+      applyLedgerDataSources();
+    });
+  }
+
+  // 1-6. 거래 내역 검색 바인딩 (현재 보고 있는 시트 내 실시간 검색)
+  const toggleSearchBtn = document.getElementById('ledgerToggleSearchBtn');
+  const searchBar = document.getElementById('ledgerSearchBar');
+  const searchInput = document.getElementById('ledgerSearchInput');
+  const searchClearBtn = document.getElementById('ledgerSearchClearBtn');
+
+  function openSearchBar() {
+    ledgerState.searchOpen = true;
+    if (searchBar) searchBar.classList.remove('hidden');
+    if (toggleSearchBtn) toggleSearchBtn.classList.add('active');
+    if (typeof searchInput?.focus === 'function') {
+      searchInput.focus();
+    }
+  }
+
+  function closeSearchBar(clearQuery = true) {
+    ledgerState.searchOpen = false;
+    if (searchBar) searchBar.classList.add('hidden');
+    if (toggleSearchBtn) toggleSearchBtn.classList.remove('active');
+    if (clearQuery) {
+      ledgerState.searchQuery = '';
+      if (searchInput) searchInput.value = '';
+      applyLedgerDataSources();
+    }
+  }
+
+  if (toggleSearchBtn) {
+    toggleSearchBtn.addEventListener('click', () => {
+      if (ledgerState.searchOpen) {
+        closeSearchBar(true);
+      } else {
+        openSearchBar();
+      }
+    });
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      ledgerState.searchQuery = e.target.value.trim();
+      applyLedgerDataSources();
+    });
+
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeSearchBar(true);
+      }
+    });
+  }
+
+  if (searchClearBtn) {
+    searchClearBtn.addEventListener('click', () => {
+      ledgerState.searchQuery = '';
+      if (searchInput) {
+        searchInput.value = '';
+        if (typeof searchInput.focus === 'function') {
+          searchInput.focus();
+        }
+      }
       applyLedgerDataSources();
     });
   }

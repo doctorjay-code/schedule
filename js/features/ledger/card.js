@@ -13,7 +13,8 @@ export function filterLedgerRecords(records, filterTypeOrFilters, filterValue) {
     source: null,
     person: new Set(),
     category: new Set(),
-    fixed: 'all'
+    fixed: 'all',
+    query: ''
   };
 
   if (filterTypeOrFilters && typeof filterTypeOrFilters === 'object' && !Array.isArray(filterTypeOrFilters) && !(filterTypeOrFilters instanceof Set)) {
@@ -28,6 +29,8 @@ export function filterLedgerRecords(records, filterTypeOrFilters, filterValue) {
     else if (Array.isArray(filterTypeOrFilters.category)) filters.category = new Set(filterTypeOrFilters.category);
 
     if (filterTypeOrFilters.fixed) filters.fixed = filterTypeOrFilters.fixed;
+    if (filterTypeOrFilters.query) filters.query = String(filterTypeOrFilters.query).trim().toLowerCase();
+    if (filterTypeOrFilters.searchQuery) filters.query = String(filterTypeOrFilters.searchQuery).trim().toLowerCase();
   } else {
     // 기존 하위 호환성 (filterType, filterValue)
     const filterType = filterTypeOrFilters;
@@ -40,6 +43,8 @@ export function filterLedgerRecords(records, filterTypeOrFilters, filterValue) {
       filters.source = filterValue;
     } else if (filterType === 'fixed') {
       filters.fixed = filterValue || 'fixed';
+    } else if (filterType === 'query' || filterType === 'search') {
+      filters.query = String(filterValue || '').trim().toLowerCase();
     } else {
       let selectedSet = new Set();
       if (filterValue instanceof Set) selectedSet = filterValue;
@@ -59,9 +64,10 @@ export function filterLedgerRecords(records, filterTypeOrFilters, filterValue) {
   const hasPersonFilter = filters.person && filters.person.size > 0;
   const hasCategoryFilter = filters.category && filters.category.size > 0;
   const hasFixedFilter = filters.fixed && filters.fixed !== 'all';
+  const hasQueryFilter = Boolean(filters.query);
 
   // 필터 조건이 하나도 없으면 원본 그대로 반환
-  if (!hasPaymentFilter && !hasSourceFilter && !hasPersonFilter && !hasCategoryFilter && !hasFixedFilter) {
+  if (!hasPaymentFilter && !hasSourceFilter && !hasPersonFilter && !hasCategoryFilter && !hasFixedFilter && !hasQueryFilter) {
     return records;
   }
 
@@ -93,6 +99,30 @@ export function filterLedgerRecords(records, filterTypeOrFilters, filterValue) {
       const isFixed = fixed === '고정비' || fixed === '고정' || fixed === 'true';
       if (filters.fixed === 'fixed' && !isFixed) return false;
       if (filters.fixed === 'variable' && isFixed) return false;
+    }
+
+    // 5. 검색어(query) 조건 (항목, 비고, 사용처, 사용자, 금액 매칭)
+    if (hasQueryFilter) {
+      const q = filters.query;
+      const item = String(record.item || record.description || '').toLowerCase();
+      const note = String(record.note || record.remarks || '').toLowerCase();
+      const cat = String(record.category || '').toLowerCase();
+      const person = String(record.person || record.user_name || '').toLowerCase();
+      const payment = String(record.payment || record.payment_method || '').toLowerCase();
+
+      let matchText = item.includes(q) || note.includes(q) || cat.includes(q) || person.includes(q) || payment.includes(q);
+      if (!matchText) {
+        const cleanQ = q.replace(/[,원\s]/g, '');
+        if (cleanQ && !isNaN(Number(cleanQ))) {
+          const amountStr = String(record.amount ?? '');
+          const expenseStr = String(record.expense ?? '');
+          const incomeStr = String(record.income ?? '');
+          if (amountStr.includes(cleanQ) || expenseStr.includes(cleanQ) || incomeStr.includes(cleanQ)) {
+            matchText = true;
+          }
+        }
+      }
+      if (!matchText) return false;
     }
 
     return true;

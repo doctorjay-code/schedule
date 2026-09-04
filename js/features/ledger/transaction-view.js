@@ -40,6 +40,45 @@ export function formatLedgerScheduleDate(isoDate) {
   return safeDateStr;
 }
 
+function appendHighlightedText(parent, text, query) {
+  const str = String(text || '');
+  const appendChunk = (chunk) => {
+    if (!chunk) return;
+    if (typeof document?.createTextNode === 'function') {
+      parent.appendChild(document.createTextNode(chunk));
+    } else {
+      parent.textContent = (parent.textContent || '') + chunk;
+    }
+  };
+
+  if (!query || !str) {
+    appendChunk(str);
+    return;
+  }
+  const lowerText = str.toLowerCase();
+  const lowerQuery = String(query).toLowerCase();
+  let start = 0;
+  let idx = lowerText.indexOf(lowerQuery, start);
+  if (idx === -1) {
+    appendChunk(str);
+    return;
+  }
+  while (idx !== -1) {
+    if (idx > start) {
+      appendChunk(str.slice(start, idx));
+    }
+    const mark = document.createElement('mark');
+    mark.className = 'ledger-search-highlight';
+    mark.textContent = str.slice(idx, idx + lowerQuery.length);
+    parent.appendChild(mark);
+    start = idx + lowerQuery.length;
+    idx = lowerText.indexOf(lowerQuery, start);
+  }
+  if (start < str.length) {
+    appendChunk(str.slice(start));
+  }
+}
+
 export function renderTransactionRow(item, listTarget = 'fundplanAllTimeList', options = {}) {
   let targetContainer = null;
   let resolvedOptions = options;
@@ -53,7 +92,7 @@ export function renderTransactionRow(item, listTarget = 'fundplanAllTimeList', o
     targetContainer = listTarget;
   }
 
-  const { source = 'card', colorSettings = {}, onRowClick = null, isSelected = false, multiEditMode = false } = resolvedOptions;
+  const { source = 'card', colorSettings = {}, onRowClick = null, isSelected = false, multiEditMode = false, searchQuery = '' } = resolvedOptions;
   const detailRow = document.createElement('tr');
   detailRow.className = 'schedule-row schedule-row-detail';
   detailRow.dataset.ledgerId = item.id;
@@ -134,11 +173,13 @@ export function renderTransactionRow(item, listTarget = 'fundplanAllTimeList', o
     itemCell.classList.add('ledger-accordion-toggle-cell');
     itemCell.style.cursor = 'pointer';
     itemCell.title = '클릭하여 세부 거래 내역 펼치기/접기';
-    title.innerHTML = `<span class="ledger-accordion-icon" data-ledger-toggle-id="${item.id}" style="margin-right:4px;font-size:10px;color:#6366F1;display:inline-block;cursor:pointer;font-weight:bold;user-select:none;" title="세부내역 펼치기/접기">▶</span>${item.item || ''}`;
+    title.innerHTML = `<span class="ledger-accordion-icon" data-ledger-toggle-id="${item.id}" style="margin-right:4px;font-size:10px;color:#6366F1;display:inline-block;cursor:pointer;font-weight:bold;user-select:none;" title="세부내역 펼치기/접기">▶</span>`;
+    appendHighlightedText(title, item.item || '', searchQuery);
   } else if (item.isSubDetail) {
-    title.innerHTML = `<span style="color:#6366F1;margin-right:4px;font-weight:900;">↳</span>${item.item || ''}`;
+    title.innerHTML = `<span style="color:#6366F1;margin-right:4px;font-weight:900;">↳</span>`;
+    appendHighlightedText(title, item.item || '', searchQuery);
   } else {
-    title.textContent = item.item || '';
+    appendHighlightedText(title, item.item || '', searchQuery);
   }
   itemCell.appendChild(title);
   detailRow.appendChild(itemCell);
@@ -146,7 +187,7 @@ export function renderTransactionRow(item, listTarget = 'fundplanAllTimeList', o
   memoCell.colSpan = 2;
   memoCell.style.textAlign = 'left';
   memoCell.style.paddingLeft = '0.5em';
-  memoCell.textContent = item.memo || '';
+  appendHighlightedText(memoCell, item.memo || '', searchQuery);
   if (item.isAggregate || item.hasCardAccordion) {
     memoCell.classList.add('ledger-accordion-toggle-cell');
     memoCell.style.cursor = 'pointer';
@@ -158,7 +199,11 @@ export function renderTransactionRow(item, listTarget = 'fundplanAllTimeList', o
     if (!text) return null;
     const tag = document.createElement('span');
     tag.className = 'ledger-bottom-tag';
-    tag.textContent = text;
+    if (searchQuery) {
+      appendHighlightedText(tag, text, searchQuery);
+    } else {
+      tag.textContent = text;
+    }
     return tag;
   };
   const regularityCell = document.createElement('td');
