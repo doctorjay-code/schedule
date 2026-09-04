@@ -11,8 +11,8 @@ const DAY_MS = 86400000;
 let sandboxRecords = [];
 let openingBalance = 0;
 let mode = 'single'; // 'single' | 'multi'
-let selectedStartMonth = '2026-08';
-let selectedEndMonth = '2026-08';
+let selectedStartMonth = '2026-09';
+let selectedEndMonth = '2026-09';
 let availableMonths = [];
 let allBankRecordsCache = [];
 
@@ -278,12 +278,34 @@ function populateMonthSelects() {
 
   if (!singleSel || !startSel || !endSel) return;
 
-  // 2026-01부터 2026-12까지 기본 생성
-  const months = [];
-  for (let m = 1; m <= 12; m++) {
-    months.push(`2026-${String(m).padStart(2, '0')}`);
+  // 기업은행 거래가 실제로 존재하는 월들만 동적 추출 (2026년 1월~8월은 제외하고 2026-09 이상만)
+  const monthSet = new Set();
+  allBankRecordsCache.forEach(r => {
+    const dStr = normalizeLedgerDate(r.date);
+    if (dStr && dStr.length >= 7) {
+      const mStr = dStr.slice(0, 7);
+      if (mStr >= '2026-09') {
+        monthSet.add(mStr);
+      }
+    }
+  });
+
+  const months = Array.from(monthSet).sort();
+  if (months.length === 0) {
+    months.push('2026-09');
   }
   availableMonths = months;
+
+  // 선택된 월이 availableMonths에 없으면 유효한 월로 맞춤
+  if (!availableMonths.includes(selectedStartMonth)) {
+    const curMonth = new Date().toISOString().slice(0, 7);
+    selectedStartMonth = availableMonths.includes(curMonth)
+      ? curMonth
+      : availableMonths[availableMonths.length - 1];
+  }
+  if (!availableMonths.includes(selectedEndMonth)) {
+    selectedEndMonth = selectedStartMonth;
+  }
 
   const buildOptions = (selected) => {
     return months.map(m => {
@@ -298,7 +320,14 @@ function populateMonthSelects() {
   endSel.innerHTML = buildOptions(selectedEndMonth);
 }
 
+let isModalInitialized = false;
+let ledgerRecordsGetter = null;
+
 export function initAverageBalanceModal({ getLedgerRecords } = {}) {
+  if (getLedgerRecords) ledgerRecordsGetter = getLedgerRecords;
+  if (isModalInitialized) return;
+  isModalInitialized = true;
+
   const overlay = document.getElementById('ledgerAverageBalanceOverlay');
   const closeBtn = document.getElementById('ledgerAverageBalanceCloseBtn');
   const openBtn = document.getElementById('ledgerAverageBalanceBtn');
@@ -329,9 +358,9 @@ export function initAverageBalanceModal({ getLedgerRecords } = {}) {
 
   if (openBtn) {
     openBtn.addEventListener('click', () => {
-      // 전체 가계부 데이터에서 기업은행 거래 캐싱
-      if (typeof getLedgerRecords === 'function') {
-        const all = getLedgerRecords() || [];
+      const getter = getLedgerRecords || ledgerRecordsGetter;
+      if (typeof getter === 'function') {
+        const all = getter() || [];
         allBankRecordsCache = all.filter(r => {
           const sheet = r.sheetName || r.payment || r.payment_method || '';
           return sheet === '기업은행';
@@ -340,7 +369,7 @@ export function initAverageBalanceModal({ getLedgerRecords } = {}) {
 
       // 기본 당월 세팅
       const curMonth = new Date().toISOString().slice(0, 7);
-      selectedStartMonth = curMonth >= '2026-01' ? curMonth : '2026-08';
+      selectedStartMonth = curMonth >= '2026-09' ? curMonth : '2026-09';
       selectedEndMonth = selectedStartMonth;
 
       populateMonthSelects();
