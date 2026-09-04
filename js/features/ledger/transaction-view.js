@@ -92,7 +92,12 @@ export function renderTransactionRow(item, listTarget = 'fundplanAllTimeList', o
     targetContainer = listTarget;
   }
 
-  const { source = 'card', colorSettings = {}, onRowClick = null, isSelected = false, multiEditMode = false, searchQuery = '' } = resolvedOptions;
+  const { source = 'card', colorSettings = {}, onRowClick = null, isSelected = false, multiEditMode = false, searchQuery = '', searchTarget = 'all' } = resolvedOptions;
+  const shouldHighlight = (field) => {
+    if (!searchQuery) return false;
+    if (!searchTarget || searchTarget === 'all') return true;
+    return searchTarget === field;
+  };
   const detailRow = document.createElement('tr');
   detailRow.className = 'schedule-row schedule-row-detail';
   detailRow.dataset.ledgerId = item.id;
@@ -169,17 +174,18 @@ export function renderTransactionRow(item, listTarget = 'fundplanAllTimeList', o
   itemCell.style.textAlign = 'left';
   itemCell.style.paddingLeft = item.isSubDetail ? '1.0em' : '0.5em';
   const title = document.createElement('strong');
+  const itemQuery = shouldHighlight('item') ? searchQuery : '';
   if (item.isAggregate || item.hasCardAccordion) {
     itemCell.classList.add('ledger-accordion-toggle-cell');
     itemCell.style.cursor = 'pointer';
     itemCell.title = '클릭하여 세부 거래 내역 펼치기/접기';
     title.innerHTML = `<span class="ledger-accordion-icon" data-ledger-toggle-id="${item.id}" style="margin-right:4px;font-size:10px;color:#6366F1;display:inline-block;cursor:pointer;font-weight:bold;user-select:none;" title="세부내역 펼치기/접기">▶</span>`;
-    appendHighlightedText(title, item.item || '', searchQuery);
+    appendHighlightedText(title, item.item || '', itemQuery);
   } else if (item.isSubDetail) {
     title.innerHTML = `<span style="color:#6366F1;margin-right:4px;font-weight:900;">↳</span>`;
-    appendHighlightedText(title, item.item || '', searchQuery);
+    appendHighlightedText(title, item.item || '', itemQuery);
   } else {
-    appendHighlightedText(title, item.item || '', searchQuery);
+    appendHighlightedText(title, item.item || '', itemQuery);
   }
   itemCell.appendChild(title);
   detailRow.appendChild(itemCell);
@@ -187,19 +193,23 @@ export function renderTransactionRow(item, listTarget = 'fundplanAllTimeList', o
   memoCell.colSpan = 2;
   memoCell.style.textAlign = 'left';
   memoCell.style.paddingLeft = '0.5em';
-  appendHighlightedText(memoCell, item.memo || '', searchQuery);
+  if (shouldHighlight('memo')) {
+    appendHighlightedText(memoCell, item.memo || '', searchQuery);
+  } else {
+    memoCell.textContent = item.memo || '';
+  }
   if (item.isAggregate || item.hasCardAccordion) {
     memoCell.classList.add('ledger-accordion-toggle-cell');
     memoCell.style.cursor = 'pointer';
     memoCell.title = '클릭하여 세부 거래 내역 펼치기/접기';
   }
   detailRow.appendChild(memoCell);
-  const makeTag = value => {
+  const makeTag = (value, field = '') => {
     const text = String(value || '').trim();
     if (!text) return null;
     const tag = document.createElement('span');
     tag.className = 'ledger-bottom-tag';
-    if (searchQuery) {
+    if (field && shouldHighlight(field)) {
       appendHighlightedText(tag, text, searchQuery);
     } else {
       tag.textContent = text;
@@ -210,13 +220,13 @@ export function renderTransactionRow(item, listTarget = 'fundplanAllTimeList', o
   regularityCell.className = 'ledger-regularity-cell';
   const isFixedCost = String(item.fixedCost || '').trim() === '\uACE0\uC815\uBE44';
   if (useMergedPaymentColumn && isFixedCost) {
-    const fixedCostTag = makeTag('고정비');
+    const fixedCostTag = makeTag('고정비', 'fixedCost');
     if (fixedCostTag) {
       fixedCostTag.classList.add('ledger-fixed-tag');
       regularityCell.appendChild(fixedCostTag);
     }
   } else if (!useMergedPaymentColumn) {
-    const paymentTag = makeTag(item.payment);
+    const paymentTag = makeTag(item.payment, 'payment');
     if (paymentTag) regularityCell.appendChild(paymentTag);
   }
   detailRow.appendChild(regularityCell);
@@ -234,7 +244,7 @@ export function renderTransactionRow(item, listTarget = 'fundplanAllTimeList', o
   const personCell = makeDayEndCell();
   const rawPerson = item.isAggregate ? (item.person || '') : (item.person || item.user_name || '기타');
   const personText = String(rawPerson).trim();
-  const personTag = makeTag(personText);
+  const personTag = makeTag(personText, 'person');
   if (personTag) {
     personTag.style.backgroundColor = getLedgerTagColor(colorSettings, 'person', personText);
     personTag.style.color = '#0F172A';
@@ -244,7 +254,7 @@ export function renderTransactionRow(item, listTarget = 'fundplanAllTimeList', o
 
   const categoryCell = makeDayEndCell();
   const categoryText = String(item.category || '').trim();
-  const categoryTag = makeTag(categoryText);
+  const categoryTag = makeTag(categoryText, 'category');
   if (categoryTag) {
     categoryTag.style.backgroundColor = getLedgerTagColor(colorSettings, 'category', categoryText);
     categoryTag.style.color = '#0F172A';

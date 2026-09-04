@@ -33,6 +33,7 @@ let ledgerState = {
   copiedRecords: [],
   showOffsetGroups: false,
   searchQuery: '',
+  searchTarget: 'all',
   searchOpen: false,
   filters: {
     person: new Set(),
@@ -463,7 +464,8 @@ function getFundplanView() {
             person: ledgerState.filters?.person,
             category: ledgerState.filters?.category,
             fixed: ledgerState.filters?.fixed || 'all',
-            query: ledgerState.searchQuery || ''
+            query: ledgerState.searchQuery || '',
+            target: ledgerState.searchTarget || 'all'
           });
         }
         const isCompanyCard = ledgerState.source === 'card' && ledgerState.payment === '기업카드';
@@ -475,6 +477,7 @@ function getFundplanView() {
           category: ledgerState.filters?.category,
           fixed: ledgerState.filters?.fixed || 'all',
           query: ledgerState.searchQuery || '',
+          target: ledgerState.searchTarget || 'all',
           monthCursor: ledgerState.monthCursor,
           isCompanyCard
         });
@@ -516,7 +519,8 @@ function renderMonthlyLedgerTable(container) {
       person: ledgerState.filters?.person,
       category: ledgerState.filters?.category,
       fixed: ledgerState.filters?.fixed || 'all',
-      query: ledgerState.searchQuery || ''
+      query: ledgerState.searchQuery || '',
+      target: ledgerState.searchTarget || 'all'
     });
     recordsToRender = filteredForecast.filter(r => String(r.date).startsWith(curMonthKey));
   } else {
@@ -527,6 +531,7 @@ function renderMonthlyLedgerTable(container) {
       category: ledgerState.filters?.category,
       fixed: ledgerState.filters?.fixed || 'all',
       query: ledgerState.searchQuery || '',
+      target: ledgerState.searchTarget || 'all',
       monthCursor: ledgerState.monthCursor,
       isCompanyCard
     });
@@ -549,6 +554,7 @@ function renderMonthlyLedgerTable(container) {
       colorSettings: state.colorSettings,
       multiEditMode: ledgerState.multiEditMode,
       searchQuery: ledgerState.searchQuery || '',
+      searchTarget: ledgerState.searchTarget || 'all',
       isSelected,
       onRowClick: (rec) => {
         if (ledgerState.multiEditMode) {
@@ -952,8 +958,14 @@ function bindLedgerDomEvents() {
     filterAllBtn.addEventListener('click', () => {
       ledgerState.filters = { person: new Set(), category: new Set(), fixed: 'all' };
       ledgerState.searchQuery = '';
+      ledgerState.searchTarget = 'all';
       const searchInputEl = document.getElementById('ledgerSearchInput');
-      if (searchInputEl) searchInputEl.value = '';
+      if (searchInputEl) {
+        searchInputEl.value = '';
+        searchInputEl.placeholder = '현재 시트 내 전체 검색...';
+      }
+      const searchCatEl = document.getElementById('ledgerSearchCategorySelect');
+      if (searchCatEl) searchCatEl.value = 'all';
       document.querySelectorAll('#ledgerPersonSwitch .filter-chip').forEach(b => {
         b.classList.remove('active');
         b.classList.remove('active-variable');
@@ -1093,6 +1105,28 @@ function bindLedgerDomEvents() {
       ledgerState.searchQuery = '';
       if (searchInput) {
         searchInput.value = '';
+        if (typeof searchInput.focus === 'function') {
+          searchInput.focus();
+        }
+      }
+      applyLedgerDataSources();
+    });
+  }
+
+  const searchCategorySelect = document.getElementById('ledgerSearchCategorySelect');
+  if (searchCategorySelect) {
+    searchCategorySelect.addEventListener('change', (e) => {
+      ledgerState.searchTarget = e.target.value;
+      const placeholders = {
+        all: '현재 시트 내 전체 검색...',
+        item: '항목명 검색...',
+        memo: '비고(메모) 검색...',
+        category: '사용처(카테고리) 검색...',
+        person: '사용자(쥬쥬/지니/콩콩) 검색...',
+        amount: '금액(숫자) 검색...'
+      };
+      if (searchInput) {
+        searchInput.placeholder = placeholders[e.target.value] || '검색어 입력...';
         if (typeof searchInput.focus === 'function') {
           searchInput.focus();
         }

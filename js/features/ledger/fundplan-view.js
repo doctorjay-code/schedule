@@ -485,6 +485,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
               source,
               colorSettings: activeColorSettings,
               searchQuery: ledgerState.searchQuery || '',
+              searchTarget: ledgerState.searchTarget || 'all',
               onRowClick: onRowClick ? () => onRowClick(sub) : null
             });
             (subRows || []).forEach(subEl => {
@@ -503,6 +504,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
           source,
           colorSettings: activeColorSettings,
           searchQuery: ledgerState.searchQuery || '',
+          searchTarget: ledgerState.searchTarget || 'all',
           isSelected: ledgerState.selectedLedgerIds ? ledgerState.selectedLedgerIds.has(String(record.id)) : false,
           multiEditMode: Boolean(ledgerState.multiEditMode),
           onRowClick: onRowClick ? () => onRowClick(record) : null
@@ -517,12 +519,17 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
         // 바로 밑에 세부 거래들(subRecords)을 인라인으로 렌더링 (기본 닫힘)
         if ((record.isAggregate || record.hasCardAccordion) && Array.isArray(record.subRecords) && record.subRecords.length > 0) {
           const subRows = [];
+          const sTarget = ledgerState.searchTarget || 'all';
           const hasMatchingSub = isSearching && record.subRecords.some(sub => {
             const q = ledgerState.searchQuery.toLowerCase();
             const sItem = String(sub.item || sub.description || '').toLowerCase();
             const sMemo = String(sub.memo || sub.note || sub.remarks || '').toLowerCase();
             const sCat = String(sub.category || '').toLowerCase();
             const sPerson = String(sub.person || sub.user_name || '').toLowerCase();
+            if (sTarget === 'item') return sItem.includes(q);
+            if (sTarget === 'memo') return sMemo.includes(q);
+            if (sTarget === 'category') return sCat.includes(q);
+            if (sTarget === 'person') return sPerson.includes(q);
             return sItem.includes(q) || sMemo.includes(q) || sCat.includes(q) || sPerson.includes(q);
           });
           const isSubExpanded = Boolean(subAccordionExpandedState[record.id]) || Boolean(hasMatchingSub);
@@ -534,6 +541,7 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
               source,
               colorSettings: activeColorSettings,
               searchQuery: ledgerState.searchQuery || '',
+              searchTarget: ledgerState.searchTarget || 'all',
               onRowClick: onRowClick ? () => onRowClick(sub) : null
             });
             (subCreated || []).forEach(subEl => {
