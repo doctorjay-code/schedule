@@ -159,9 +159,20 @@ export function createLedgerTransactionModal(options = {}) {
     const overlay = document.getElementById('ledgerTransactionModalOverlay');
     if (!form || !overlay) return;
 
-    const currentPayment = (typeof ledgerState !== 'undefined' && ledgerState?.payment) ? ledgerState.payment : '토스은행';
-    const currentSource = (typeof ledgerState !== 'undefined' && ledgerState?.source) ? ledgerState.source : 'card';
-    const defaultPayment = (currentPayment === '잔액전망' || currentSource === 'forecast') ? '토스은행' : (currentPayment || '토스은행');
+    const activeState = (typeof options.getLedgerState === 'function' ? options.getLedgerState() : options.ledgerState) || arg?.ledgerState;
+    let defaultPayment = '토스은행';
+    if (activeState) {
+      const src = activeState.source;
+      if (src === 'cash') {
+        defaultPayment = '현금';
+      } else if (src === 'bank') {
+        defaultPayment = '기업은행';
+      } else if (src === 'card') {
+        defaultPayment = activeState.payment === '기업카드' ? '기업카드' : '토스은행';
+      } else if (src === 'forecast') {
+        defaultPayment = '토스은행';
+      }
+    }
     const defaults = {
       id: '',
       date: toIso(new Date()),
@@ -202,12 +213,12 @@ export function createLedgerTransactionModal(options = {}) {
     }
 
     document.getElementById('ledgerModalType').value = value.type || 'expense';
-    let selectedPayment = String(value.payment || defaults.payment || '').trim();
+    let selectedPayment = String(value.payment || value.payment_method || defaults.payment || '').trim();
     if (selectedPayment === '토스' || selectedPayment === '토스카드' || selectedPayment === '토스뱅크') selectedPayment = '토스은행';
     if (selectedPayment === '기업' || selectedPayment === '신용카드' || selectedPayment === '카드') selectedPayment = '기업카드';
     if (selectedPayment === '통장' || selectedPayment === '은행') selectedPayment = '기업은행';
     if (selectedPayment === '잔액전망') selectedPayment = '토스은행';
-    document.getElementById('ledgerModalPayment').value = selectedPayment || '토스은행';
+    document.getElementById('ledgerModalPayment').value = selectedPayment || defaultPayment;
     document.getElementById('ledgerModalPerson').value = memoParts.person || '';
     document.getElementById('ledgerModalMemo').value = memoParts.detail || '';
     setGroup('ledgerModalCategoryGroup', 'ledgerModalCategory', value.category);

@@ -61,6 +61,8 @@ function getLedgerTransactionModal() {
   if (!ledgerTransactionModal) {
     ledgerTransactionModal = createLedgerTransactionModal({
       state,
+      getLedgerState: () => ledgerState,
+      ledgerState,
       pastelPalette,
       findRecord: (id) => findLedgerTransaction(id),
       onSave: saveLedgerRecord,
