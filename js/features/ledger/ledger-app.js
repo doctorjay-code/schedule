@@ -323,6 +323,7 @@ function saveLedgerRecord(form, overrides = {}) {
   }
 
   const payment = values.payment || ledgerState.payment || '토스은행';
+  const fixedCostVal = values.fixedCost === '고정비' ? values.fixedCost : '';
   const record = {
     ...(existing || {}),
     id: values.ledgerEditId || existing?.id || generateLedgerId(values.date, existing?.orderIndex ?? 0),
@@ -330,10 +331,13 @@ function saveLedgerRecord(form, overrides = {}) {
     type: values.type,
     amount,
     payment,
+    payment_method: payment,
     item: values.item.trim(),
     person: finalPerson,
+    user_name: finalPerson,
     category: values.category || '',
-    fixedCost: values.fixedCost === '고정비' ? values.fixedCost : '',
+    fixedCost: fixedCostVal,
+    fixed_cost: fixedCostVal,
     memo: finalMemo,
     createdAt: existing?.createdAt ?? Date.now()
   };
