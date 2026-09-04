@@ -459,12 +459,29 @@ export async function copyMonthFixedRecordsToNextMonth(
     return { ok: false, message: `${sm}월 고정비/상계 거래가 이미 ${tm}월에 모두 등록되어 있어 추가로 복사할 거래가 없습니다.` };
   }
 
+  // 3. 다음 달(targetMonthKey)에 이미 존재하는 기업은행 카드 결제행 검사 (중복 방지)
+  const alreadyHasTargetCardBill = allRecords.some(r => {
+    const isBank = (r.payment_method || r.payment || r.sheetName) === '기업은행';
+    const isCard = String(r.item || '').includes('기업카드') || String(r.memo || '').includes('기업카드 결제');
+    const dStr = normalizeLedgerDate(r.date);
+    return isBank && isCard && dStr && dStr.startsWith(targetMonthKey);
+  });
+
   // 3. 새 레코드 매핑 생성
   const newRecordsBySheet = {};
   const idMapping = {}; // oldId -> newId
 
   // 3-1. 일반 통장/은행 거래 복사 매핑
   toCopyBank.forEach((r, idx) => {
+    const sheetName = r.sheetName || (r.payment === '기업은행' ? '기업은행' : r.payment === '현금' ? '현금' : '토스은행');
+    const isCardBill = (r.payment === '기업은행' || sheetName === '기업은행') &&
+      (String(r.item || '').includes('기업카드') || String(r.memo || '').includes('기업카드 결제'));
+
+    // 🌟 이미 다음 달에 기업카드 결제행이 존재한다면, 또 새 행을 만들어 중복시키지 않고 건너뜀!
+    if (isCardBill && alreadyHasTargetCardBill) {
+      return;
+    }
+
     const oldDateStr = normalizeLedgerDate(r.date);
     const day = oldDateStr.slice(8);
     const maxDaysInTargetMonth = new Date(ty, tm, 0).getDate();
@@ -475,10 +492,7 @@ export async function copyMonthFixedRecordsToNextMonth(
     idMapping[String(r.id)] = newId;
     if (r.originalId) idMapping[String(r.originalId)] = newId;
 
-    const sheetName = r.sheetName || (r.payment === '기업은행' ? '기업은행' : r.payment === '현금' ? '현금' : '토스은행');
     const isOffset = Boolean(r.offset_group_id) || sourceOffsetRecordIds.has(String(r.id)) || sourceOffsetRecordIds.has(String(r.originalId));
-    const isCardBill = (r.payment === '기업은행' || sheetName === '기업은행') &&
-      (String(r.item || '').includes('기업카드') || String(r.memo || '').includes('기업카드 결제'));
 
     let finalAmount = isOffset ? 0 : Number(r.amount || 0);
     let finalItem = r.item || '';
