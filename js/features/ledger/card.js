@@ -105,12 +105,21 @@ export function filterLedgerRecords(records, filterTypeOrFilters, filterValue) {
     if (hasQueryFilter) {
       const q = filters.query;
       const item = String(record.item || record.description || '').toLowerCase();
-      const note = String(record.note || record.remarks || '').toLowerCase();
+      const memo = String(record.memo || record.note || record.remarks || '').toLowerCase();
       const cat = String(record.category || '').toLowerCase();
       const person = String(record.person || record.user_name || '').toLowerCase();
       const payment = String(record.payment || record.payment_method || '').toLowerCase();
 
-      let matchText = item.includes(q) || note.includes(q) || cat.includes(q) || person.includes(q) || payment.includes(q);
+      let matchText = item.includes(q) || memo.includes(q) || cat.includes(q) || person.includes(q) || payment.includes(q);
+      if (!matchText && Array.isArray(record.subRecords)) {
+        matchText = record.subRecords.some(sub => {
+          const sItem = String(sub.item || sub.description || '').toLowerCase();
+          const sMemo = String(sub.memo || sub.note || sub.remarks || '').toLowerCase();
+          const sCat = String(sub.category || '').toLowerCase();
+          const sPerson = String(sub.person || sub.user_name || '').toLowerCase();
+          return sItem.includes(q) || sMemo.includes(q) || sCat.includes(q) || sPerson.includes(q);
+        });
+      }
       if (!matchText) {
         const cleanQ = q.replace(/[,원\s]/g, '');
         if (cleanQ && !isNaN(Number(cleanQ))) {

@@ -290,7 +290,8 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
         fragment.appendChild(emptyRow);
         return;
       }
-      const isExpanded = Boolean(monthExpandedState[month]);
+      const isSearching = Boolean(ledgerState.searchQuery && ledgerState.searchQuery.trim());
+      const isExpanded = isSearching ? true : Boolean(monthExpandedState[month]);
       const monthRowElements = [];
 
       const dividerRow = createLedgerMonthDividerRow({
@@ -516,7 +517,15 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
         // 바로 밑에 세부 거래들(subRecords)을 인라인으로 렌더링 (기본 닫힘)
         if ((record.isAggregate || record.hasCardAccordion) && Array.isArray(record.subRecords) && record.subRecords.length > 0) {
           const subRows = [];
-          const isSubExpanded = Boolean(subAccordionExpandedState[record.id]);
+          const hasMatchingSub = isSearching && record.subRecords.some(sub => {
+            const q = ledgerState.searchQuery.toLowerCase();
+            const sItem = String(sub.item || sub.description || '').toLowerCase();
+            const sMemo = String(sub.memo || sub.note || sub.remarks || '').toLowerCase();
+            const sCat = String(sub.category || '').toLowerCase();
+            const sPerson = String(sub.person || sub.user_name || '').toLowerCase();
+            return sItem.includes(q) || sMemo.includes(q) || sCat.includes(q) || sPerson.includes(q);
+          });
+          const isSubExpanded = Boolean(subAccordionExpandedState[record.id]) || Boolean(hasMatchingSub);
 
           record.subRecords.forEach((sub, sIdx) => {
             const isFirstSub = sIdx === 0;
