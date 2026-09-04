@@ -382,25 +382,42 @@ export async function copyMonthFixedRecordsToNextMonth(
   let saveRecordsBatchFn = insertLedgerRecordsBatch;
   let saveOffsetGroupFn = upsertLedgerOffsetGroup;
   let currentSource = options.source || 'forecast';
+  if (options.saveRecordsBatchFn) saveRecordsBatchFn = options.saveRecordsBatchFn;
+  if (options.saveOffsetGroupFn) saveOffsetGroupFn = options.saveOffsetGroupFn;
 
   if (typeof sourceMonthKeyOrOptions === 'string') {
     sourceMonthKey = sourceMonthKeyOrOptions;
-    const cardList = ledgerDataSources.card || [];
-    const tossRecords = cardList.filter(r => (r.payment === '토스은행' || r.sheetName === '토스은행'));
-    const cardRecords = cardList.filter(r => (r.payment === '기업카드' || r.sheetName === '기업카드'));
-    const bankRecords = ledgerDataSources.bank || [];
-    const cashRecords = ledgerDataSources.cash || [];
-
-    if (currentSource === 'forecast') {
-      allRecords = [...tossRecords, ...bankRecords, ...cardRecords];
-    } else if (currentSource === 'bank') {
-      allRecords = [...bankRecords];
-    } else if (currentSource === 'cash') {
-      allRecords = [...cashRecords];
-    } else if (currentSource === 'card') {
-      allRecords = options.payment === '기업카드' ? [...cardRecords] : [...tossRecords];
+    if (Array.isArray(ledgerDataSources)) {
+      if (currentSource === 'forecast' || currentSource === 'all') {
+        allRecords = ledgerDataSources;
+      } else if (currentSource === 'bank') {
+        allRecords = ledgerDataSources.filter(r => (r.payment_method || r.payment || r.sheetName) === '기업은행');
+      } else if (currentSource === 'cash') {
+        allRecords = ledgerDataSources.filter(r => (r.payment_method || r.payment || r.sheetName) === '현금');
+      } else if (currentSource === 'card') {
+        const targetPayment = options.payment === '기업카드' ? '기업카드' : '토스은행';
+        allRecords = ledgerDataSources.filter(r => (r.payment_method || r.payment || r.sheetName) === targetPayment);
+      } else {
+        allRecords = ledgerDataSources;
+      }
     } else {
-      allRecords = Array.isArray(ledgerDataSources) ? ledgerDataSources : [...tossRecords, ...bankRecords, ...cardRecords, ...cashRecords];
+      const cardList = ledgerDataSources.card || [];
+      const tossRecords = cardList.filter(r => (r.payment === '토스은행' || r.sheetName === '토스은행'));
+      const cardRecords = cardList.filter(r => (r.payment === '기업카드' || r.sheetName === '기업카드'));
+      const bankRecords = ledgerDataSources.bank || [];
+      const cashRecords = ledgerDataSources.cash || [];
+
+      if (currentSource === 'forecast') {
+        allRecords = [...tossRecords, ...bankRecords, ...cardRecords];
+      } else if (currentSource === 'bank') {
+        allRecords = [...bankRecords];
+      } else if (currentSource === 'cash') {
+        allRecords = [...cashRecords];
+      } else if (currentSource === 'card') {
+        allRecords = options.payment === '기업카드' ? [...cardRecords] : [...tossRecords];
+      } else {
+        allRecords = [...tossRecords, ...bankRecords, ...cardRecords, ...cashRecords];
+      }
     }
   } else if (sourceMonthKeyOrOptions && typeof sourceMonthKeyOrOptions === 'object') {
     allRecords = sourceMonthKeyOrOptions.allRecords || [];
@@ -456,7 +473,7 @@ export async function copyMonthFixedRecordsToNextMonth(
 
   const totalCount = toCopyBank.length + toCopyCard.length;
   if (totalCount === 0) {
-    return { ok: false, message: `${sm}월 고정비/상계 거래가 이미 ${tm}월에 모두 등록되어 있어 추가로 복사할 거래가 없습니다.` };
+    return { ok: false, message: `${sm}월에 복사할 고정비 또는 상계 거래가 없습니다.` };
   }
 
   // 3. 다음 달(targetMonthKey)에 이미 존재하는 기업은행 카드 결제행 검사 (중복 방지)

@@ -617,8 +617,8 @@ export function createFundplanView({ ledgerState, getColorSettings, colorSetting
           copyBtn.disabled = true;
           copyBtn.textContent = '⏳ 복사 중...';
           try {
-            const currentSources = (typeof getLedgerDataSources === 'function' ? getLedgerDataSources() : ledgerDataSources) || {};
-            const res = await copyMonthFixedRecordsToNextMonth(month, currentSources, { source, payment: ledgerState.payment });
+            const allRecords = (ledgerState && Array.isArray(ledgerState.records)) ? ledgerState.records : [];
+            const res = await copyMonthFixedRecordsToNextMonth(month, allRecords, { source, payment: ledgerState.payment });
             if (res.ok) {
               if (typeof showLedgerToast === 'function') {
                 showLedgerToast(`🎉 ${m}월 ${actionTitle} 거래 (${res.count}건)가 ${res.targetMonthNum}월로 완벽 복사되었습니다!`);
