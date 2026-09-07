@@ -439,14 +439,35 @@ export function calculateMonthlySalary({ year, month, allWeeksData = [], customO
 
     const extraAllowances = Array.isArray(customOverrides.extraAllowances) ? customOverrides.extraAllowances : [];
     extraAllowances.forEach(item => {
-      const amt = Number(item.amount || 0);
-      if (amt > 0 && !earnings.some(e => e.name === item.name)) {
+      const cur = Number(item.current || 0);
+      const pst = Number(item.past !== undefined ? item.past : (item.amount || 0));
+      const amt = cur + pst;
+      if (amt > 0 && !earnings.some(e => e.id === item.id)) {
         earnings.push({
+          id: item.id,
           name: item.name || '기타수당',
-          current: 0,
-          past: amt,
+          current: cur,
+          past: pst,
           total: amt,
-          taxable: Boolean(item.isTaxable)
+          taxable: Boolean(item.isTaxable),
+          isCustom: true
+        });
+      }
+    });
+
+    const extraDeductions = Array.isArray(customOverrides.extraDeductions) ? customOverrides.extraDeductions : [];
+    extraDeductions.forEach(item => {
+      const cur = Number(item.current || 0);
+      const pst = Number(item.past !== undefined ? item.past : (item.amount || 0));
+      const amt = cur + pst;
+      if (amt > 0 && !deductions.some(d => d.id === item.id)) {
+        deductions.push({
+          id: item.id,
+          name: item.name || '기타공제',
+          current: cur,
+          past: pst,
+          total: amt,
+          isCustom: true
         });
       }
     });
@@ -555,20 +576,24 @@ export function calculateMonthlySalary({ year, month, allWeeksData = [], customO
     earnings.push({ name: '영외급식비', current: 0, past: mealAllowance, total: mealAllowance, taxable: false });
   }
 
-  // 기타수당 처리 (과월 열에 배치)
+  // 기타수당 처리 (과월/당월 열에 배치)
   const extraAllowances = Array.isArray(customOverrides.extraAllowances) ? customOverrides.extraAllowances : [];
   let nonTaxableExtras = 0;
   let taxableExtras = 0;
 
   extraAllowances.forEach(item => {
-    const amt = Number(item.amount || 0);
+    const cur = Number(item.current || 0);
+    const pst = Number(item.past !== undefined ? item.past : (item.amount || 0));
+    const amt = cur + pst;
     if (amt > 0) {
       earnings.push({
+        id: item.id,
         name: item.name || '기타수당',
-        current: 0,
-        past: amt,
+        current: cur,
+        past: pst,
         total: amt,
-        taxable: Boolean(item.isTaxable)
+        taxable: Boolean(item.isTaxable),
+        isCustom: true
       });
       if (item.isTaxable) {
         taxableExtras += amt;
@@ -623,6 +648,24 @@ export function calculateMonthlySalary({ year, month, allWeeksData = [], customO
     { name: '건강보험료', current: healthInsurance, past: 0, total: healthInsurance },
     { name: '노인장기요양보험료', current: careInsurance, past: 0, total: careInsurance }
   ];
+
+  // 기타공제 처리 (직접 추가 항목)
+  const extraDeductions = Array.isArray(customOverrides.extraDeductions) ? customOverrides.extraDeductions : [];
+  extraDeductions.forEach(item => {
+    const cur = Number(item.current || 0);
+    const pst = Number(item.past !== undefined ? item.past : (item.amount || 0));
+    const amt = cur + pst;
+    if (amt > 0) {
+      deductions.push({
+        id: item.id,
+        name: item.name || '기타공제',
+        current: cur,
+        past: pst,
+        total: amt,
+        isCustom: true
+      });
+    }
+  });
 
   const totalDeductionsCurrent = deductions.reduce((sum, item) => sum + item.current, 0);
   const totalDeductionsPast = deductions.reduce((sum, item) => sum + item.past, 0);

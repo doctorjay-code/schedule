@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="스마트일정">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
-  <link rel="stylesheet" href="style.css?v=20260908_0557">
+  <link rel="stylesheet" href="style.css?v=20260908_0611">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -32,7 +32,7 @@
       
       <div id="authErrorMsg" class="auth-error-msg hidden"></div>
       <div id="authLockoutTimer" class="auth-lockout-timer hidden"></div>
-      <p class="auth-build-time" id="authBuildTime">최종 수정: 2026-09-08 05:57</p>
+      <p class="auth-build-time" id="authBuildTime">최종 수정: 2026-09-08 06:11</p>
     </div>
   </div>
 
@@ -752,6 +752,36 @@
           <div id="salarySlipContainer" class="salary-slip-container">
             <!-- Rendered by salary-calculator.js -->
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Military Salary Item Explanation Modal Overlay -->
+    <div class="modal-overlay salary-item-modal-overlay" id="salaryItemModalOverlay">
+      <div class="salary-item-modal-card">
+        <div class="item-modal-header">
+          <div class="item-modal-title-wrap">
+            <span class="item-modal-badge" id="salaryItemModalBadge">지급항목</span>
+            <h4 class="item-modal-title" id="salaryItemModalTitle">시간외수당(정액급)</h4>
+          </div>
+          <button type="button" class="close-btn" id="closeSalaryItemModalBtn">✕</button>
+        </div>
+        <div class="item-modal-body">
+          <div class="item-modal-amount-banner">
+            <span class="item-banner-label">해당 월 산출 금액</span>
+            <span class="item-banner-val" id="salaryItemModalAmount">0원</span>
+          </div>
+          <div class="item-modal-section">
+            <div class="item-section-title">📌 법적 근거 및 산정 규정</div>
+            <div class="item-section-desc" id="salaryItemModalRule"></div>
+          </div>
+          <div class="item-modal-section">
+            <div class="item-section-title">🧮 세부 계산 공식 & 실적 반영</div>
+            <div class="item-section-box" id="salaryItemModalFormula"></div>
+          </div>
+        </div>
+        <div class="item-modal-footer">
+          <button type="button" class="btn-item-modal-close" id="confirmSalaryItemModalBtn">확인</button>
         </div>
       </div>
     </div>

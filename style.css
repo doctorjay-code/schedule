@@ -3105,6 +3105,9 @@ tr.ledger-fixed-row .ledger-fixed-tag,
   background: #F8FAFC;
   padding: 8px 12px;
   border-bottom: 1px solid #E2E8F0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .section-box-header h4 {
@@ -3112,6 +3115,24 @@ tr.ledger-fixed-row .ledger-fixed-tag,
   font-size: 13.5px;
   font-weight: 700;
   color: #1E293B;
+}
+
+.btn-add-table-item {
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  color: #2F5597;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1.2;
+}
+
+.btn-add-table-item:hover {
+  background: #EFF6FF;
+  border-color: #2F5597;
 }
 
 .earnings-box .section-box-header {
@@ -3187,299 +3208,341 @@ tr.ledger-fixed-row .ledger-fixed-tag,
   color: #E11D48;
 }
 
-/* Net Salary Highlight Card */
+/* Salary Table Item Detail Button (링크 스타일) */
+.btn-item-detail {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  font-weight: 600;
+  color: #2563EB;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+  font-family: inherit;
+  transition: color 0.15s, text-decoration 0.15s;
+}
+
+.btn-item-detail:hover {
+  color: #1D4ED8;
+  text-decoration: underline;
+}
+
+.custom-col-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-del-custom {
+  background: transparent;
+  border: none;
+  color: #94A3B8;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 2px;
+  border-radius: 3px;
+  line-height: 1;
+}
+
+.btn-del-custom:hover {
+  color: #EF4444;
+  background: #FEE2E2;
+}
+
+/* Inline Add Row inside Tables */
+.inline-add-row {
+  background: #F8FAFC;
+  border-top: 1px dashed #CBD5E1;
+}
+
+.inline-table-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 6px;
+  font-size: 11.5px;
+  border: 1px solid #CBD5E1;
+  border-radius: 4px;
+  outline: none;
+  font-family: inherit;
+}
+
+.inline-table-input:focus {
+  border-color: #2F5597;
+  box-shadow: 0 0 0 2px rgba(47, 85, 151, 0.15);
+}
+
+.inline-table-input.inline-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.inline-add-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.btn-inline-confirm {
+  background: #2F5597;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 7px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btn-inline-confirm:hover {
+  opacity: 0.9;
+}
+
+.btn-inline-cancel {
+  background: #FFFFFF;
+  color: #64748B;
+  border: 1px solid #CBD5E1;
+  border-radius: 4px;
+  font-size: 11px;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+
+.btn-inline-cancel:hover {
+  background: #F1F5F9;
+  color: #1E293B;
+}
+
+/* Net Salary Card (Matching Upper Tables Theme - 깔끔한 화이트/네이비 톤) */
 .salary-net-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
-  color: #FFFFFF;
-  border-radius: 12px;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-left: 5px solid #2F5597;
+  border-radius: 10px;
   padding: 14px 18px;
   margin-bottom: 14px;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 }
 
 .net-left {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .net-badge {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 800;
-  color: #38BDF8;
-  letter-spacing: -0.02em;
+  color: #2F5597;
+  letter-spacing: -0.01em;
 }
 
 .net-formula {
   font-size: 11.5px;
-  color: #94A3B8;
+  color: #64748B;
 }
 
 .net-amount {
   display: flex;
   align-items: baseline;
-  gap: 2px;
+  gap: 3px;
 }
 
 .net-amount .currency {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
-  color: #38BDF8;
+  color: #2F5597;
 }
 
 .net-amount .amount-val {
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 900;
   letter-spacing: -0.02em;
-  color: #FFFFFF;
+  color: #1E293B;
   font-variant-numeric: tabular-nums;
 }
 
 .net-amount .won {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
-  color: #CBD5E1;
+  color: #475569;
   margin-left: 2px;
 }
 
-/* Calculation Details Accordion */
-.salary-calc-details {
-  background: #F8FAFC;
-  border: 1px solid #E2E8F0;
-  border-radius: 10px;
-  overflow: hidden;
-  font-size: 12px;
-}
-
-.details-summary {
-  padding: 10px 14px;
-  cursor: pointer;
-  font-weight: 700;
-  color: #475569;
-  display: flex;
+/* Salary Item Detail Modal Overlay & Card (전면 팝업 설명 모달) */
+.salary-item-modal-overlay {
+  z-index: 1200 !important;
+  display: none;
   align-items: center;
-  justify-content: space-between;
-  user-select: none;
-  background: #F1F5F9;
-  transition: background 0.15s;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
 }
 
-.details-summary:hover {
-  background: #E2E8F0;
+.salary-item-modal-overlay.active {
+  display: flex;
 }
 
-.salary-calc-details[open] .summary-arrow {
-  transform: rotate(180deg);
-}
-
-.details-content {
-  padding: 12px 14px;
+.salary-item-modal-card {
+  background: #FFFFFF;
+  border-radius: 14px;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+  animation: itemModalFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  border-top: 1px solid #E2E8F0;
-  background: #FFFFFF;
 }
 
-.calc-row {
+@keyframes itemModalFadeIn {
+  from { opacity: 0; transform: scale(0.96) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.item-modal-header {
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid #E2E8F0;
+  background: #F8FAFC;
+}
+
+.item-modal-title-wrap {
+  display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.item-modal-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid #BFDBFE;
+}
+
+.item-modal-badge.badge-deduction {
+  background: #FFF1F2;
+  color: #BE123C;
+  border-color: #FECDD3;
+}
+
+.item-modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #1E293B;
+  letter-spacing: -0.02em;
+}
+
+.item-modal-body {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.item-modal-amount-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.item-banner-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.item-banner-val {
+  font-size: 17px;
+  font-weight: 800;
+  color: #2F5597;
+  font-variant-numeric: tabular-nums;
+}
+
+.item-modal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.item-section-title {
+  font-size: 12.5px;
+  font-weight: 700;
   color: #334155;
 }
 
-.calc-sub {
-  font-size: 11px;
-  color: #64748B;
-  margin-top: -4px;
-  padding-left: 8px;
-}
-
-/* Method A: Extra Allowance / Travel Expenses Card */
-.salary-extra-card {
-  background: #FFFFFF;
-  border: 1px dashed #CBD5E1;
-  border-radius: 10px;
-  padding: 12px 14px;
-  margin-bottom: 14px;
-  transition: all 0.2s;
-}
-
-.salary-extra-card:hover {
-  border-color: #94A3B8;
-}
-
-.extra-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.extra-header-left {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.extra-header-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: #1E293B;
-}
-
-.extra-header-desc {
-  font-size: 11px;
-  color: #64748B;
-}
-
-.btn-extra-toggle {
-  background: #F1F5F9;
-  border: 1px solid #CBD5E1;
-  color: #2F5597;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 4px 10px;
+.item-section-desc {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #475569;
+  background: #FAFAFA;
+  padding: 8px 12px;
   border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.15s;
+  border: 1px solid #F1F5F9;
 }
 
-.btn-extra-toggle:hover {
-  background: #E2E8F0;
-  border-color: #94A3B8;
-}
-
-.extra-form {
-  margin-top: 10px;
-  padding: 10px 12px;
+.item-section-box {
+  font-size: 12px;
+  line-height: 1.55;
+  color: #334155;
   background: #F8FAFC;
   border: 1px solid #E2E8F0;
   border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.item-section-box code {
+  background: #E2E8F0;
+  color: #1E293B;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11.5px;
+}
+
+.item-modal-footer {
+  padding: 12px 18px;
+  border-top: 1px solid #E2E8F0;
+  background: #F8FAFC;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  justify-content: flex-end;
 }
 
-.extra-form.hidden {
-  display: none;
-}
-
-.extra-inputs-row {
-  display: flex;
-  gap: 8px;
-}
-
-.extra-input {
-  flex: 1;
-  padding: 6px 10px;
-  font-size: 13px;
-  border: 1px solid #CBD5E1;
-  border-radius: 6px;
-  background: #FFFFFF;
-  outline: none;
-}
-
-.extra-input:focus {
-  border-color: #2F5597;
-  box-shadow: 0 0 0 2px rgba(47, 85, 151, 0.12);
-}
-
-.extra-options-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.extra-checkbox-label {
-  font-size: 12px;
-  color: #475569;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-}
-
-.extra-btn-actions {
-  display: flex;
-  gap: 6px;
-}
-
-.btn-extra-submit {
+.btn-item-modal-close {
   background: #2F5597;
   color: #FFFFFF;
   border: none;
-  padding: 5px 12px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
+  padding: 7px 18px;
   border-radius: 6px;
   cursor: pointer;
   transition: opacity 0.15s;
 }
 
-.btn-extra-submit:hover {
+.btn-item-modal-close:hover {
   opacity: 0.9;
-}
-
-.btn-extra-cancel {
-  background: transparent;
-  color: #64748B;
-  border: 1px solid #CBD5E1;
-  padding: 5px 10px;
-  font-size: 12px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.btn-extra-cancel:hover {
-  background: #E2E8F0;
-}
-
-.extra-chips-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.extra-empty-msg {
-  font-size: 11.5px;
-  color: #94A3B8;
-  font-style: italic;
-}
-
-.salary-extra-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #EFF6FF;
-  border: 1px solid #BFDBFE;
-  color: #1D4ED8;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.extra-chip-delete {
-  background: transparent;
-  border: none;
-  color: #93C5FD;
-  cursor: pointer;
-  font-size: 11px;
-  padding: 0 2px;
-  line-height: 1;
-}
-
-.extra-chip-delete:hover {
-  color: #DC2626;
 }
