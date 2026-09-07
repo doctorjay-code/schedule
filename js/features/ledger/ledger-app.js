@@ -668,6 +668,7 @@ function applySourceButtonColors() {
     if (!btn) return;
     const tagColor = getLedgerTagColor(colorSettings, 'payment', payment);
     if (tagColor) {
+      btn.style.setProperty('--source-bg', tagColor);
       btn.style.setProperty('--chip-color', tagColor);
       btn.style.borderColor = tagColor;
       if (btn.classList.contains('active')) {
@@ -702,6 +703,7 @@ function applySourceButtonColors() {
 function applyLedgerDataSources() {
   updateLedgerPeriodTitle();
   applySourceButtonColors();
+  ledgerTransactionModal?.applyCategoryOptionColors?.();
   renderLedgerTable();
   updateMultiActionBar();
   updateCopyBufferBar();

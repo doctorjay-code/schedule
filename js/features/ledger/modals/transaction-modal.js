@@ -6,7 +6,7 @@ import {
   setModalOpen,
   setOptionGroupValue
 } from '../../../shared/modal-form.js';
-import { toIso, formatMoney } from '../ledger-utils.js';
+import { toIso, formatMoney, getLedgerTagColor } from '../ledger-utils.js';
 import { formatLedgerScheduleDate } from '../transaction-view.js';
 
 // Transaction input, edit, delete, and modal event responsibility.
@@ -221,10 +221,25 @@ export function createLedgerTransactionModal(options = {}) {
     document.getElementById('ledgerModalPayment').value = selectedPayment || defaultPayment;
     document.getElementById('ledgerModalPerson').value = memoParts.person || '';
     document.getElementById('ledgerModalMemo').value = memoParts.detail || '';
+    applyCategoryOptionColors();
     setGroup('ledgerModalCategoryGroup', 'ledgerModalCategory', value.category);
     setGroup('ledgerModalFixedCostGroup', 'ledgerModalFixedCost', value.fixedCost === '\uACE0\uC815\uBE44' ? value.fixedCost : '');
     setReadOnly(isReadOnly, isExisting, isAggregate);
     setModalOpen(overlay, true);
+  }
+
+  function applyCategoryOptionColors() {
+    const categoryGroup = document.getElementById('ledgerModalCategoryGroup');
+    if (!categoryGroup) return;
+    const colorSettings = options.state?.colorSettings || {};
+    categoryGroup.querySelectorAll('.option-btn').forEach(btn => {
+      const val = btn.dataset.val;
+      if (!val) return;
+      const tagColor = getLedgerTagColor(colorSettings, 'category', val);
+      if (tagColor) {
+        btn.style.setProperty('--cat-bg', tagColor);
+      }
+    });
   }
 
   function bindGroup(groupId, inputId) {
@@ -269,7 +284,8 @@ export function createLedgerTransactionModal(options = {}) {
       ['ledgerModalCategoryGroup', 'ledgerModalCategory'],
       ['ledgerModalFixedCostGroup', 'ledgerModalFixedCost']
     ].forEach(([groupId, inputId]) => bindGroup(groupId, inputId));
+    applyCategoryOptionColors();
   }
 
-  return { open, close, bind };
+  return { open, close, bind, applyCategoryOptionColors };
 }
