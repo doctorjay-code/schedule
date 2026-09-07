@@ -1,4 +1,4 @@
-import { attachHardReloadLongPress } from '../../../shared/sync-ui.js';
+import { triggerAppReload } from '../../../shared/sync-ui.js';
 
 // Schedule view, period navigation, and feature-launch event responsibility.
 export function bindScheduleNavigation({
@@ -7,6 +7,7 @@ export function bindScheduleNavigation({
   leaveLedger,
   openStats,
   openColor,
+  openSalary,
   switchViewMode,
   renderMonthly,
   openMonthPicker,
@@ -28,6 +29,7 @@ export function bindScheduleNavigation({
   document.getElementById('ledgerMenuBtn')?.addEventListener('click', enterLedger);
   document.getElementById('openStatsModalBtn')?.addEventListener('click', openStats);
   document.getElementById('openColorSettingsBtn')?.addEventListener('click', openColor);
+  document.getElementById('openSalaryModalBtn')?.addEventListener('click', openSalary);
 
   document.getElementById('weeklyViewBtn')?.addEventListener('click', () => {
     leaveLedger();
@@ -102,18 +104,10 @@ export function bindScheduleNavigation({
 
   const manualSyncBtn = document.getElementById('manualSyncBtn');
   if (manualSyncBtn) {
-    attachHardReloadLongPress(manualSyncBtn);
-    manualSyncBtn.addEventListener('click', async () => {
+    manualSyncBtn.addEventListener('click', () => {
       manualSyncBtn.classList.add('spinning');
       manualSyncBtn.disabled = true;
-      try {
-        await syncFromSheets();
-      } finally {
-        setTimeout(() => {
-          manualSyncBtn.classList.remove('spinning');
-          manualSyncBtn.disabled = false;
-        }, 500);
-      }
+      triggerAppReload({ view: 'schedule' });
     });
   }
 }

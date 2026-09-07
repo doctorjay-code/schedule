@@ -2375,7 +2375,8 @@ body {
   gap: 7px;
   white-space: nowrap;
 }
-#weekTitle .dropdown-arrow { display: none; }
+#weekTitle .dropdown-arrow,
+#ledgerPeriodTitle .dropdown-arrow { display: none; }
 #weekTitle::after, #ledgerPeriodTitle::after {
   content: '▾';
   display: inline-flex;
@@ -2413,26 +2414,42 @@ body {
 /* Schedule and ledger: identical period navigation geometry */
 .week-navigator.centered.schedule-only,
 #ledgerCardNavigator {
-  gap: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-height: 34px;
   margin-bottom: 8px;
 }
 .week-navigator.centered.schedule-only > .nav-btn,
 #ledgerCardNavigator > .nav-btn {
-  flex: 0 0 30px;
-  width: 30px;
+  flex: 0 0 28px;
+  width: 28px;
   height: 28px;
   margin: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
 }
 .week-navigator.centered.schedule-only > #weekTitle,
 #ledgerCardNavigator > #ledgerPeriodTitle {
-  flex: 0 0 148px;
+  flex: 0 1 auto;
+  min-width: 130px;
+  max-width: 148px;
+  height: 28px;
+  margin: 0;
+  padding: 2px 6px;
+  font-size: 14.5px;
 }
 .week-navigator.centered.schedule-only > .today-btn,
 #ledgerCardNavigator > .today-btn {
   flex: 0 0 auto;
   height: 28px;
   margin: 0;
+  padding: 4px 8px;
+  font-size: 11.5px;
 }
 
 /* Unified schedule and ledger status/filter rows */
@@ -2941,4 +2958,528 @@ tr.ledger-fixed-row .ledger-fixed-tag,
   font-size: 0.95em;
   font-weight: 800;
   letter-spacing: -0.01em;
+}
+
+/* ==========================================================================
+   Military Salary Calculator Modal & Paystub Styling (국방급여포털 명세서 스타일)
+   ========================================================================== */
+
+.salary-sheet {
+  max-height: 92vh;
+  max-width: 820px;
+  width: 100%;
+}
+
+.salary-sheet-body {
+  padding: 12px 16px 28px;
+  overflow-y: auto;
+}
+
+.salary-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  background: #F8FAFC;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
+}
+
+.salary-month-select-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.salary-select-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.salary-month-select {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1E293B;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 8px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.salary-month-select:focus {
+  border-color: #2F5597;
+  box-shadow: 0 0 0 2px rgba(47, 85, 151, 0.15);
+}
+
+.salary-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.salary-badge.badge-verified {
+  background: #EBFBEE;
+  color: #1B5E20;
+  border: 1px solid #C3F0C8;
+}
+
+.salary-badge.badge-estimate {
+  background: #E7F5FF;
+  color: #1971C2;
+  border: 1px solid #D0EBFF;
+}
+
+.salary-ot-summary-card {
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+
+.ot-summary-header {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 6px;
+}
+
+.ot-summary-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ot-chip {
+  display: inline-block;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.ot-chip strong {
+  color: #2F5597;
+}
+
+/* Paystub 2-Column Grid */
+.salary-tables-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 680px) {
+  .salary-tables-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+.salary-section-box {
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.section-box-header {
+  background: #F8FAFC;
+  padding: 8px 12px;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.section-box-header h4 {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #1E293B;
+}
+
+.earnings-box .section-box-header {
+  border-left: 4px solid #2F5597;
+}
+
+.deductions-box .section-box-header {
+  border-left: 4px solid #E11D48;
+}
+
+.salary-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.salary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.salary-table th,
+.salary-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.salary-table th {
+  background: #F8FAFC;
+  color: #64748B;
+  font-weight: 600;
+  white-space: nowrap;
+  font-size: 11.5px;
+}
+
+.salary-table .col-name {
+  text-align: left;
+  color: #334155;
+  font-weight: 600;
+  min-width: 100px;
+}
+
+.salary-table .col-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.salary-table .col-subtotal {
+  font-weight: 600;
+  color: #1E293B;
+}
+
+.salary-table .total-row {
+  background: #F8FAFC;
+  border-top: 2px solid #CBD5E1;
+  font-weight: 700;
+}
+
+.salary-table .total-row td {
+  padding: 8px 8px;
+}
+
+.salary-table .col-grand-total {
+  font-weight: 800;
+  color: #2F5597;
+  font-size: 12.5px;
+}
+
+.deductions-box .col-grand-total {
+  color: #E11D48;
+}
+
+/* Net Salary Highlight Card */
+.salary-net-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+  color: #FFFFFF;
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+}
+
+.net-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.net-badge {
+  font-size: 14px;
+  font-weight: 800;
+  color: #38BDF8;
+  letter-spacing: -0.02em;
+}
+
+.net-formula {
+  font-size: 11.5px;
+  color: #94A3B8;
+}
+
+.net-amount {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.net-amount .currency {
+  font-size: 18px;
+  font-weight: 700;
+  color: #38BDF8;
+}
+
+.net-amount .amount-val {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #FFFFFF;
+  font-variant-numeric: tabular-nums;
+}
+
+.net-amount .won {
+  font-size: 15px;
+  font-weight: 700;
+  color: #CBD5E1;
+  margin-left: 2px;
+}
+
+/* Calculation Details Accordion */
+.salary-calc-details {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 12px;
+}
+
+.details-summary {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 700;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  background: #F1F5F9;
+  transition: background 0.15s;
+}
+
+.details-summary:hover {
+  background: #E2E8F0;
+}
+
+.salary-calc-details[open] .summary-arrow {
+  transform: rotate(180deg);
+}
+
+.details-content {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid #E2E8F0;
+  background: #FFFFFF;
+}
+
+.calc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  color: #334155;
+}
+
+.calc-sub {
+  font-size: 11px;
+  color: #64748B;
+  margin-top: -4px;
+  padding-left: 8px;
+}
+
+/* Method A: Extra Allowance / Travel Expenses Card */
+.salary-extra-card {
+  background: #FFFFFF;
+  border: 1px dashed #CBD5E1;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  transition: all 0.2s;
+}
+
+.salary-extra-card:hover {
+  border-color: #94A3B8;
+}
+
+.extra-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.extra-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.extra-header-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1E293B;
+}
+
+.extra-header-desc {
+  font-size: 11px;
+  color: #64748B;
+}
+
+.btn-extra-toggle {
+  background: #F1F5F9;
+  border: 1px solid #CBD5E1;
+  color: #2F5597;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-extra-toggle:hover {
+  background: #E2E8F0;
+  border-color: #94A3B8;
+}
+
+.extra-form {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.extra-form.hidden {
+  display: none;
+}
+
+.extra-inputs-row {
+  display: flex;
+  gap: 8px;
+}
+
+.extra-input {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 13px;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  background: #FFFFFF;
+  outline: none;
+}
+
+.extra-input:focus {
+  border-color: #2F5597;
+  box-shadow: 0 0 0 2px rgba(47, 85, 151, 0.12);
+}
+
+.extra-options-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.extra-checkbox-label {
+  font-size: 12px;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.extra-btn-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-extra-submit {
+  background: #2F5597;
+  color: #FFFFFF;
+  border: none;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btn-extra-submit:hover {
+  opacity: 0.9;
+}
+
+.btn-extra-cancel {
+  background: transparent;
+  color: #64748B;
+  border: 1px solid #CBD5E1;
+  padding: 5px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-extra-cancel:hover {
+  background: #E2E8F0;
+}
+
+.extra-chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.extra-empty-msg {
+  font-size: 11.5px;
+  color: #94A3B8;
+  font-style: italic;
+}
+
+.salary-extra-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  color: #1D4ED8;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.extra-chip-delete {
+  background: transparent;
+  border: none;
+  color: #93C5FD;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.extra-chip-delete:hover {
+  color: #DC2626;
 }

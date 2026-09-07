@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="스마트일정">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
-  <link rel="stylesheet" href="style.css?v=20260907_1325">
+  <link rel="stylesheet" href="style.css?v=20260908_0545">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -32,7 +32,7 @@
       
       <div id="authErrorMsg" class="auth-error-msg hidden"></div>
       <div id="authLockoutTimer" class="auth-lockout-timer hidden"></div>
-      <p class="auth-build-time" id="authBuildTime">최종 수정: 2026-08-30 14:10</p>
+      <p class="auth-build-time" id="authBuildTime">최종 수정: 2026-09-08 05:45</p>
     </div>
   </div>
 
@@ -66,9 +66,10 @@
         <button type="button" class="week-title schedule-period-picker" id="weekTitle" title="월·주차 선택" aria-label="월·주차 선택"><span class="period-title-text">2026.08.17–08.23</span><span class="dropdown-arrow" aria-hidden="true">▾</span></button>
         <button class="nav-btn" id="nextWeekBtn">▶</button>
         <button class="today-btn" id="todayBtn">오늘</button>
-        <button class="nav-btn" id="manualSyncBtn" title="최신 일정 동기화 (길게 누르면 코드 새로고침)"><span class="sync-icon">🔄</span></button>
+        <button class="nav-btn" id="manualSyncBtn" title="최신 일정 및 코드 새로고침"><span class="sync-icon">🔄</span></button>
         <button class="nav-btn" id="openStatsModalBtn" title="통계 요약 리포트">📊</button>
         <button class="nav-btn" id="openColorSettingsBtn" title="색상 커스텀 설정">🎨</button>
+        <button class="nav-btn" id="openSalaryModalBtn" title="월급 계산기 (일정 DB 연동)">📈</button>
       </div>
 
       <div id="syncStatus" class="sync-status schedule-only hidden" role="status" aria-live="polite" data-state="idle">저장 준비됨</div>
@@ -84,7 +85,7 @@
         <h1 class="week-title" id="ledgerPeriodTitle">&#xC774;&#xBC88; &#xC8FC;<span class="dropdown-arrow">&#x25BE;</span></h1>
         <button class="nav-btn" id="ledgerNextPeriodBtn" type="button" aria-label="&#xB2E4;&#xC74C; &#xAE30;&#xAC04;">&#x25B6;</button>
         <button class="today-btn" id="ledgerLatestBtn" type="button">&#xC624;&#xB298;</button>
-        <button class="nav-btn" id="ledgerRefreshBtn" type="button" title="가계부 최신 동기화 (길게 누르면 코드 새로고침)"><span class="sync-icon">&#x1F504;</span></button>
+        <button class="nav-btn" id="ledgerRefreshBtn" type="button" title="최신 가계부 및 코드 새로고침"><span class="sync-icon">&#x1F504;</span></button>
         <button class="nav-btn" id="ledgerReportBtn" type="button" title="&#xC9C0;&#xCD9C; &#xB9AC;&#xD3EC;&#xD2B8;">&#x1F4CA;</button>
         <button class="nav-btn" id="ledgerColorSettingsBtn" type="button" title="&#xAC70;&#xB798; &#xD0DC;&#xADF8; &#xC0C9;&#xC0C1;">&#x1F3A8;</button>
         <button class="nav-btn" id="ledgerAverageBalanceBtn" type="button" title="평균 잔액 계산기">📈</button>
@@ -715,6 +716,41 @@
             <div class="stats-content-list" id="statsTransportContent">
               <!-- Dynamic Transport Content -->
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Military Salary Calculator Modal Overlay -->
+    <div class="modal-overlay" id="salaryModalOverlay">
+      <div class="bottom-sheet salary-sheet" id="salaryBottomSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h3>📈 군인 급여(월급) 계산기</h3>
+          <button class="close-btn" id="closeSalaryModalBtn">✕</button>
+        </div>
+
+        <div class="sheet-body salary-sheet-body">
+          <!-- Month Selector Toolbar -->
+          <div class="salary-toolbar">
+            <div class="salary-month-select-wrapper">
+              <label for="salaryMonthSelect" class="salary-select-label">지급월 선택:</label>
+              <select class="salary-month-select" id="salaryMonthSelect">
+                <option value="2026-10">2026년 10월 급여 (예상) - 8월 실적 반영</option>
+                <option value="2026-09" selected>2026년 9월 급여 (확정) - 7월 실적 반영</option>
+                <option value="2026-08">2026년 8월 급여 (확정) - 6월 실적 반영</option>
+                <option value="2026-07">2026년 7월 급여 (확정) - 5월 실적 반영</option>
+                <option value="2026-06">2026년 6월 급여 (확정)</option>
+                <option value="2026-05">2026년 5월 급여 (확정)</option>
+                <option value="2026-11">2026년 11월 급여 (예상) - 9월 실적 반영</option>
+                <option value="2026-12">2026년 12월 급여 (예상)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Dynamic Paystub Container -->
+          <div id="salarySlipContainer" class="salary-slip-container">
+            <!-- Rendered by salary-calculator.js -->
           </div>
         </div>
       </div>

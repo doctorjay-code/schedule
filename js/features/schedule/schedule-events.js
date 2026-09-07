@@ -24,6 +24,8 @@ let statsFeature = null;
 let statsLoadPromise = null;
 let colorFeature = null;
 let colorLoadPromise = null;
+let salaryFeature = null;
+let salaryLoadPromise = null;
 
 function loadLedgerFeature() {
   if (!ledgerLoadPromise) {
@@ -106,6 +108,29 @@ async function openColorFeature() {
     console.error('Color feature load failed:', error);
   }
 }
+async function getSalaryFeature() {
+  if (!salaryLoadPromise) {
+    salaryLoadPromise = import(getVersionedUrl('./modals/salary-calculator.js'))
+      .then(module => {
+        module.setupSalaryCalculatorModal();
+        salaryFeature = module;
+        return module;
+      })
+      .catch(error => {
+        salaryLoadPromise = null;
+        throw error;
+      });
+  }
+  return salaryLoadPromise;
+}
+async function openSalaryFeature() {
+  try {
+    const module = await getSalaryFeature();
+    module.openSalaryCalculatorModal();
+  } catch (error) {
+    console.error('Salary feature load failed:', error);
+  }
+}
 
 export function initializeScheduleApp() {
   loadLastScheduleSnapshot();
@@ -139,6 +164,12 @@ export function initializeScheduleApp() {
     }
   });
   preloadLedgerFeature();
+  try {
+    const lastActiveView = sessionStorage.getItem('active_view');
+    if (lastActiveView === 'ledger') {
+      enterLedgerFeature();
+    }
+  } catch {}
 }
 
 function initNetworkStatusListener() {
@@ -208,6 +239,7 @@ function initEvents() {
     leaveLedger: leaveLedgerFeature,
     openStats: openStatsFeature,
     openColor: openColorFeature,
+    openSalary: openSalaryFeature,
     switchViewMode: switchViewModeUI,
     renderMonthly: renderMonthlyCalendar,
     openMonthPicker: openMonthSelectModal,

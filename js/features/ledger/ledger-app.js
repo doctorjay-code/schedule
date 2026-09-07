@@ -19,7 +19,7 @@ import { showLedgerToast, findLedgerRecordById, executeLedgerCopy, executeLedger
 import { generateForecastRecords, isManualCardPayment, saveForecastAggregateOverride, loadForecastAggregateOverrides, syncForecastAggregateOverridesFromDB, syncBankCardBillRecords } from './ledger-forecast.js';
 import { createOffsetGroupFromRecords, createOffsetGroupRow, deleteOffsetGroup } from './ledger-offset-groups.js';
 import { initAverageBalanceModal } from './modals/average-balance.js';
-import { attachHardReloadLongPress } from '../../shared/sync-ui.js';
+import { triggerAppReload } from '../../shared/sync-ui.js';
 
 let ledgerState = {
   active: false,
@@ -883,18 +883,12 @@ function bindLedgerDomEvents() {
 
   const refreshBtn = document.getElementById('ledgerRefreshBtn');
   if (refreshBtn) {
-    attachHardReloadLongPress(refreshBtn);
     refreshBtn.addEventListener('click', () => {
+      refreshBtn.classList.add('spinning');
+      refreshBtn.disabled = true;
       const badge = document.getElementById('ledgerDataBadge');
-      if (badge) badge.textContent = '동기화 중...';
-      fetchLedgerData().then(res => {
-        ledgerState.records = res.records || [];
-        if (badge) badge.textContent = '최신 거래 반영';
-        applyLedgerDataSources();
-      }).catch(err => {
-        console.error('Ledger refresh error:', err);
-        if (badge) badge.textContent = '오프라인';
-      });
+      if (badge) badge.textContent = '새로고침 중...';
+      triggerAppReload({ view: 'ledger' });
     });
   }
 

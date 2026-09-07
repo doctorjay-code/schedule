@@ -94,105 +94,49 @@ export function setSyncStatus(state, detail = '') {
 }
 
 /**
- * 길게 누르기(Long-Press, 약 650ms) 시 웹앱/브라우저 전체를 최신 코드로 강제 새로고침하는 헬퍼
- * - 일반 클릭 시: 기존 데이터 동기화 정상 수행
- * - 650ms 이상 길게 누를 시: 진동 피드백 + 토스트 안내 후 캐시 우회 강제 리로드(URL timestamp param)
+ * 최신 코드와 DB 데이터를 통째로 새로고침하는 통합 리로드 함수
+ * - URL에 타임스탬프(?t=...)를 갱신하여 브라우저/PWA 캐시를 무효화하고 최신 코드 & DB 데이터 즉시 재로드
  */
-export function attachHardReloadLongPress(element) {
-  if (!element) return;
+export function triggerAppReload({ view = null } = {}) {
+  if (view) {
+    try {
+      sessionStorage.setItem('active_view', view);
+    } catch {}
+  }
 
-  let timer = null;
-  let isLongPress = false;
-  let startX = 0;
-  let startY = 0;
+  if (typeof navigator !== 'undefined' && navigator.vibrate) {
+    try { navigator.vibrate([35, 50, 35]); } catch {}
+  }
 
-  function executeHardReload() {
-    isLongPress = true;
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      try { navigator.vibrate([40, 60, 40]); } catch {}
-    }
-    const toast = typeof document !== 'undefined' ? document.getElementById('ledgerToast') : null;
-    if (toast) {
-      toast.textContent = '🔄 최신 코드로 새로고침합니다...';
-      toast.classList.remove('hidden');
-    }
-    setTimeout(() => {
-      try {
-        if (typeof window !== 'undefined') {
-          const url = new URL(window.location.href);
-          url.searchParams.set('t', Date.now().toString());
+  const toast = typeof document !== 'undefined' ? document.getElementById('ledgerToast') : null;
+  if (toast) {
+    toast.textContent = '🔄 최신 코드 및 데이터를 불러오는 중...';
+    toast.classList.remove('hidden');
+  }
+
+  setSyncSpinning(true);
+
+  setTimeout(() => {
+    try {
+      if (typeof window !== 'undefined' && window.location) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('t', Date.now().toString());
+        if (typeof window.location.replace === 'function') {
           window.location.replace(url.toString());
-        }
-      } catch {
-        if (typeof window !== 'undefined') {
-          window.location.reload();
+          return;
         }
       }
-    }, 250);
-  }
-
-  function startPress(clientX, clientY) {
-    isLongPress = false;
-    startX = clientX;
-    startY = clientY;
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(executeHardReload, 650);
-  }
-
-  function cancelPress() {
-    if (timer) {
-      clearTimeout(timer);
-      timer = null;
+    } catch {}
+    if (typeof window !== 'undefined' && window.location && typeof window.location.reload === 'function') {
+      window.location.reload();
     }
-  }
-
-  // Touch Events (모바일 웹앱/PWA)
-  element.addEventListener('touchstart', (e) => {
-    if (e.touches && e.touches.length === 1) {
-      startPress(e.touches[0].clientX, e.touches[0].clientY);
-    }
-  }, { passive: true });
-
-  element.addEventListener('touchmove', (e) => {
-    if (timer && e.touches && e.touches.length === 1) {
-      const dx = Math.abs(e.touches[0].clientX - startX);
-      const dy = Math.abs(e.touches[0].clientY - startY);
-      if (dx > 10 || dy > 10) {
-        cancelPress();
-      }
-    }
-  }, { passive: true });
-
-  element.addEventListener('touchend', cancelPress, { passive: true });
-  element.addEventListener('touchcancel', cancelPress, { passive: true });
-
-  // Mouse Events (데스크탑 마우스 롱클릭 지원)
-  element.addEventListener('mousedown', (e) => {
-    if (e.button === 0) {
-      startPress(e.clientX, e.clientY);
-    }
-  });
-
-  element.addEventListener('mousemove', (e) => {
-    if (timer) {
-      const dx = Math.abs(e.clientX - startX);
-      const dy = Math.abs(e.clientY - startY);
-      if (dx > 10 || dy > 10) {
-        cancelPress();
-      }
-    }
-  });
-
-  element.addEventListener('mouseup', cancelPress);
-  element.addEventListener('mouseleave', cancelPress);
-
-  // Click Event Interceptor: 롱프레스 발동 시 기존 데이터 동기화 click 발동 차단
-  element.addEventListener('click', (e) => {
-    if (isLongPress) {
-      e.preventDefault?.();
-      e.stopImmediatePropagation?.();
-      e.stopPropagation?.();
-      setTimeout(() => { isLongPress = false; }, 400);
-    }
-  }, true);
+  }, 120);
 }
+
+/**
+ * 하위 호환용 함수 (원클릭 즉시 리로드로 단일화됨)
+ */
+export function attachHardReloadLongPress(element, options = {}) {
+  // Deprecated: Single-click triggerAppReload is now used directly on refresh buttons
+}
+

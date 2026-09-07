@@ -17,6 +17,9 @@ export function getActiveMainTab() {
 
 export function showScheduleView(options = {}) {
   currentMainTab = 'schedule';
+  try {
+    sessionStorage.setItem('active_view', 'schedule');
+  } catch {}
   const container = document.querySelector('.app-container');
   container?.classList.remove('ledger-active');
 
@@ -58,6 +61,9 @@ export function showScheduleView(options = {}) {
 
 export function showLedgerView(options = {}) {
   currentMainTab = 'ledger';
+  try {
+    sessionStorage.setItem('active_view', 'ledger');
+  } catch {}
   const container = document.querySelector('.app-container');
   container?.classList.add('ledger-active');
 
