@@ -353,16 +353,16 @@ export function calculateOvertimeFromSchedule(allWeeksData, year, month) {
 export const HISTORICAL_PAYSTUBS = {
   '2026-05': {
     earnings: [
-      { name: '봉급 (기본급)', current: 3185400, past: 475900, total: 3661300, taxable: true },
+      { name: '봉급', current: 3185400, past: 475900, total: 3661300, taxable: true },
       { name: '직급보조비', current: 250000, past: 41660, total: 291660, taxable: true },
-      { name: '기타수당 (전속파견여비)', current: 0, past: 82870, total: 82870, taxable: false }
+      { name: '기타수당', current: 0, past: 82870, total: 82870, taxable: false }
     ],
     deductions: [
-      { name: '일반기여금 (군인연금)', current: 328410, past: 328410, total: 656820 },
-      { name: '건강보험료 (20%감면)', current: 115260, past: 0, total: 115260 },
-      { name: '노인장기요양보험', current: 15140, past: 0, total: 15140 },
-      { name: '소득세 (간이세액표)', current: 238680, past: 0, total: 238680 },
-      { name: '지방소득세 (소득세10%)', current: 23860, past: 0, total: 23860 }
+      { name: '소득세', current: 238680, past: 0, total: 238680 },
+      { name: '지방소득세', current: 23860, past: 0, total: 23860 },
+      { name: '일반기여금', current: 328410, past: 328410, total: 656820 },
+      { name: '건강보험료', current: 115260, past: 0, total: 115260 },
+      { name: '노인장기요양보험료', current: 15140, past: 0, total: 15140 }
     ],
     totalTaxableStandard: 4178960,
     familyCount: 1,
@@ -371,19 +371,19 @@ export const HISTORICAL_PAYSTUBS = {
   },
   '2026-06': {
     earnings: [
-      { name: '봉급 (기본급)', current: 3185400, past: 0, total: 3185400, taxable: true },
+      { name: '봉급', current: 3185400, past: 0, total: 3185400, taxable: true },
+      { name: '정근수당', current: 0, past: 106180, total: 106180, taxable: true },
+      { name: '시간외수당(정액급)', current: 0, past: 39610, total: 39610, taxable: true },
       { name: '직급보조비', current: 250000, past: 0, total: 250000, taxable: true },
-      { name: '정근수당 (과월)', current: 0, past: 106180, total: 106180, taxable: true },
-      { name: '시간외수당 (정액)', current: 0, past: 39610, total: 39610, taxable: true },
-      { name: '영외급식비 (정액급식비)', current: 0, past: 22540, total: 22540, taxable: false },
-      { name: '기타수당 (전속파견여비)', current: 0, past: 68020, total: 68020, taxable: false }
+      { name: '영외급식비', current: 0, past: 22540, total: 22540, taxable: false },
+      { name: '기타수당', current: 0, past: 68020, total: 68020, taxable: false }
     ],
     deductions: [
-      { name: '일반기여금 (군인연금)', current: 328410, past: 0, total: 328410 },
-      { name: '건강보험료 (20%감면)', current: 99940, past: 0, total: 99940 },
-      { name: '노인장기요양보험', current: 13130, past: 0, total: 13130 },
-      { name: '소득세 (간이세액표)', current: 166590, past: 0, total: 166590 },
-      { name: '지방소득세 (소득세10%)', current: 16650, past: 0, total: 16650 }
+      { name: '소득세', current: 166590, past: 0, total: 166590 },
+      { name: '지방소득세', current: 16650, past: 0, total: 16650 },
+      { name: '일반기여금', current: 328410, past: 0, total: 328410 },
+      { name: '건강보험료', current: 99940, past: 0, total: 99940 },
+      { name: '노인장기요양보험료', current: 13130, past: 0, total: 13130 }
     ],
     totalTaxableStandard: 3845960,
     familyCount: 1,
@@ -392,18 +392,18 @@ export const HISTORICAL_PAYSTUBS = {
   },
   '2026-07': {
     earnings: [
-      { name: '봉급 (기본급)', current: 3185400, past: 0, total: 3185400, taxable: true },
+      { name: '봉급', current: 3185400, past: 0, total: 3185400, taxable: true },
+      { name: '시간외수당(정액급)', current: 0, past: 118850, total: 118850, taxable: true },
+      { name: '시간외수당(실적급)', current: 0, past: 178280, total: 178280, taxable: true },
       { name: '직급보조비', current: 250000, past: 0, total: 250000, taxable: true },
-      { name: '시간외수당 (정액)', current: 0, past: 118850, total: 118850, taxable: true },
-      { name: '시간외수당 (실적)', current: 0, past: 178280, total: 178280, taxable: true },
-      { name: '영외급식비 (정액급식비)', current: 0, past: 139770, total: 139770, taxable: false }
+      { name: '영외급식비', current: 0, past: 139770, total: 139770, taxable: false }
     ],
     deductions: [
-      { name: '일반기여금 (군인연금)', current: 328410, past: 0, total: 328410 },
-      { name: '건강보험료 (20%감면)', current: 110400, past: 0, total: 110400 },
-      { name: '노인장기요양보험', current: 14500, past: 0, total: 14500 },
-      { name: '소득세 (간이세액표)', current: 209310, past: 0, total: 209310 },
-      { name: '지방소득세 (소득세10%)', current: 20930, past: 0, total: 20930 }
+      { name: '소득세', current: 209310, past: 0, total: 209310 },
+      { name: '지방소득세', current: 20930, past: 0, total: 20930 },
+      { name: '일반기여금', current: 328410, past: 0, total: 328410 },
+      { name: '건강보험료', current: 110400, past: 0, total: 110400 },
+      { name: '노인장기요양보험료', current: 14500, past: 0, total: 14500 }
     ],
     totalTaxableStandard: 4104160,
     familyCount: 1,
@@ -488,7 +488,7 @@ export function calculateMonthlySalary({ year, month, allWeeksData = [], customO
   // 실적급: 14,856 * 실적시간
   const jeongAekAmount = customOverrides.jeongAekAmount !== undefined
     ? customOverrides.jeongAekAmount
-    : Math.round((148560 * (otStats.fixedDays / OT_FIXED_BASE_DAYS)) / 10) * 10;
+    : Math.round((148560 * Math.min(1, otStats.fixedDays / OT_FIXED_BASE_DAYS)) / 10) * 10;
 
   const silJeokAmount = customOverrides.silJeokAmount !== undefined
     ? customOverrides.silJeokAmount
@@ -523,19 +523,25 @@ export function calculateMonthlySalary({ year, month, allWeeksData = [], customO
     retroactivePay = 126660; // 8월 명세서 실제 소급분
   }
 
-  // 지급내역 리스트 구성 (영외급식비는 실제 명세서 규격에 맞춰 과월 열에 배치)
-  const earnings = [
-    { name: '봉급 (기본급)', current: baseSalary, past: 0, total: baseSalary, taxable: true },
-    { name: '직급보조비', current: positionAllowance, past: 0, total: positionAllowance, taxable: true },
-    { name: '가족수당 (배우자)', current: familyAllowance, past: retroactivePay, total: familyAllowance + retroactivePay, taxable: true },
-    { name: '영외급식비 (정액급식비)', current: 0, past: mealAllowance, total: mealAllowance, taxable: false }, // 과월 비과세
-    { name: '시간외수당 (정액)', current: 0, past: jeongAekAmount, total: jeongAekAmount, taxable: true },
-    { name: '시간외수당 (실적)', current: 0, past: silJeokAmount, total: silJeokAmount, taxable: true }
-  ];
+  // 지급내역 리스트 구성 (국방급여포털 실제 명세서 순서 100% 일치)
+  // 순서: 봉급 -> 정근수당 -> 가족수당 -> 시간외수당(정액급) -> 시간외수당(실적급) -> 명절휴가비 -> 직급보조비 -> 영외급식비 -> 기타수당
+  const earnings = [];
+  earnings.push({ name: '봉급', current: baseSalary, past: 0, total: baseSalary, taxable: true });
+
+  if (customOverrides.bonusRegular > 0) {
+    earnings.push({ name: '정근수당', current: 0, past: customOverrides.bonusRegular, total: customOverrides.bonusRegular, taxable: true });
+  }
+
+  if (familyAllowance > 0 || retroactivePay > 0) {
+    earnings.push({ name: '가족수당', current: familyAllowance, past: retroactivePay, total: familyAllowance + retroactivePay, taxable: true });
+  }
+
+  earnings.push({ name: '시간외수당(정액급)', current: 0, past: jeongAekAmount, total: jeongAekAmount, taxable: true });
+  earnings.push({ name: '시간외수당(실적급)', current: 0, past: silJeokAmount, total: silJeokAmount, taxable: true });
 
   if (bonusHoliday > 0) {
     earnings.push({
-      name: '명절휴가비 (추석/설 60%)',
+      name: '명절휴가비',
       current: bonusHoliday,
       past: 0,
       total: bonusHoliday,
@@ -543,7 +549,13 @@ export function calculateMonthlySalary({ year, month, allWeeksData = [], customO
     });
   }
 
-  // 기타 수당 / 파견여비 처리
+  earnings.push({ name: '직급보조비', current: positionAllowance, past: 0, total: positionAllowance, taxable: true });
+
+  if (mealAllowance > 0) {
+    earnings.push({ name: '영외급식비', current: 0, past: mealAllowance, total: mealAllowance, taxable: false });
+  }
+
+  // 기타수당 처리 (과월 열에 배치)
   const extraAllowances = Array.isArray(customOverrides.extraAllowances) ? customOverrides.extraAllowances : [];
   let nonTaxableExtras = 0;
   let taxableExtras = 0;
@@ -552,9 +564,9 @@ export function calculateMonthlySalary({ year, month, allWeeksData = [], customO
     const amt = Number(item.amount || 0);
     if (amt > 0) {
       earnings.push({
-        name: item.name || '기타 수당 (파견여비 등)',
-        current: amt,
-        past: 0,
+        name: item.name || '기타수당',
+        current: 0,
+        past: amt,
         total: amt,
         taxable: Boolean(item.isTaxable)
       });
@@ -580,7 +592,7 @@ export function calculateMonthlySalary({ year, month, allWeeksData = [], customO
     ? customOverrides.healthInsurance
     : floor10(healthBase * 0.03595 * 0.8);
 
-  // ③ 노인장기요양보험: 건강보험료 * 13.140473% (10원 미만 절사)
+  // ③ 노인장기요양보험료: 건강보험료 * 13.140473% (10원 미만 절사)
   const careInsurance = customOverrides.careInsurance !== undefined
     ? customOverrides.careInsurance
     : floor10(healthInsurance * 0.13140473);
@@ -603,12 +615,13 @@ export function calculateMonthlySalary({ year, month, allWeeksData = [], customO
     ? customOverrides.localIncomeTax
     : floor10(incomeTax * 0.1);
 
+  // 공제내역 순서: 소득세 -> 지방소득세 -> 일반기여금 -> 건강보험료 -> 노인장기요양보험료
   const deductions = [
-    { name: '일반기여금 (군인연금)', current: pension, past: 0, total: pension },
-    { name: '건강보험료 (20%감면)', current: healthInsurance, past: 0, total: healthInsurance },
-    { name: '노인장기요양보험', current: careInsurance, past: 0, total: careInsurance },
-    { name: '소득세 (간이세액표)', current: incomeTax, past: 0, total: incomeTax },
-    { name: '지방소득세 (소득세10%)', current: localIncomeTax, past: 0, total: localIncomeTax }
+    { name: '소득세', current: incomeTax, past: 0, total: incomeTax },
+    { name: '지방소득세', current: localIncomeTax, past: 0, total: localIncomeTax },
+    { name: '일반기여금', current: pension, past: 0, total: pension },
+    { name: '건강보험료', current: healthInsurance, past: 0, total: healthInsurance },
+    { name: '노인장기요양보험료', current: careInsurance, past: 0, total: careInsurance }
   ];
 
   const totalDeductionsCurrent = deductions.reduce((sum, item) => sum + item.current, 0);

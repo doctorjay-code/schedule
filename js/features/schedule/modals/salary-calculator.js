@@ -107,44 +107,13 @@ export function renderSalarySlip() {
     }
   });
 
-  const monthKey = `${currentSalaryYear}-${String(currentSalaryMonth).padStart(2, '0')}`;
-  const actualHistory = ACTUAL_SALARY_HISTORY[monthKey];
-
-  // 검증 배지 문구
-  let verificationBadge = '';
-  if (actualHistory) {
-    const isPerfect = actualHistory.netSalary === salaryData.netSalary;
-    if (isPerfect) {
-      verificationBadge = `
-        <div class="salary-badge badge-verified">
-          <span class="badge-icon">✅</span> 국방급여포털 실제 명세서 및 통장 입금액과 <strong>1원 단위까지 100% 일치</strong>
-        </div>
-      `;
-    } else {
-      verificationBadge = `
-        <div class="salary-badge badge-verified">
-          <span class="badge-icon">ℹ️</span> 과거 명세서 실지급액: <strong>${formatNumber(actualHistory.netSalary)}원</strong> (${escapeHtml(actualHistory.memo)})
-        </div>
-      `;
-    }
-  } else {
-    verificationBadge = `
-      <div class="salary-badge badge-estimate">
-        <span class="badge-icon">💡</span> 10일 통장 입금 예정 금액 (일정표 근무 실적에 따라 실시간 자동 계산)
-      </div>
-    `;
-  }
-
-  // 실적 안내 배지
+  // 실적 안내 배지 (단가 반올림 정수 표기 및 간소화)
   const otInfoBadge = `
     <div class="salary-ot-summary-card">
-      <div class="ot-summary-header">
-        <span class="ot-title">⏱️ 시간외수당 산정 근거 (${salaryData.otMonth}월 근무 실적 반영)</span>
-      </div>
       <div class="ot-summary-chips">
-        <span class="ot-chip">정액급 일수: <strong>${salaryData.otStats.fixedDays}일</strong> / 15일</span>
-        <span class="ot-chip">실적 시간외: <strong>${salaryData.otStats.totalOtHours}시간</strong></span>
-        <span class="ot-chip">적용 단가: <strong>${formatNumber(OT_HOURLY_RATE)}원/h</strong></span>
+        <span class="ot-chip">정액급 : <strong>${salaryData.otStats.fixedDays}일</strong></span>
+        <span class="ot-chip">실적급 : <strong>${salaryData.otStats.totalOtHours}시간</strong></span>
+        <span class="ot-chip">단가 : <strong>${formatNumber(Math.round(OT_HOURLY_RATE))}원</strong></span>
       </div>
     </div>
   `;
@@ -177,9 +146,12 @@ export function renderSalarySlip() {
     </span>
   `).join('');
 
+  const taxableSum = (salaryData.earnings || []).filter(e => e.taxable).reduce((sum, e) => sum + (e.total || 0), 0);
+  const otTotal = (salaryData.earnings || []).filter(e => (e.name || '').includes('시간외')).reduce((sum, e) => sum + (e.total || 0), 0);
+  const regularTaxable = taxableSum - otTotal;
+
   // HTML 조합 (국방급여포털 명세서 스타일)
   container.innerHTML = `
-    ${verificationBadge}
     ${otInfoBadge}
 
     <div class="salary-tables-grid">
@@ -302,11 +274,11 @@ export function renderSalarySlip() {
           <span class="calc-label">• 과세대상 총액 (과세표준):</span>
           <span class="calc-val"><strong>${formatNumber(salaryData.totalTaxableStandard)}원</strong></span>
         </div>
-        <div class="calc-sub">기본과세(${formatNumber(salaryData.earnings[0].current + salaryData.earnings[1].current + salaryData.earnings[2].current)}) + 시간외수당(${formatNumber(salaryData.earnings[4].total + salaryData.earnings[5].total)}) + 상여금 월할안분(371,630원)</div>
+        <div class="calc-sub">과세급여(${formatNumber(taxableSum)}원: 기본급여 등 ${formatNumber(regularTaxable)}원 + 시간외수당 ${formatNumber(otTotal)}원) + 상여금 월할안분(371,630원)</div>
 
         <div class="calc-row">
           <span class="calc-label">• 소득세 산출 기준:</span>
-          <span class="calc-val">공제대상 <strong>${salaryData.familyCount}인 가구</strong> (본인+배우자) 근로소득 간이세액표</span>
+          <span class="calc-val">공제대상 <strong>${salaryData.familyCount}인 가구</strong> ${salaryData.familyCount >= 2 ? '(본인+배우자)' : '(본인 1인)'} 근로소득 간이세액표</span>
         </div>
 
         <div class="calc-row">
@@ -315,23 +287,28 @@ export function renderSalarySlip() {
         </div>
 
         <div class="calc-row">
-          <span class="calc-label">• 노인장기요양보험:</span>
+          <span class="calc-label">• 노인장기요양보험료:</span>
           <span class="calc-val">건강보험료 × 13.140473% (10원 절사)</span>
         </div>
 
         <div class="calc-row">
-          <span class="calc-label">• 일반기여금 (연금):</span>
-          <span class="calc-val"><strong>328,410원</strong> (공무원연금 기준소득월액 기반 매월 완전 고정)</span>
+          <span class="calc-label">• 일반기여금:</span>
+          <span class="calc-val"><strong>${formatNumber(salaryData.deductions.find(d => d.name.includes('기여금'))?.total || 328410)}원</strong> (공무원연금 기준소득월액 기반)</span>
         </div>
       </div>
     </details>
   `;
 }
 
+let isSalaryModalInitialized = false;
+
 /**
  * 이벤트 리스너 설정
  */
 export function setupSalaryCalculatorModal() {
+  if (isSalaryModalInitialized) return;
+  isSalaryModalInitialized = true;
+
   const openBtn = document.getElementById('openSalaryModalBtn');
   const closeBtn = document.getElementById('closeSalaryModalBtn');
   const overlay = document.getElementById('salaryModalOverlay');
@@ -357,8 +334,9 @@ export function setupSalaryCalculatorModal() {
   }
 
   if (monthSelect) {
-    monthSelect.addEventListener('change', () => {
-      const parts = monthSelect.value.split('-');
+    monthSelect.addEventListener('change', (e) => {
+      const val = e.target.value || '';
+      const parts = val.split('-');
       if (parts.length === 2) {
         currentSalaryYear = parseInt(parts[0], 10);
         currentSalaryMonth = parseInt(parts[1], 10);
