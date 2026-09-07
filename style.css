@@ -1296,9 +1296,17 @@ td.cell-selected,
 }
 
 @media (max-width: 520px) {
-  .btn-group.category-grid-14,
-  .btn-group.category-grid-16 {
+  .btn-group.category-grid-14 {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .btn-group.category-grid-16 {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 3px;
+  }
+  .category-grid-16 .option-btn {
+    padding: 7px 1px;
+    font-size: 10.5px;
+    letter-spacing: -0.5px;
   }
 }
 
@@ -2659,12 +2667,12 @@ mark.ledger-search-highlight {
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
 }
 #ledgerPersonSwitch .ledger-filter-options#ledgerCategoryFilterOptions {
-  grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
-  gap: 3px !important;
+  grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+  gap: 2.5px !important;
 }
 #ledgerPersonSwitch .ledger-filter-options#ledgerCategoryFilterOptions .filter-chip {
   padding: 6px 1px !important;
-  font-size: 11px !important;
+  font-size: 10.5px !important;
   letter-spacing: -0.5px !important;
   white-space: nowrap !important;
   text-align: center !important;
