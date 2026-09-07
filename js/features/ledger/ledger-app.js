@@ -398,7 +398,7 @@ function toggleLedgerEntry() {
 }
 
 function getLedgerCategoryNames() {
-  const defaults = ['식비', '교통', '문화', '생활', '보험', '상환', '이체', '월급', '저축', '이자', '용돈', '입금', '출금', '기타'];
+  const defaults = ['식비', '교통', '생활', '문화', '여행', '골프', '보험', '상환', '월급', '저축', '이자', '이체', '입금', '출금', '경조사', '기타'];
   const userCats = Object.keys(state.colorSettings?.ledgerCategoryColors || {});
   return Array.from(new Set([...defaults, ...userCats]));
 }

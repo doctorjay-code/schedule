@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="스마트일정">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
-  <link rel="stylesheet" href="style.css?v=20260907_1135">
+  <link rel="stylesheet" href="style.css?v=20260907_1310">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -143,17 +143,19 @@
       <div class="ledger-filter-options hidden" id="ledgerCategoryFilterOptions" role="group" aria-label="사용처 선택">
         <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="식비" type="button">식비</button>
         <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="교통" type="button">교통</button>
-        <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="문화" type="button">문화</button>
         <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="생활" type="button">생활</button>
+        <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="문화" type="button">문화</button>
+        <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="여행" type="button">여행</button>
+        <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="골프" type="button">골프</button>
         <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="보험" type="button">보험</button>
         <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="상환" type="button">상환</button>
-        <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="이체" type="button">이체</button>
         <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="월급" type="button">월급</button>
         <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="저축" type="button">저축</button>
         <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="이자" type="button">이자</button>
-        <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="용돈" type="button">용돈</button>
+        <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="이체" type="button">이체</button>
         <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="입금" type="button">입금</button>
         <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="출금" type="button">출금</button>
+        <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="경조사" type="button">경조사</button>
         <button class="filter-chip" data-ledger-filter-type="category" data-ledger-filter-value="기타" type="button">기타</button>
       </div>
     </div>
@@ -878,20 +880,22 @@
 
           <div class="form-group ledger-modal-category-field">
             <label>사용처</label>
-            <div class="btn-group category-grid-14" id="ledgerModalCategoryGroup">
+            <div class="btn-group category-grid-16" id="ledgerModalCategoryGroup">
               <button class="option-btn" data-val="식비" type="button">식비</button>
               <button class="option-btn" data-val="교통" type="button">교통</button>
-              <button class="option-btn" data-val="문화" type="button">문화</button>
               <button class="option-btn" data-val="생활" type="button">생활</button>
+              <button class="option-btn" data-val="문화" type="button">문화</button>
+              <button class="option-btn" data-val="여행" type="button">여행</button>
+              <button class="option-btn" data-val="골프" type="button">골프</button>
               <button class="option-btn" data-val="보험" type="button">보험</button>
               <button class="option-btn" data-val="상환" type="button">상환</button>
-              <button class="option-btn" data-val="이체" type="button">이체</button>
               <button class="option-btn" data-val="월급" type="button">월급</button>
               <button class="option-btn" data-val="저축" type="button">저축</button>
               <button class="option-btn" data-val="이자" type="button">이자</button>
-              <button class="option-btn" data-val="용돈" type="button">용돈</button>
+              <button class="option-btn" data-val="이체" type="button">이체</button>
               <button class="option-btn" data-val="입금" type="button">입금</button>
               <button class="option-btn" data-val="출금" type="button">출금</button>
+              <button class="option-btn" data-val="경조사" type="button">경조사</button>
               <button class="option-btn" data-val="기타" type="button">기타</button>
             </div>
             <input id="ledgerModalCategory" name="category" type="hidden">

@@ -5,7 +5,7 @@ import { resetLedgerColorSettings } from '../../../services/schedule/schedule-st
 // Ledger tag-color settings and word-rule UI responsibility.
 export function createLedgerColorSettings({ state, pastelPalette, defaultColorSettings, saveColorSettings, renderLedgerViews }) {
   const defaultPersonList = ['쥬쥬', '지니', '콩콩', '기타'];
-  const defaultCategoryList = ['식비', '교통', '문화', '생활', '보험', '상환', '이체', '월급', '저축', '이자', '용돈', '입금', '출금', '기타'];
+  const defaultCategoryList = ['식비', '교통', '생활', '문화', '여행', '골프', '보험', '상환', '월급', '저축', '이자', '이체', '입금', '출금', '경조사', '기타'];
   const defaultPaymentList = ['현금', '기업카드', '토스은행', '기업은행', '잔액전망'];
   let ruleColor = pastelPalette[0];
   let bound = false;
