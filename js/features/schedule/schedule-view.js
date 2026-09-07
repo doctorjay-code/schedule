@@ -137,7 +137,13 @@ export function renderTable() {
     if (isRedDate(mItem)) {
       tdDate.classList.add('cell-holiday');
     }
-    tdDate.textContent = mItem.date;
+    const rawDate = String(mItem.date || '').trim();
+    if (rawDate.includes('(')) {
+      const idx = rawDate.indexOf('(');
+      tdDate.innerHTML = `${rawDate.slice(0, idx).trim()}<br>${rawDate.slice(idx).trim()}`;
+    } else {
+      tdDate.textContent = rawDate;
+    }
 
     tdDate.addEventListener('click', (e) => {
       e.stopPropagation();

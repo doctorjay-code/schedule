@@ -26,7 +26,7 @@ export function createLedgerTableHead(incomeLabel = '\uC218\uC785', expenseLabel
   return thead;
 }
 
-export function formatLedgerScheduleDate(isoDate) {
+export function formatLedgerScheduleDate(isoDate, withBreak = false) {
   const safeDateStr = normalizeLedgerDate(isoDate);
   const parts = safeDateStr.split('-');
   if (parts.length === 3) {
@@ -35,7 +35,8 @@ export function formatLedgerScheduleDate(isoDate) {
     const d = Number(parts[2]);
     const dt = new Date(y, m - 1, d);
     const dayNames = ['\uC77C', '\uC6D4', '\uD654', '\uC218', '\uBAA9', '\uAE08', '\uD1A0'];
-    return `${m}. ${d}.(${dayNames[dt.getDay()] || ''})`;
+    const sep = withBreak ? '<br>' : ' ';
+    return `${m}. ${d}.${sep}(${dayNames[dt.getDay()] || ''})`;
   }
   return safeDateStr;
 }
@@ -141,9 +142,9 @@ export function renderTransactionRow(item, listTarget = 'fundplanAllTimeList', o
   if (dateObject.getDay() === 0 || dateObject.getDay() === 6) dateCell.classList.add('cell-holiday');
   dateCell.rowSpan = 2;
   if (item.isSubDetail) {
-    dateCell.innerHTML = `<span class="ledger-subdetail-indicator">↳</span>${formatLedgerScheduleDate(item.date)}`;
+    dateCell.innerHTML = `<span class="ledger-subdetail-indicator">↳</span>${formatLedgerScheduleDate(item.date, true)}`;
   } else {
-    dateCell.textContent = formatLedgerScheduleDate(item.date);
+    dateCell.innerHTML = formatLedgerScheduleDate(item.date, true);
   }
   detailRow.appendChild(dateCell);
   const useMergedPaymentColumn = ['card', 'cash', 'bank', 'forecast'].includes(source);
