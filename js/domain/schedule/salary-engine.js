@@ -349,6 +349,69 @@ export function calculateOvertimeFromSchedule(allWeeksData, year, month) {
   };
 }
 
+// 과거 실제 국방급여포털 확정 명세서 데이터 (5월, 6월, 7월 임관/소급 특수월 전수 보존)
+export const HISTORICAL_PAYSTUBS = {
+  '2026-05': {
+    earnings: [
+      { name: '봉급 (기본급)', current: 3185400, past: 475900, total: 3661300, taxable: true },
+      { name: '직급보조비', current: 250000, past: 41660, total: 291660, taxable: true },
+      { name: '기타수당 (전속파견여비)', current: 0, past: 82870, total: 82870, taxable: false }
+    ],
+    deductions: [
+      { name: '일반기여금 (군인연금)', current: 328410, past: 328410, total: 656820 },
+      { name: '건강보험료 (20%감면)', current: 115260, past: 0, total: 115260 },
+      { name: '노인장기요양보험', current: 15140, past: 0, total: 15140 },
+      { name: '소득세 (간이세액표)', current: 238680, past: 0, total: 238680 },
+      { name: '지방소득세 (소득세10%)', current: 23860, past: 0, total: 23860 }
+    ],
+    totalTaxableStandard: 4178960,
+    familyCount: 1,
+    fixedDays: 0,
+    totalOtHours: 0
+  },
+  '2026-06': {
+    earnings: [
+      { name: '봉급 (기본급)', current: 3185400, past: 0, total: 3185400, taxable: true },
+      { name: '직급보조비', current: 250000, past: 0, total: 250000, taxable: true },
+      { name: '정근수당 (과월)', current: 0, past: 106180, total: 106180, taxable: true },
+      { name: '시간외수당 (정액)', current: 0, past: 39610, total: 39610, taxable: true },
+      { name: '영외급식비 (정액급식비)', current: 0, past: 22540, total: 22540, taxable: false },
+      { name: '기타수당 (전속파견여비)', current: 0, past: 68020, total: 68020, taxable: false }
+    ],
+    deductions: [
+      { name: '일반기여금 (군인연금)', current: 328410, past: 0, total: 328410 },
+      { name: '건강보험료 (20%감면)', current: 99940, past: 0, total: 99940 },
+      { name: '노인장기요양보험', current: 13130, past: 0, total: 13130 },
+      { name: '소득세 (간이세액표)', current: 166590, past: 0, total: 166590 },
+      { name: '지방소득세 (소득세10%)', current: 16650, past: 0, total: 16650 }
+    ],
+    totalTaxableStandard: 3845960,
+    familyCount: 1,
+    fixedDays: 4,
+    totalOtHours: 0
+  },
+  '2026-07': {
+    earnings: [
+      { name: '봉급 (기본급)', current: 3185400, past: 0, total: 3185400, taxable: true },
+      { name: '직급보조비', current: 250000, past: 0, total: 250000, taxable: true },
+      { name: '시간외수당 (정액)', current: 0, past: 118850, total: 118850, taxable: true },
+      { name: '시간외수당 (실적)', current: 0, past: 178280, total: 178280, taxable: true },
+      { name: '영외급식비 (정액급식비)', current: 0, past: 139770, total: 139770, taxable: false }
+    ],
+    deductions: [
+      { name: '일반기여금 (군인연금)', current: 328410, past: 0, total: 328410 },
+      { name: '건강보험료 (20%감면)', current: 110400, past: 0, total: 110400 },
+      { name: '노인장기요양보험', current: 14500, past: 0, total: 14500 },
+      { name: '소득세 (간이세액표)', current: 209310, past: 0, total: 209310 },
+      { name: '지방소득세 (소득세10%)', current: 20930, past: 0, total: 20930 }
+    ],
+    totalTaxableStandard: 4104160,
+    familyCount: 1,
+    fixedDays: 12,
+    totalOtHours: 12
+  }
+};
+
 /**
  * 월급 계산 함수
  * @param {Object} params
@@ -364,6 +427,58 @@ export function calculateMonthlySalary({ year, month, allWeeksData = [], customO
   if (otMonth <= 0) {
     otMonth += 12;
     otYear -= 1;
+  }
+
+  const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+
+  // 과거 확정 명세서가 존재하는 경우(5, 6, 7월) 실물 캡처 데이터 완벽 복원
+  if (HISTORICAL_PAYSTUBS[monthKey]) {
+    const hist = HISTORICAL_PAYSTUBS[monthKey];
+    const earnings = hist.earnings.map(e => ({ ...e }));
+    const deductions = hist.deductions.map(d => ({ ...d }));
+
+    const extraAllowances = Array.isArray(customOverrides.extraAllowances) ? customOverrides.extraAllowances : [];
+    extraAllowances.forEach(item => {
+      const amt = Number(item.amount || 0);
+      if (amt > 0 && !earnings.some(e => e.name === item.name)) {
+        earnings.push({
+          name: item.name || '기타수당',
+          current: 0,
+          past: amt,
+          total: amt,
+          taxable: Boolean(item.isTaxable)
+        });
+      }
+    });
+
+    const totalEarningsCurrent = earnings.reduce((sum, item) => sum + item.current, 0);
+    const totalEarningsPast = earnings.reduce((sum, item) => sum + item.past, 0);
+    const totalEarnings = totalEarningsCurrent + totalEarningsPast;
+
+    const totalDeductionsCurrent = deductions.reduce((sum, item) => sum + item.current, 0);
+    const totalDeductionsPast = deductions.reduce((sum, item) => sum + item.past, 0);
+    const totalDeductions = totalDeductionsCurrent + totalDeductionsPast;
+
+    const netSalary = totalEarnings - totalDeductions;
+
+    return {
+      year,
+      month,
+      otYear,
+      otMonth,
+      otStats: { fixedDays: hist.fixedDays || 0, totalOtHours: hist.totalOtHours || 0 },
+      earnings,
+      deductions,
+      totalEarnings,
+      totalEarningsCurrent,
+      totalEarningsPast,
+      totalDeductions,
+      totalDeductionsCurrent,
+      totalDeductionsPast,
+      netSalary,
+      totalTaxableStandard: hist.totalTaxableStandard,
+      familyCount: hist.familyCount
+    };
   }
 
   const otStats = calculateOvertimeFromSchedule(allWeeksData, otYear, otMonth);
@@ -384,10 +499,14 @@ export function calculateMonthlySalary({ year, month, allWeeksData = [], customO
   const positionAllowance = customOverrides.positionAllowance ?? 250000; // 직급보조비
   // 가족수당: 8월 이전은 0원이었으나 8월부터 40,000원 적용 (배우자 1명)
   const familyAllowance = customOverrides.familyAllowance ?? (month >= 8 ? 40000 : 0);
-  // 비과세 영외급식비 (식대)
-  let defaultMeal = 140000;
-  if (month === 9) defaultMeal = 139770;
-  else if (month === 8) defaultMeal = 135270;
+  // 비과세 영외급식비 (식대: 전달 총 일수 * 4,509원)
+  let defaultMeal = 139770;
+  if (month === 8) defaultMeal = 135270;
+  else if (month === 9) defaultMeal = 139770;
+  else {
+    const daysInOtMonth = new Date(otYear, otMonth, 0).getDate();
+    defaultMeal = Math.floor((daysInOtMonth * 4509) / 10) * 10;
+  }
   const mealAllowance = customOverrides.mealAllowance ?? defaultMeal;
 
   // 특수 수당 / 상여금
@@ -404,12 +523,12 @@ export function calculateMonthlySalary({ year, month, allWeeksData = [], customO
     retroactivePay = 126660; // 8월 명세서 실제 소급분
   }
 
-  // 지급내역 리스트 구성 (당월, 과월 구분)
+  // 지급내역 리스트 구성 (영외급식비는 실제 명세서 규격에 맞춰 과월 열에 배치)
   const earnings = [
     { name: '봉급 (기본급)', current: baseSalary, past: 0, total: baseSalary, taxable: true },
     { name: '직급보조비', current: positionAllowance, past: 0, total: positionAllowance, taxable: true },
     { name: '가족수당 (배우자)', current: familyAllowance, past: retroactivePay, total: familyAllowance + retroactivePay, taxable: true },
-    { name: '영외급식비 (정액급식비)', current: mealAllowance, past: 0, total: mealAllowance, taxable: false }, // 비과세
+    { name: '영외급식비 (정액급식비)', current: 0, past: mealAllowance, total: mealAllowance, taxable: false }, // 과월 비과세
     { name: '시간외수당 (정액)', current: 0, past: jeongAekAmount, total: jeongAekAmount, taxable: true },
     { name: '시간외수당 (실적)', current: 0, past: silJeokAmount, total: silJeokAmount, taxable: true }
   ];
